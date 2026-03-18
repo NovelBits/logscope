@@ -11,6 +11,7 @@
 import type { LogEntry } from "./types";
 import { commandName, eventName } from "./hci-opcodes";
 import { decodeCommand, decodeEvent, decodeAcl } from "./hci-decoders";
+import { HciConnectionTracker } from "./hci-connection-tracker";
 
 // BT Monitor opcodes
 const OP_NEW_INDEX = 0;
@@ -30,6 +31,7 @@ const EXT_TS32 = 8;
 
 export class HciParser {
   private buffer = Buffer.alloc(0);
+  private tracker = new HciConnectionTracker();
 
   /**
    * Feed raw binary data from RTT Channel 1.
@@ -132,6 +134,32 @@ export class HciParser {
           } else {
             message = `${direction} ${pktType} ${eventName(evtCode, evtPayload)} (${evtParamLen}B)`;
           }
+
+          // Track connections: LE Connection Complete or LE Enhanced Connection Complete
+          if (decoded && evtCode === 0x3e && payload.length >= 3) {
+            const subevent = payload[2];
+            if (subevent === 0x01 || subevent === 0x0a) {
+              // Extract handle, address, and role from decoded fields
+              const handleField = decoded.fields.find((f) => f.name === "Handle");
+              const addrField = decoded.fields.find((f) => f.name === "Peer Address");
+              const roleField = decoded.fields.find((f) => f.name === "Role");
+              const statusField = decoded.fields.find((f) => f.name === "Status");
+              if (handleField && addrField && roleField && statusField?.value === "Success") {
+                const h = parseInt(handleField.value, 16);
+                this.tracker.onConnectionComplete(h, addrField.value, roleField.value);
+              }
+            }
+          }
+
+          // Track disconnections
+          if (decoded && evtCode === 0x05) {
+            const handleField = decoded.fields.find((f) => f.name === "Handle");
+            if (handleField) {
+              const h = parseInt(handleField.value, 16);
+              this.tracker.onDisconnection(h);
+            }
+          }
+
           // Highlight errors in events
           if (evtCode === 0x0F) { // Command Status
             const status = evtPayload.length > 0 ? evtPayload[0] : 0;
@@ -150,7 +178,7 @@ export class HciParser {
       case OP_ACL_TX: {
         direction = "TX";
         pktType = "ACL";
-        decoded = decodeAcl(payload);
+        decoded = decodeAcl(payload, this.tracker);
         if (decoded?.summary) {
           message = `${direction} ${pktType} ${decoded.summary}`;
         } else {
@@ -163,7 +191,7 @@ export class HciParser {
       case OP_ACL_RX: {
         direction = "RX";
         pktType = "ACL";
-        decoded = decodeAcl(payload);
+        decoded = decodeAcl(payload, this.tracker);
         if (decoded?.summary) {
           message = `${direction} ${pktType} ${decoded.summary}`;
         } else {

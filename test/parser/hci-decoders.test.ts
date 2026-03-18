@@ -2,7 +2,9 @@ import {
   decodeCommand,
   decodeEvent,
   decodeAcl,
+  decodeAdStructures,
 } from "../../src/parser/hci-decoders";
+import { HciConnectionTracker } from "../../src/parser/hci-connection-tracker";
 
 // ---------------------------------------------------------------------------
 // Command decoders
@@ -306,5 +308,312 @@ describe("decodeAcl", () => {
   it("returns null for truncated ACL packet", () => {
     const payload = Buffer.from([0x40, 0x00, 0x05]);
     expect(decodeAcl(payload)).toBeNull();
+  });
+
+  it("includes Peer field when tracker has connection info", () => {
+    const tracker = new HciConnectionTracker();
+    tracker.onConnectionComplete(0x0040, "74:A4:90:C7:D3:27", "Peripheral");
+
+    const payload = Buffer.from([
+      0x40, 0x00, // handle: 0x0040
+      0x05, 0x00, // ACL data length
+      0x03, 0x00, // L2CAP length
+      0x04, 0x00, // CID: ATT
+      0x02, // ATT opcode: Exchange MTU Request
+      0xf7, 0x00, // MTU: 247
+    ]);
+    const result = decodeAcl(payload, tracker);
+    expect(result).not.toBeNull();
+    const peerField = result!.fields.find((f) => f.name === "Peer");
+    expect(peerField).toBeDefined();
+    expect(peerField!.value).toBe("74:A4:90:C7:D3:27");
+    expect(peerField!.color).toBe("#3794ff");
+  });
+
+  it("omits Peer field when tracker has no connection info", () => {
+    const tracker = new HciConnectionTracker();
+
+    const payload = Buffer.from([
+      0x40, 0x00, // handle: 0x0040
+      0x05, 0x00, // ACL data length
+      0x03, 0x00, // L2CAP length
+      0x04, 0x00, // CID: ATT
+      0x02, // ATT opcode: Exchange MTU Request
+      0xf7, 0x00, // MTU: 247
+    ]);
+    const result = decodeAcl(payload, tracker);
+    expect(result).not.toBeNull();
+    expect(result!.fields.find((f) => f.name === "Peer")).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AD Structure decoding
+// ---------------------------------------------------------------------------
+
+describe("decodeAdStructures", () => {
+  it("decodes Flags + Complete Local Name + TX Power Level", () => {
+    // AD: Flags (0x01) = 0x06 (LE General Discoverable, BR/EDR Not Supported)
+    // AD: Complete Local Name (0x09) = "Test"
+    // AD: TX Power Level (0x0A) = -4 dBm
+    const ad = Buffer.from([
+      0x02, 0x01, 0x06, // Flags: len=2, type=0x01, data=0x06
+      0x05, 0x09, 0x54, 0x65, 0x73, 0x74, // Complete Name: len=5, type=0x09, "Test"
+      0x02, 0x0a, 0xfc, // TX Power: len=2, type=0x0A, -4 (signed)
+    ]);
+    const fields = decodeAdStructures(ad, 0, ad.length);
+    expect(fields.length).toBe(3);
+
+    // Flags
+    expect(fields[0].name).toBe("AD Flags");
+    expect(fields[0].value).toContain("LE General Discoverable");
+    expect(fields[0].value).toContain("BR/EDR Not Supported");
+
+    // Complete Local Name
+    expect(fields[1].name).toBe("Complete Local Name");
+    expect(fields[1].value).toBe('"Test"');
+
+    // TX Power Level
+    expect(fields[2].name).toBe("TX Power Level");
+    expect(fields[2].value).toBe("-4 dBm");
+  });
+
+  it("decodes 16-bit UUID list", () => {
+    const ad = Buffer.from([
+      0x05, 0x03, // Complete 16-bit UUID list, len=5
+      0x0d, 0x18, // 0x180D (Heart Rate)
+      0x0f, 0x18, // 0x180F (Battery)
+    ]);
+    const fields = decodeAdStructures(ad, 0, ad.length);
+    expect(fields.length).toBe(1);
+    expect(fields[0].name).toBe("16-bit UUIDs (Complete)");
+    expect(fields[0].value).toContain("0x180D");
+    expect(fields[0].value).toContain("0x180F");
+  });
+
+  it("decodes 128-bit UUID", () => {
+    // A 128-bit UUID in LE byte order
+    const ad = Buffer.from([
+      0x11, 0x07, // Complete 128-bit UUID list, len=17
+      0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80,
+      0x00, 0x10, 0x00, 0x00, 0x0d, 0x18, 0x00, 0x00,
+    ]);
+    const fields = decodeAdStructures(ad, 0, ad.length);
+    expect(fields.length).toBe(1);
+    expect(fields[0].name).toBe("128-bit UUIDs (Complete)");
+    // Should be formatted as standard UUID string
+    expect(fields[0].value).toMatch(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/
+    );
+  });
+
+  it("decodes Manufacturer Specific Data", () => {
+    const ad = Buffer.from([
+      0x05, 0xff, // Manufacturer Specific, len=5
+      0x4c, 0x00, // Company ID: 0x004C (Apple)
+      0x01, 0x02, // data
+    ]);
+    const fields = decodeAdStructures(ad, 0, ad.length);
+    expect(fields.length).toBe(1);
+    expect(fields[0].name).toBe("Manufacturer Data");
+    expect(fields[0].value).toContain("0x004C");
+    expect(fields[0].value).toContain("01 02");
+  });
+
+  it("handles empty data gracefully", () => {
+    const ad = Buffer.alloc(0);
+    const fields = decodeAdStructures(ad, 0, 0);
+    expect(fields).toEqual([]);
+  });
+
+  it("handles truncated AD structure gracefully", () => {
+    // Length says 5 but buffer ends after 3 bytes
+    const ad = Buffer.from([0x05, 0x09, 0x41]);
+    const fields = decodeAdStructures(ad, 0, ad.length);
+    // Should stop parsing without crashing
+    expect(fields).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Encryption Change event
+// ---------------------------------------------------------------------------
+
+describe("Encryption Change event", () => {
+  it("decodes encryption enabled", () => {
+    const payload = Buffer.from([
+      0x08, // event code
+      0x04, // param length
+      0x00, // status: Success
+      0x40, 0x00, // handle: 0x0040
+      0x01, // encryption enabled
+    ]);
+    const result = decodeEvent(0x08, payload);
+    expect(result).not.toBeNull();
+    expect(result!.summary).toContain("0x0040");
+    expect(result!.summary).toContain("Enabled");
+    expect(result!.fields.find((f) => f.name === "Encryption")?.value).toBe(
+      "Enabled"
+    );
+    // Success status should have no error color
+    const statusField = result!.fields.find((f) => f.name === "Status");
+    expect(statusField?.color).toBeUndefined();
+  });
+
+  it("decodes encryption disabled with error status", () => {
+    const payload = Buffer.from([
+      0x08, // event code
+      0x04, // param length
+      0x05, // status: Authentication Failure
+      0x40, 0x00, // handle: 0x0040
+      0x00, // encryption disabled
+    ]);
+    const result = decodeEvent(0x08, payload);
+    expect(result).not.toBeNull();
+    expect(result!.summary).toContain("Disabled");
+    const statusField = result!.fields.find((f) => f.name === "Status");
+    expect(statusField?.color).toBe("#f44747");
+  });
+
+  it("returns null for truncated Encryption Change", () => {
+    const payload = Buffer.from([0x08, 0x04, 0x00, 0x40]);
+    expect(decodeEvent(0x08, payload)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Command Complete return parameters
+// ---------------------------------------------------------------------------
+
+describe("Command Complete return parameters", () => {
+  it("decodes Read BD ADDR return params", () => {
+    const payload = Buffer.from([
+      0x0e, // event code
+      0x0a, // param length
+      0x01, // num packets
+      0x09, 0x10, // opcode: Read BD ADDR (0x1009)
+      0x00, // status: Success
+      0x11, 0x22, 0x33, 0x44, 0x55, 0x66, // BD ADDR (LE byte order)
+    ]);
+    const result = decodeEvent(0x0e, payload);
+    expect(result).not.toBeNull();
+    const addrField = result!.fields.find((f) => f.name === "BD ADDR");
+    expect(addrField).toBeDefined();
+    expect(addrField!.value).toBe("66:55:44:33:22:11");
+    expect(addrField!.color).toBe("#3794ff");
+  });
+
+  it("decodes Read Local Version Info return params", () => {
+    const payload = Buffer.from([
+      0x0e, // event code
+      0x0c, // param length
+      0x01, // num packets
+      0x01, 0x10, // opcode: Read Local Version Info (0x1001)
+      0x00, // status: Success
+      0x0c, // HCI version: 12
+      0x34, 0x12, // HCI revision: 0x1234
+      0x0c, // LMP version: 12
+      0x0d, 0x00, // manufacturer: 0x000D
+      0xab, 0xcd, // LMP subversion: 0xCDAB
+    ]);
+    const result = decodeEvent(0x0e, payload);
+    expect(result).not.toBeNull();
+    expect(result!.fields.find((f) => f.name === "HCI Version")?.value).toBe(
+      "12"
+    );
+    expect(
+      result!.fields.find((f) => f.name === "HCI Revision")?.value
+    ).toBe("0x1234");
+    expect(
+      result!.fields.find((f) => f.name === "Manufacturer")?.value
+    ).toBe("0x000D");
+    expect(
+      result!.fields.find((f) => f.name === "LMP Subversion")?.value
+    ).toBe("0xCDAB");
+  });
+
+  it("decodes LE Read Buffer Size return params", () => {
+    const payload = Buffer.from([
+      0x0e, // event code
+      0x07, // param length
+      0x01, // num packets
+      0x02, 0x20, // opcode: LE Read Buffer Size (0x2002)
+      0x00, // status: Success
+      0xfb, 0x00, // LE data packet length: 251
+      0x0a, // total LE packets: 10
+    ]);
+    const result = decodeEvent(0x0e, payload);
+    expect(result).not.toBeNull();
+    expect(
+      result!.fields.find((f) => f.name === "LE Data Packet Length")?.value
+    ).toBe("251");
+    expect(
+      result!.fields.find((f) => f.name === "Total LE Packets")?.value
+    ).toBe("10");
+  });
+
+  it("does not decode return params on non-success status", () => {
+    const payload = Buffer.from([
+      0x0e, // event code
+      0x0a, // param length
+      0x01, // num packets
+      0x09, 0x10, // opcode: Read BD ADDR (0x1009)
+      0x01, // status: Unknown HCI Command (non-zero)
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // garbage address
+    ]);
+    const result = decodeEvent(0x0e, payload);
+    expect(result).not.toBeNull();
+    // Should NOT have a BD ADDR field since status is non-zero
+    expect(result!.fields.find((f) => f.name === "BD ADDR")).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// HciConnectionTracker
+// ---------------------------------------------------------------------------
+
+describe("HciConnectionTracker", () => {
+  it("tracks connections and provides lookup", () => {
+    const tracker = new HciConnectionTracker();
+    tracker.onConnectionComplete(0x0040, "74:A4:90:C7:D3:27", "Peripheral");
+
+    const conn = tracker.getConnection(0x0040);
+    expect(conn).toBeDefined();
+    expect(conn!.address).toBe("74:A4:90:C7:D3:27");
+    expect(conn!.role).toBe("Peripheral");
+  });
+
+  it("returns undefined for unknown handle", () => {
+    const tracker = new HciConnectionTracker();
+    expect(tracker.getConnection(0x0040)).toBeUndefined();
+  });
+
+  it("removes connection on disconnection", () => {
+    const tracker = new HciConnectionTracker();
+    tracker.onConnectionComplete(0x0040, "74:A4:90:C7:D3:27", "Peripheral");
+    tracker.onDisconnection(0x0040);
+    expect(tracker.getConnection(0x0040)).toBeUndefined();
+  });
+
+  it("tracks multiple connections independently", () => {
+    const tracker = new HciConnectionTracker();
+    tracker.onConnectionComplete(0x0040, "AA:BB:CC:DD:EE:FF", "Central");
+    tracker.onConnectionComplete(0x0041, "11:22:33:44:55:66", "Peripheral");
+
+    expect(tracker.getConnection(0x0040)!.address).toBe("AA:BB:CC:DD:EE:FF");
+    expect(tracker.getConnection(0x0041)!.address).toBe("11:22:33:44:55:66");
+
+    tracker.onDisconnection(0x0040);
+    expect(tracker.getConnection(0x0040)).toBeUndefined();
+    expect(tracker.getConnection(0x0041)).toBeDefined();
+  });
+
+  it("clears all connections on reset", () => {
+    const tracker = new HciConnectionTracker();
+    tracker.onConnectionComplete(0x0040, "AA:BB:CC:DD:EE:FF", "Central");
+    tracker.onConnectionComplete(0x0041, "11:22:33:44:55:66", "Peripheral");
+    tracker.reset();
+    expect(tracker.getConnection(0x0040)).toBeUndefined();
+    expect(tracker.getConnection(0x0041)).toBeUndefined();
   });
 });

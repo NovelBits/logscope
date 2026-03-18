@@ -15,6 +15,7 @@ import {
   attOpcodeName,
 } from "./hci-field-types";
 import { commandName } from "./hci-opcodes";
+import { HciConnectionTracker } from "./hci-connection-tracker";
 
 const COLOR_ERROR = "#f44747";
 const COLOR_ADDRESS = "#3794ff";
@@ -33,6 +34,172 @@ function fmtHandle(h: number): string {
 function statusField(name: string, code: number): DecodedField {
   const text = hciErrorCode(code);
   return code !== 0x00 ? field(name, text, COLOR_ERROR) : field(name, text);
+}
+
+// ---------------------------------------------------------------------------
+// AD Structure decoding for Bluetooth LE advertising data
+// ---------------------------------------------------------------------------
+
+/** Decode AD flags byte into a human-readable string */
+function decodeAdFlags(flags: number): string {
+  const parts: string[] = [];
+  if (flags & 0x01) parts.push("LE Limited Discoverable");
+  if (flags & 0x02) parts.push("LE General Discoverable");
+  if (flags & 0x04) parts.push("BR/EDR Not Supported");
+  if (flags & 0x08) parts.push("LE+BR/EDR Controller");
+  if (flags & 0x10) parts.push("LE+BR/EDR Host");
+  return parts.length > 0 ? parts.join(", ") : `0x${flags.toString(16).toUpperCase().padStart(2, "0")}`;
+}
+
+/** Format a 128-bit UUID from a 16-byte LE buffer segment */
+function format128BitUuid(buf: Buffer, offset: number): string {
+  // UUID stored in LE; convert to standard big-endian string format
+  const hex = Array.from(buf.subarray(offset, offset + 16))
+    .reverse()
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
+/**
+ * Decode AD structures from Bluetooth LE advertising/scan response data.
+ * Each AD structure: [length:1][type:1][data:length-1].
+ * Returns DecodedField[] for each recognized AD type plus an optional device name.
+ */
+export function decodeAdStructures(
+  data: Buffer,
+  startOffset: number,
+  length: number
+): DecodedField[] {
+  const fields: DecodedField[] = [];
+  let pos = startOffset;
+  const endOffset = startOffset + length;
+
+  while (pos < endOffset) {
+    if (pos >= data.length) break;
+    const adLen = data[pos];
+    if (adLen === 0) break; // zero-length terminates
+    if (pos + adLen >= data.length || pos + adLen >= endOffset) break; // bounds check
+
+    const adType = data[pos + 1];
+    const adDataStart = pos + 2;
+    const adDataLen = adLen - 1;
+
+    switch (adType) {
+      // Flags
+      case 0x01: {
+        if (adDataLen >= 1) {
+          fields.push(field("AD Flags", decodeAdFlags(data[adDataStart])));
+        }
+        break;
+      }
+
+      // 16-bit UUID lists (Incomplete / Complete)
+      case 0x02:
+      case 0x03: {
+        const uuids: string[] = [];
+        for (let i = 0; i + 1 < adDataLen; i += 2) {
+          if (adDataStart + i + 1 < data.length) {
+            const uuid16 = data.readUInt16LE(adDataStart + i);
+            uuids.push(`0x${uuid16.toString(16).toUpperCase().padStart(4, "0")}`);
+          }
+        }
+        const label = adType === 0x02 ? "16-bit UUIDs (Incomplete)" : "16-bit UUIDs (Complete)";
+        fields.push(field(label, uuids.join(", ")));
+        break;
+      }
+
+      // 128-bit UUID lists (Incomplete / Complete)
+      case 0x06:
+      case 0x07: {
+        const uuids: string[] = [];
+        for (let i = 0; i + 15 < adDataLen; i += 16) {
+          if (adDataStart + i + 15 < data.length) {
+            uuids.push(format128BitUuid(data, adDataStart + i));
+          }
+        }
+        const label = adType === 0x06 ? "128-bit UUIDs (Incomplete)" : "128-bit UUIDs (Complete)";
+        fields.push(field(label, uuids.join(", ")));
+        break;
+      }
+
+      // Shortened / Complete Local Name
+      case 0x08:
+      case 0x09: {
+        const end = Math.min(adDataStart + adDataLen, data.length);
+        const name = data.subarray(adDataStart, end).toString("utf-8");
+        const label = adType === 0x08 ? "Shortened Local Name" : "Complete Local Name";
+        fields.push(field(label, `"${name}"`));
+        break;
+      }
+
+      // TX Power Level
+      case 0x0a: {
+        if (adDataLen >= 1 && adDataStart < data.length) {
+          const txPower = data.readInt8(adDataStart);
+          fields.push(field("TX Power Level", `${txPower} dBm`));
+        }
+        break;
+      }
+
+      // Manufacturer Specific Data
+      case 0xff: {
+        if (adDataLen >= 2 && adDataStart + 1 < data.length) {
+          const companyId = data.readUInt16LE(adDataStart);
+          const companyHex = `0x${companyId.toString(16).toUpperCase().padStart(4, "0")}`;
+          const msdEnd = Math.min(adDataStart + adDataLen, data.length);
+          const msdData = Array.from(data.subarray(adDataStart + 2, msdEnd))
+            .map((b) => b.toString(16).padStart(2, "0"))
+            .join(" ");
+          fields.push(
+            field("Manufacturer Data", `Company: ${companyHex}, Data: ${msdData || "(empty)"}`)
+          );
+        }
+        break;
+      }
+
+      default: {
+        // Unknown AD type — show raw hex
+        const rawEnd = Math.min(adDataStart + adDataLen, data.length);
+        const rawHex = Array.from(data.subarray(adDataStart, rawEnd))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join(" ");
+        fields.push(
+          field(
+            `AD Type 0x${adType.toString(16).toUpperCase().padStart(2, "0")}`,
+            rawHex || "(empty)"
+          )
+        );
+        break;
+      }
+    }
+
+    pos += adLen + 1;
+  }
+
+  return fields;
+}
+
+/**
+ * Internal helper for the LE Advertising Report decoder.
+ * Returns parsed AD structures with an optional extracted device name.
+ */
+function parseAdStructures(
+  data: Buffer,
+  startOffset: number,
+  endOffset: number
+): { fields: DecodedField[]; name?: string }[] {
+  const adFields = decodeAdStructures(data, startOffset, endOffset - startOffset);
+  // Extract device name from Complete/Shortened Local Name fields
+  let name: string | undefined;
+  for (const f of adFields) {
+    if (f.name === "Complete Local Name" || f.name === "Shortened Local Name") {
+      // Strip surrounding quotes
+      name = f.value.replace(/^"|"$/g, "");
+      break;
+    }
+  }
+  return [{ fields: adFields, name }];
 }
 
 // ---------------------------------------------------------------------------
@@ -301,6 +468,7 @@ function decodeLeMetaEvent(payload: Buffer): DecodedPacket | null {
 const eventDecoders: Record<number, EventDecoder> = {
   // Disconnection Complete
   0x05: (p) => {
+
     if (p.length < 6) return null;
     const status = p[2];
     const handle = p.readUInt16LE(3) & 0x0fff;
@@ -311,6 +479,23 @@ const eventDecoders: Record<number, EventDecoder> = {
         statusField("Status", status),
         field("Handle", fmtHandle(handle)),
         statusField("Reason", reason),
+      ],
+    };
+  },
+
+  // Encryption Change
+  0x08: (p) => {
+    if (p.length < 6) return null;
+    const status = p[2];
+    const handle = p.readUInt16LE(3) & 0x0fff;
+    const encEnabled = p.length > 5 ? p[5] : 0;
+    const encStr = encEnabled ? "Enabled" : "Disabled";
+    return {
+      summary: `(handle: ${fmtHandle(handle)}, encryption: ${encStr})`,
+      fields: [
+        statusField("Status", status),
+        field("Handle", fmtHandle(handle)),
+        field("Encryption", encStr),
       ],
     };
   },
@@ -331,6 +516,49 @@ const eventDecoders: Record<number, EventDecoder> = {
       fields.push(statusField("Status", status));
       statusStr = ` (status: ${hciErrorCode(status)})`;
     }
+
+    // Decode return parameters for known commands (start at offset 6)
+    if (p.length >= 6 && p[5] === 0x00) {
+      switch (opcode) {
+        // Read BD ADDR: 6-byte address at offset 6
+        case 0x1009: {
+          if (p.length >= 12) {
+            const addr = formatAddress(p, 6);
+            fields.push(field("BD ADDR", addr, COLOR_ADDRESS));
+          }
+          break;
+        }
+
+        // Read Local Version Information
+        case 0x1001: {
+          if (p.length >= 14) {
+            const hciVersion = p[6];
+            const hciRevision = p.readUInt16LE(7);
+            const lmpVersion = p[9];
+            const manufacturer = p.readUInt16LE(10);
+            const lmpSubversion = p.readUInt16LE(12);
+            fields.push(field("HCI Version", hciVersion.toString()));
+            fields.push(field("HCI Revision", `0x${hciRevision.toString(16).toUpperCase().padStart(4, "0")}`));
+            fields.push(field("LMP Version", lmpVersion.toString()));
+            fields.push(field("Manufacturer", `0x${manufacturer.toString(16).toUpperCase().padStart(4, "0")}`));
+            fields.push(field("LMP Subversion", `0x${lmpSubversion.toString(16).toUpperCase().padStart(4, "0")}`));
+          }
+          break;
+        }
+
+        // LE Read Buffer Size: le_data_pkt_len(2) + total_num_le_pkts(1)
+        case 0x2002: {
+          if (p.length >= 9) {
+            const leDataPktLen = p.readUInt16LE(6);
+            const totalNumLePkts = p[8];
+            fields.push(field("LE Data Packet Length", leDataPktLen.toString()));
+            fields.push(field("Total LE Packets", totalNumLePkts.toString()));
+          }
+          break;
+        }
+      }
+    }
+
     return {
       summary: `${name}${statusStr}`,
       fields,
@@ -380,12 +608,15 @@ export function decodeEvent(
  * Payload: handle(2, lower 12 bits) + dataLen(2) + L2CAP data.
  * If L2CAP CID is 0x0004 (ATT), decodes the ATT layer.
  */
-export function decodeAcl(payload: Buffer): DecodedPacket | null {
+export function decodeAcl(payload: Buffer, tracker?: HciConnectionTracker): DecodedPacket | null {
   if (payload.length < 8) return null;
 
   const handle = payload.readUInt16LE(0) & 0x0fff;
   const aclDataLen = payload.readUInt16LE(2);
   const handleStr = fmtHandle(handle);
+
+  // Look up peer info from connection tracker
+  const conn = tracker?.getConnection(handle);
 
   // L2CAP header at offset 4
   const l2capLen = payload.readUInt16LE(4);
@@ -393,13 +624,15 @@ export function decodeAcl(payload: Buffer): DecodedPacket | null {
 
   // Non-ATT CID: show basic info
   if (cid !== 0x0004) {
+    const nonAttFields = [
+      field("Handle", handleStr),
+      ...(conn ? [field("Peer", conn.address, COLOR_ADDRESS)] : []),
+      field("L2CAP Length", l2capLen.toString()),
+      field("CID", `0x${cid.toString(16).toUpperCase().padStart(4, "0")}`),
+    ];
     return {
       summary: `handle:${handleStr} L2CAP CID:0x${cid.toString(16).toUpperCase().padStart(4, "0")} (${l2capLen} bytes)`,
-      fields: [
-        field("Handle", handleStr),
-        field("L2CAP Length", l2capLen.toString()),
-        field("CID", `0x${cid.toString(16).toUpperCase().padStart(4, "0")}`),
-      ],
+      fields: nonAttFields,
     };
   }
 
@@ -409,6 +642,9 @@ export function decodeAcl(payload: Buffer): DecodedPacket | null {
   const attName = attOpcodeName(attOpcode);
 
   const fields: DecodedField[] = [field("Handle", handleStr)];
+  if (conn) {
+    fields.push(field("Peer", conn.address, COLOR_ADDRESS));
+  }
 
   switch (attOpcode) {
     // Read Request
