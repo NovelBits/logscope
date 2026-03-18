@@ -1,0 +1,81 @@
+{
+  "name": "devscope",
+  "displayName": "Devscope",
+  "description": "Modern embedded log viewer — Zephyr logs with filtering, search, and color-coding",
+  "version": "0.1.0",
+  "publisher": "novelbits",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.110.0"
+  },
+  "categories": [
+    "Debuggers",
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "devscope.openPanel",
+        "title": "Devscope: Open Log Viewer"
+      },
+      {
+        "command": "devscope.connect",
+        "title": "Devscope: Connect to RTT"
+      },
+      {
+        "command": "devscope.disconnect",
+        "title": "Devscope: Disconnect"
+      },
+      {
+        "command": "devscope.export",
+        "title": "Devscope: Export Session"
+      }
+    ],
+    "configuration": {
+      "title": "Devscope",
+      "properties": {
+        "devscope.rtt.host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "J-Link RTT telnet server host"
+        },
+        "devscope.rtt.port": {
+          "type": "number",
+          "default": 19021,
+          "description": "J-Link RTT telnet server port (Channel 0)"
+        },
+        "devscope.maxEntries": {
+          "type": "number",
+          "default": 100000,
+          "description": "Maximum number of log entries to keep in memory"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "watch": "node esbuild.config.mjs --watch",
+    "test": "jest",
+    "package": "vsce package"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NovelBits/devscope.git"
+  },
+  "bugs": {
+    "url": "https://github.com/NovelBits/devscope/issues"
+  },
+  "homepage": "https://github.com/NovelBits/devscope#readme",
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.5.0",
+    "@types/vscode": "^1.110.0",
+    "esbuild": "^0.27.4",
+    "jest": "^30.3.0",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

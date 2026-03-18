@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'none'; style-src {{cspSource}}; script-src 'nonce-{{nonce}}';"
+  />
+  <link rel="stylesheet" href="{{stylesUri}}" />
+  <title>Devscope</title>
+</head>
+<body>
+  <!-- ── Filter bar ──────────────────────────────────────────── -->
+  <div id="filter-bar">
+    <div id="severity-toggles">
+      <button class="severity-btn active" data-severity="err">ERR</button>
+      <button class="severity-btn active" data-severity="wrn">WRN</button>
+      <button class="severity-btn active" data-severity="inf">INF</button>
+      <button class="severity-btn active" data-severity="dbg">DBG</button>
+    </div>
+
+    <select id="module-select">
+      <option value="">All modules</option>
+    </select>
+
+    <input
+      id="search-input"
+      type="text"
+      placeholder="Search logs..."
+      spellcheck="false"
+    />
+
+    <button id="auto-scroll-btn" class="active" title="Auto-scroll">&#x2193; Auto</button>
+    <button id="clear-btn" title="Clear timeline">Clear</button>
+  </div>
+
+  <!-- ── Timeline ────────────────────────────────────────────── -->
+  <div id="timeline"></div>
+
+  <!-- ── Status bar ──────────────────────────────────────────── -->
+  <div id="status-bar">
+    <span id="status-connection">Disconnected</span>
+    <span id="status-count">0 entries</span>
+    <span id="status-evicted"></span>
+  </div>
+
+  <script nonce="{{nonce}}" src="{{scriptUri}}"></script>
+</body>
+</html>
