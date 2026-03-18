@@ -1,12 +1,19 @@
 // WebView client — runs in the browser context inside VS Code's WebView.
 // Communicates with the extension host via postMessage / onDidReceiveMessage.
 
+interface DecodedPacket {
+  summary: string;
+  fields: { name: string; value: string; color?: string }[];
+}
+
 interface SerializedEntry {
   timestamp: number;
   severity: string;
   module: string;
   message: string;
   source: string;
+  decoded?: DecodedPacket;
+  raw?: number[];
 }
 
 // ── VS Code API handle ──────────────────────────────────────────
@@ -86,7 +93,7 @@ function formatTimestamp(us: number): string {
 
 // ── Row creation (XSS-safe: uses textContent, never innerHTML) ──
 function createRow(entry: SerializedEntry): HTMLDivElement {
-  const row = document.createElement("div");
+  const row = document.createElement("div") as HTMLDivElement & { _decoded?: DecodedPacket; _raw?: number[] };
   const cssClass = entry.source === "hci" ? "hci" : entry.severity;
   row.className = `log-row ${cssClass}`;
 
@@ -106,6 +113,19 @@ function createRow(entry: SerializedEntry): HTMLDivElement {
   msg.className = "msg";
   msg.textContent = entry.message;
 
+  // Make HCI rows with decoded data expandable
+  if (entry.decoded) {
+    row.classList.add("hci-expandable");
+    row.setAttribute("tabindex", "0");
+    row._decoded = entry.decoded;
+    row._raw = entry.raw;
+
+    const indicator = document.createElement("span");
+    indicator.className = "expand-indicator";
+    indicator.textContent = "\u25B6";
+    msg.appendChild(indicator);
+  }
+
   row.appendChild(ts);
   row.appendChild(sev);
   row.appendChild(mod);
@@ -113,6 +133,131 @@ function createRow(entry: SerializedEntry): HTMLDivElement {
 
   return row;
 }
+
+// ── Hex dump formatting ─────────────────────────────────────────
+function formatHexDump(raw: number[]): string {
+  const lines: string[] = [];
+  for (let i = 0; i < raw.length; i += 16) {
+    const offset = i.toString(16).padStart(4, "0");
+    const chunk = raw.slice(i, i + 16);
+    const hexParts: string[] = [];
+    const asciiParts: string[] = [];
+    for (let j = 0; j < 16; j++) {
+      if (j < chunk.length) {
+        hexParts.push(chunk[j].toString(16).padStart(2, "0"));
+        asciiParts.push(chunk[j] >= 0x20 && chunk[j] <= 0x7e ? String.fromCharCode(chunk[j]) : ".");
+      } else {
+        hexParts.push("  ");
+        asciiParts.push(" ");
+      }
+    }
+    const hexLeft = hexParts.slice(0, 8).join(" ");
+    const hexRight = hexParts.slice(8).join(" ");
+    lines.push(offset + "  " + hexLeft + "  " + hexRight + "  " + asciiParts.join(""));
+  }
+  return lines.join("\n");
+}
+
+// ── Build detail div for expanded HCI rows ──────────────────────
+function buildDetailDiv(decoded: DecodedPacket, raw?: number[]): HTMLDivElement {
+  const detail = document.createElement("div");
+  detail.className = "hci-detail";
+
+  // Fields table
+  const table = document.createElement("table");
+  table.className = "hci-fields";
+  for (const field of decoded.fields) {
+    const tr = document.createElement("tr");
+    const tdName = document.createElement("td");
+    tdName.className = "field-name";
+    tdName.textContent = field.name;
+    const tdValue = document.createElement("td");
+    tdValue.className = "field-value";
+    tdValue.textContent = field.value;
+    if (field.color) {
+      tdValue.style.color = field.color;
+    }
+    tr.appendChild(tdName);
+    tr.appendChild(tdValue);
+    table.appendChild(tr);
+  }
+  detail.appendChild(table);
+
+  // Hex dump toggle + content
+  if (raw && raw.length > 0) {
+    const toggle = document.createElement("div");
+    toggle.className = "hex-toggle";
+    toggle.textContent = "\u25B6 Show raw hex (" + raw.length + " bytes)";
+
+    const pre = document.createElement("pre");
+    pre.className = "hex-dump hidden";
+    pre.textContent = formatHexDump(raw);
+
+    toggle.addEventListener("click", (e: Event) => {
+      e.stopPropagation();
+      const isHidden = pre.classList.toggle("hidden");
+      toggle.textContent = (isHidden ? "\u25B6 Show" : "\u25BC Hide") + " raw hex (" + raw.length + " bytes)";
+    });
+
+    detail.appendChild(toggle);
+    detail.appendChild(pre);
+  }
+
+  return detail;
+}
+
+// ── Expand/collapse HCI rows (delegated click handler) ──────────
+function collapseExpandedRow(): void {
+  const expanded = timeline.querySelector(".log-row.expanded") as HTMLElement | null;
+  if (expanded) {
+    expanded.classList.remove("expanded");
+    const indicator = expanded.querySelector(".expand-indicator");
+    if (indicator) indicator.textContent = "\u25B6";
+    const detail = expanded.nextElementSibling;
+    if (detail && detail.classList.contains("hci-detail")) {
+      detail.remove();
+    }
+  }
+}
+
+timeline.addEventListener("click", (e: Event) => {
+  const target = (e.target as HTMLElement).closest(".hci-expandable") as (HTMLDivElement & { _decoded?: DecodedPacket; _raw?: number[] }) | null;
+  if (!target) return;
+
+  if (target.classList.contains("expanded")) {
+    // Collapse this row
+    target.classList.remove("expanded");
+    const indicator = target.querySelector(".expand-indicator");
+    if (indicator) indicator.textContent = "\u25B6";
+    const detail = target.nextElementSibling;
+    if (detail && detail.classList.contains("hci-detail")) {
+      detail.remove();
+    }
+  } else {
+    // Collapse any other expanded row first
+    collapseExpandedRow();
+    // Expand this row
+    target.classList.add("expanded");
+    const indicator = target.querySelector(".expand-indicator");
+    if (indicator) indicator.textContent = "\u25BC";
+    if (target._decoded) {
+      const detail = buildDetailDiv(target._decoded, target._raw);
+      target.after(detail);
+    }
+  }
+});
+
+// ── Keyboard support for expandable HCI rows ────────────────────
+timeline.addEventListener("keydown", (e: Event) => {
+  const keyEvent = e as KeyboardEvent;
+  if (keyEvent.key === "Enter" || keyEvent.key === " ") {
+    const target = keyEvent.target as HTMLElement;
+    if (target.classList.contains("hci-expandable")) {
+      keyEvent.preventDefault();
+      target.click();
+    }
+  }
+});
 
 // ── Visibility check ────────────────────────────────────────────
 function shouldShow(entry: SerializedEntry): boolean {
@@ -408,6 +553,8 @@ clearBtn.addEventListener("click", () => {
 
 // ── Refilter: hide/show existing rows based on current filters ──
 function refilterTimeline(): void {
+  // Collapse any expanded HCI row before refiltering
+  collapseExpandedRow();
   const rows = timeline.querySelectorAll(".log-row");
   rows.forEach((row) => {
     const el = row as HTMLDivElement & { _entry?: SerializedEntry };
