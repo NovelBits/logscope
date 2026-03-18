@@ -120,10 +120,11 @@ function createRow(entry: SerializedEntry): HTMLDivElement {
     row._decoded = entry.decoded;
     row._raw = entry.raw;
 
-    const indicator = document.createElement("span");
-    indicator.className = "expand-indicator";
-    indicator.textContent = "\u25B6";
-    msg.appendChild(indicator);
+    // Left-side expand icon (▶ rotates to ▼ when expanded)
+    const expandIcon = document.createElement("span");
+    expandIcon.className = "expand-icon";
+    expandIcon.textContent = "\u25B6";
+    row.appendChild(expandIcon);
   }
 
   row.appendChild(ts);
@@ -211,8 +212,6 @@ function collapseExpandedRow(): void {
   const expanded = timeline.querySelector(".log-row.expanded") as HTMLElement | null;
   if (expanded) {
     expanded.classList.remove("expanded");
-    const indicator = expanded.querySelector(".expand-indicator");
-    if (indicator) indicator.textContent = "\u25B6";
     const detail = expanded.nextElementSibling;
     if (detail && detail.classList.contains("hci-detail")) {
       detail.remove();
@@ -227,8 +226,6 @@ timeline.addEventListener("click", (e: Event) => {
   if (target.classList.contains("expanded")) {
     // Collapse this row
     target.classList.remove("expanded");
-    const indicator = target.querySelector(".expand-indicator");
-    if (indicator) indicator.textContent = "\u25B6";
     const detail = target.nextElementSibling;
     if (detail && detail.classList.contains("hci-detail")) {
       detail.remove();
@@ -238,8 +235,6 @@ timeline.addEventListener("click", (e: Event) => {
     collapseExpandedRow();
     // Expand this row
     target.classList.add("expanded");
-    const indicator = target.querySelector(".expand-indicator");
-    if (indicator) indicator.textContent = "\u25BC";
     if (target._decoded) {
       const detail = buildDetailDiv(target._decoded, target._raw);
       target.after(detail);
