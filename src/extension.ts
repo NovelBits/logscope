@@ -1,12 +1,12 @@
 import * as vscode from "vscode";
 import { RttTransport } from "./transport/rtt";
+import { JLinkManager } from "./transport/jlink-manager";
 import { ZephyrLogParser } from "./parser/zephyr-log";
 import { RingBuffer } from "./model/ring-buffer";
 import { Session, exportAsText } from "./model/session";
 import { DevScopePanel } from "./ui/webview-provider";
 import { StatusBar } from "./ui/status-bar";
 import type { Transport } from "./transport/types";
-import type { LogEntry } from "./parser/types";
 
 // ── Module-level state ──────────────────────────────────────────
 let transport: Transport | null = null;
@@ -17,6 +17,7 @@ let panel: DevScopePanel | null = null;
 let statusBar: StatusBar | null = null;
 let statusInterval: ReturnType<typeof setInterval> | null = null;
 let lineBuffer = "";
+const jlinkManager = new JLinkManager();
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -26,6 +27,11 @@ function getConfig() {
     host: cfg.get<string>("rtt.host", "localhost"),
     port: cfg.get<number>("rtt.port", 19021),
     maxEntries: cfg.get<number>("maxEntries", 100_000),
+    jlinkPath: cfg.get<string>("jlink.path", ""),
+    jlinkDevice: cfg.get<string>("jlink.device", "NRF54L15"),
+    jlinkInterface: cfg.get<string>("jlink.interface", "SWD"),
+    jlinkSpeed: cfg.get<number>("jlink.speed", 4000),
+    jlinkAutoStart: cfg.get<boolean>("jlink.autoStart", true),
   };
 }
 
@@ -77,6 +83,18 @@ function stopStatusUpdates(): void {
   }
 }
 
+function disconnectAll(): void {
+  if (transport?.connected) {
+    transport.disconnect();
+  }
+  transport = null;
+  lineBuffer = "";
+  stopStatusUpdates();
+  jlinkManager.stop();
+  statusBar?.update(false, ringBuffer?.size ?? 0, ringBuffer?.evictedCount ?? 0);
+  panel?.updateStatus(false, ringBuffer?.size ?? 0, ringBuffer?.evictedCount ?? 0);
+}
+
 // ── Activation ──────────────────────────────────────────────────
 
 export function activate(context: vscode.ExtensionContext) {
@@ -90,7 +108,6 @@ export function activate(context: vscode.ExtensionContext) {
       ringBuffer?.clear();
       panel?.clear();
     }
-    // filterChanged is handled client-side in the WebView — no action needed here
   });
 
   // ── Connect ───────────────────────────────────────────────────
@@ -105,6 +122,34 @@ export function activate(context: vscode.ExtensionContext) {
     session = new Session("device", "rtt");
     lineBuffer = "";
 
+    // Auto-start J-Link if enabled
+    let jlinkStarted = false;
+    if (cfg.jlinkAutoStart) {
+      const result = await jlinkManager.start({
+        jlinkPath: cfg.jlinkPath,
+        device: cfg.jlinkDevice,
+        iface: cfg.jlinkInterface,
+        speed: cfg.jlinkSpeed,
+        rttPort: cfg.port,
+      });
+
+      if (result.started) {
+        jlinkStarted = true;
+      } else if (!result.jlinkPath) {
+        // J-Link not found — fall back to manual mode
+        vscode.window.showWarningMessage(
+          "DevScope: J-Link not found — connecting to existing RTT server. " +
+            "Install J-Link tools or set devscope.jlink.path for auto-start."
+        );
+      } else {
+        // J-Link found but failed to start
+        vscode.window.showWarningMessage(
+          `DevScope: ${result.error} Falling back to direct connection.`
+        );
+      }
+    }
+
+    // Connect TCP transport to RTT telnet server
     const rtt = new RttTransport(cfg.host, cfg.port);
     transport = rtt;
 
@@ -125,14 +170,18 @@ export function activate(context: vscode.ExtensionContext) {
     try {
       await rtt.connect();
       startStatusUpdates();
+      const source = jlinkStarted ? " (J-Link auto-started)" : "";
       vscode.window.showInformationMessage(
-        `DevScope: Connected to RTT at ${cfg.host}:${cfg.port}`
+        `DevScope: Connected to RTT at ${cfg.host}:${cfg.port}${source}`
       );
     } catch {
+      const hint = cfg.jlinkAutoStart
+        ? "Check that your device is connected and powered on."
+        : "Make sure J-Link is connected and the RTT telnet server is running.";
       vscode.window.showErrorMessage(
-        `DevScope: Could not connect to ${cfg.host}:${cfg.port}. ` +
-          "Make sure J-Link is connected and the RTT telnet server is running."
+        `DevScope: Could not connect to ${cfg.host}:${cfg.port}. ${hint}`
       );
+      jlinkManager.stop();
       transport = null;
     }
   });
@@ -143,12 +192,7 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.window.showInformationMessage("DevScope: Not connected.");
       return;
     }
-    transport.disconnect();
-    transport = null;
-    lineBuffer = "";
-    stopStatusUpdates();
-    statusBar?.update(false, ringBuffer?.size ?? 0, ringBuffer?.evictedCount ?? 0);
-    panel?.updateStatus(false, ringBuffer?.size ?? 0, ringBuffer?.evictedCount ?? 0);
+    disconnectAll();
     vscode.window.showInformationMessage("DevScope: Disconnected.");
   });
 
@@ -180,11 +224,7 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
-  stopStatusUpdates();
-  if (transport?.connected) {
-    transport.disconnect();
-  }
-  transport = null;
+  disconnectAll();
   statusBar?.dispose();
   statusBar = null;
 }

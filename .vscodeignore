@@ -7,3 +7,4 @@ tsconfig.json
 esbuild.config.mjs
 jest.config.ts
 **/*.map
+build/**

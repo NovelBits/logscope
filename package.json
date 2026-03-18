@@ -50,6 +50,32 @@
           "type": "number",
           "default": 100000,
           "description": "Maximum number of log entries to keep in memory"
+        },
+        "devscope.jlink.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to JLinkExe. Leave empty to auto-detect."
+        },
+        "devscope.jlink.device": {
+          "type": "string",
+          "default": "NRF54L15",
+          "description": "Target device name for J-Link connection"
+        },
+        "devscope.jlink.interface": {
+          "type": "string",
+          "default": "SWD",
+          "enum": ["SWD", "JTAG"],
+          "description": "Debug interface type"
+        },
+        "devscope.jlink.speed": {
+          "type": "number",
+          "default": 4000,
+          "description": "J-Link connection speed in kHz"
+        },
+        "devscope.jlink.autoStart": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically start J-Link when connecting. Disable to connect to an existing RTT server."
         }
       }
     }
