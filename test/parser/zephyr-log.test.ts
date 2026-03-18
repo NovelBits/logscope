@@ -38,11 +38,19 @@ describe("ZephyrLogParser", () => {
     expect(entries[1].module).toBe("b");
   });
 
-  test("skips non-matching lines", () => {
+  test("captures non-matching lines as raw entries", () => {
     const input = "some random text\n[00:00:01.000,000] <inf> mod: real log\nmore noise\n";
     const entries = parser.parse(input);
-    expect(entries).toHaveLength(1);
-    expect(entries[0].message).toBe("real log");
+    expect(entries).toHaveLength(3);
+    // Raw printk/boot output captured with module "raw"
+    expect(entries[0].module).toBe("raw");
+    expect(entries[0].message).toBe("some random text");
+    // Parsed Zephyr log line
+    expect(entries[1].module).toBe("mod");
+    expect(entries[1].message).toBe("real log");
+    // Another raw line
+    expect(entries[2].module).toBe("raw");
+    expect(entries[2].message).toBe("more noise");
   });
 
   test("handles module names with underscores and dots", () => {

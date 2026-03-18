@@ -19,25 +19,36 @@ export class ZephyrLogParser implements Parser {
       if (!trimmed) continue;
 
       const match = trimmed.match(ZEPHYR_LOG_RE);
-      if (!match) continue;
+      if (match) {
+        const [, hours, minutes, seconds, millis, micros, severity, module, message] = match;
 
-      const [, hours, minutes, seconds, millis, micros, severity, module, message] = match;
+        const timestamp =
+          parseInt(hours) * 3_600_000_000 +
+          parseInt(minutes) * 60_000_000 +
+          parseInt(seconds) * 1_000_000 +
+          parseInt(millis) * 1_000 +
+          parseInt(micros);
 
-      const timestamp =
-        parseInt(hours) * 3_600_000_000 +
-        parseInt(minutes) * 60_000_000 +
-        parseInt(seconds) * 1_000_000 +
-        parseInt(millis) * 1_000 +
-        parseInt(micros);
-
-      entries.push({
-        timestamp,
-        source: "log",
-        severity: severity as Severity,
-        module,
-        message: message ?? "",
-        metadata: {},
-      });
+        entries.push({
+          timestamp,
+          source: "log",
+          severity: severity as Severity,
+          module,
+          message: message ?? "",
+          metadata: {},
+        });
+      } else {
+        // Unmatched lines: printk() output, boot banners, raw text
+        // Show them so no data is lost — use "raw" module and "inf" severity
+        entries.push({
+          timestamp: 0,
+          source: "log",
+          severity: "inf",
+          module: "raw",
+          message: trimmed,
+          metadata: { raw: true },
+        });
+      }
     }
 
     return entries;

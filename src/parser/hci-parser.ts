@@ -197,10 +197,18 @@ export class HciParser {
       }
 
       case OP_USER_LOGGING: {
-        // Skip — these are Zephyr log messages mirrored to BT Monitor channel.
-        // They're already captured as proper log entries on RTT Channel 0
-        // with correct module names and severity. Showing them here is duplicate noise.
-        return null;
+        // Zephyr log messages mirrored to BT Monitor channel.
+        // These duplicate Channel 0 entries but we show them as a filterable
+        // "MON" category so users can toggle them. Hidden by default via UI.
+        if (payload.length < 2) return null;
+        const priority = payload[0];
+        const identLen = payload[1];
+        const ident = payload.subarray(2, 2 + identLen).toString("utf-8").replace(/\0+$/, "");
+        const msg = payload.subarray(2 + identLen).toString("utf-8").replace(/\0+$/, "");
+        message = `[${ident}] ${msg}`;
+        pktType = "MON";
+        severity = priority <= 3 ? "err" : priority <= 4 ? "wrn" : priority <= 6 ? "inf" : "dbg";
+        break;
       }
 
       case OP_NEW_INDEX: {
@@ -214,8 +222,14 @@ export class HciParser {
         break;
       }
 
-      default:
-        return null; // Skip unknown opcodes
+      default: {
+        // Show unknown opcodes rather than silently dropping
+        direction = "";
+        pktType = "SYS";
+        message = `BT Monitor opcode 0x${opcode.toString(16).padStart(2, "0")} (${payload.length}B)`;
+        severity = "dbg";
+        break;
+      }
     }
 
     const meta: Record<string, unknown> = {

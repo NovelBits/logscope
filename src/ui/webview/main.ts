@@ -261,6 +261,8 @@ timeline.addEventListener("keydown", (e: Event) => {
 
 // ── Visibility check ────────────────────────────────────────────
 function shouldShow(entry: SerializedEntry): boolean {
+  // MON entries (BT Monitor mirrored logs): separate toggle
+  if (entry.source === "hci" && entry.module === "MON") return activeSeverities.has("mon");
   // HCI entries: check if "hci" toggle is active
   if (entry.source === "hci" && !activeSeverities.has("hci")) return false;
   // Log entries: check severity toggle

@@ -254,6 +254,8 @@ body { display: flex; flex-direction: column; }
 .severity-btn.active { opacity: 1; }
 .severity-btn[data-severity="hci"] { color: #c586c0; border-color: #c586c0; }
 .severity-btn.active[data-severity="hci"] { background: rgba(197, 134, 192, 0.15); }
+.severity-btn[data-severity="mon"] { color: #888; border-color: #555; opacity: 0.4; }
+.severity-btn.active[data-severity="mon"] { background: rgba(136, 136, 136, 0.15); opacity: 1; }
 .severity-btn[data-severity="err"] { color: #f44747; border-color: #f44747; }
 .severity-btn[data-severity="wrn"] { color: #cca700; border-color: #cca700; }
 .severity-btn[data-severity="inf"] { color: #3794ff; border-color: #3794ff; }
