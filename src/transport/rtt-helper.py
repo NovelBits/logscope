@@ -202,15 +202,17 @@ def detect_device(nrfutil_path):
                 dev = line.split(":")[1].strip()
                 # Map to J-Link device name
                 base = dev.split("_xx")[0]  # "NRF54L15"
-                # Common core suffixes
+                # Map to friendly name (nRF not NRF)
+                friendly = base.replace("NRF", "nRF")  # "NRF54L15" → "nRF54L15"
+                # Common core suffixes for J-Link device name
                 m33_devices = ["NRF54L15", "NRF54H20", "NRF5340", "NRF9160", "NRF9161"]
                 m4_devices = ["NRF52840", "NRF52833", "NRF52832", "NRF52820", "NRF52810"]
                 if base in m33_devices:
-                    return f"{base}_M33", base
+                    return f"{base}_M33", friendly
                 elif base in m4_devices:
-                    return f"{base}_XXAA", base
+                    return f"{base}_XXAA", friendly
                 else:
-                    return f"{base}_M33", base
+                    return f"{base}_M33", friendly
     except Exception:
         pass
     return None, None

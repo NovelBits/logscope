@@ -30,7 +30,7 @@ const connectBtn = document.getElementById("connect-btn") as HTMLButtonElement;
 const connectError = document.getElementById("connect-error")!;
 const cfgDevice = document.getElementById("cfg-device") as HTMLSelectElement;
 const cfgAutoConnect = document.getElementById("cfg-auto-connect") as HTMLInputElement;
-const connLabel = document.getElementById("conn-label")!;
+const connDevice = document.getElementById("conn-device")!;
 const connectionBar = document.getElementById("connection-bar")!;
 const inlineSettings = document.getElementById("inline-settings")!;
 const reconnectBar = document.getElementById("reconnect-bar")!;
@@ -300,7 +300,7 @@ window.addEventListener("message", (event) => {
     case "connected": {
       connectBtn.disabled = false;
       connectBtn.textContent = "Connect";
-      connLabel.textContent = `Connected via ${msg.transport} @ ${msg.address}`;
+      connDevice.textContent = msg.address;
       connectionBar.classList.remove("hidden");
       reconnectBar.classList.add("hidden");
       inlineSettings.classList.add("hidden");

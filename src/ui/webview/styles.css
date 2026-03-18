@@ -95,8 +95,9 @@ body { display: flex; flex-direction: column; }
   border-bottom: 1px solid var(--vscode-panel-border, #3c3c3c);
   font-size: 12px;
 }
-#conn-status { display: flex; align-items: center; min-width: 0; }
-#conn-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#conn-info { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+#conn-top { display: flex; align-items: center; }
+#conn-device { font-size: 11px; color: var(--vscode-descriptionForeground); padding-left: 14px; opacity: 0.7; }
 #conn-actions { display: flex; gap: 4px; flex-shrink: 0; }
 .conn-btn {
   background: transparent; border: 1px solid var(--vscode-button-border, #555);

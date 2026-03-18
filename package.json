@@ -2,12 +2,13 @@
   "name": "logscope",
   "displayName": "LogScope",
   "description": "Modern embedded log viewer — Zephyr logs with filtering, search, and color-coding",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "Novel-Bits",
   "author": {
     "name": "Novel Bits"
   },
   "license": "MIT",
+  "icon": "assets/icon-128.png",
   "engines": {
     "vscode": "^1.110.0"
   },
@@ -15,21 +16,27 @@
     "Debuggers",
     "Other"
   ],
-  "activationEvents": ["onView:logscope.sidebar"],
+  "activationEvents": [
+    "onView:logscope.sidebar"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
-      "activitybar": [{
-        "id": "logscope",
-        "title": "LogScope",
-        "icon": "assets/icon.svg"
-      }]
+      "activitybar": [
+        {
+          "id": "logscope",
+          "title": "LogScope",
+          "icon": "assets/icon.svg"
+        }
+      ]
     },
     "views": {
-      "logscope": [{
-        "id": "logscope.sidebar",
-        "name": "LogScope"
-      }]
+      "logscope": [
+        {
+          "id": "logscope.sidebar",
+          "name": "LogScope"
+        }
+      ]
     },
     "commands": [
       {
@@ -55,7 +62,10 @@
         "logscope.transport": {
           "type": "string",
           "default": "rtt",
-          "enum": ["rtt", "jlink-telnet"],
+          "enum": [
+            "rtt",
+            "jlink-telnet"
+          ],
           "enumDescriptions": [
             "J-Link RTT via pylink (recommended — works with any J-Link device)",
             "Connect to J-Link RTT telnet server (legacy)"
@@ -120,7 +130,10 @@
         "logscope.jlink.interface": {
           "type": "string",
           "default": "SWD",
-          "enum": ["SWD", "JTAG"],
+          "enum": [
+            "SWD",
+            "JTAG"
+          ],
           "description": "Debug interface type"
         },
         "logscope.jlink.speed": {
@@ -145,7 +158,7 @@
     "build": "node esbuild.config.mjs",
     "watch": "node esbuild.config.mjs --watch",
     "test": "jest",
-    "package": "vsce package"
+    "package": "npx @vscode/vsce package"
   },
   "repository": {
     "type": "git",

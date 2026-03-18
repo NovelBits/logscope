@@ -93,10 +93,13 @@
 
     <!-- Connection bar -->
     <div id="connection-bar">
-      <span id="conn-status">
-        <span class="dot green"></span>
-        <span id="conn-label">Connected</span>
-      </span>
+      <div id="conn-info">
+        <div id="conn-top">
+          <span class="dot green"></span>
+          <span>Connected via J-Link RTT</span>
+        </div>
+        <div id="conn-device"></div>
+      </div>
       <div id="conn-actions">
         <button id="export-btn" class="conn-btn" title="Export logs">Export</button>
         <button id="settings-btn" class="conn-btn" title="Settings (click again to collapse)">Settings</button>

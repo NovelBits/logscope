@@ -36,11 +36,7 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     if (this.state.connecting) {
       items.push(new SidebarItem("Connecting...", "loading~spin", ""));
     } else if (this.state.connected) {
-      items.push(new SidebarItem(
-        `Connected via ${this.state.transport}`,
-        "plug",
-        `RTT @ ${this.state.address}`
-      ));
+      items.push(new SidebarItem("Connected", "plug", this.state.address));
       items.push(new SidebarItem(
         `${this.state.entryCount.toLocaleString()} entries`,
         "list-ordered",

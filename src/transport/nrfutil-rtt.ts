@@ -1,8 +1,65 @@
 import { EventEmitter } from "events";
-import { ChildProcess, spawn } from "child_process";
+import { ChildProcess, spawn, execFileSync } from "child_process";
 import * as path from "path";
 import * as fs from "fs";
+import * as os from "os";
 import type { Transport } from "./types";
+
+/** Directory for LogScope's auto-managed Python venv */
+const LOGSCOPE_VENV_DIR = path.join(os.homedir(), ".logscope", "venv");
+const VENV_PYTHON = path.join(LOGSCOPE_VENV_DIR, process.platform === "win32" ? "Scripts/python.exe" : "bin/python3");
+
+/**
+ * Ensure a Python environment with pylink-square is available.
+ * Creates a venv at ~/.logscope/venv/ if needed and installs pylink.
+ */
+async function ensurePythonWithPylink(): Promise<string> {
+  // 1. Check if our managed venv already exists and has pylink
+  if (fs.existsSync(VENV_PYTHON)) {
+    try {
+      execFileSync(VENV_PYTHON, ["-c", "import pylink"], { timeout: 5000 });
+      return VENV_PYTHON;
+    } catch {
+      // venv exists but pylink missing — reinstall below
+    }
+  }
+
+  // 2. Check if system python3 has pylink
+  try {
+    execFileSync("python3", ["-c", "import pylink"], { timeout: 5000 });
+    return "python3";
+  } catch {
+    // Not available — need to install
+  }
+
+  // 3. Create venv and install pylink
+  console.log("[LogScope] Setting up Python environment (one-time setup)...");
+
+  // Ensure ~/.logscope/ exists
+  fs.mkdirSync(path.dirname(LOGSCOPE_VENV_DIR), { recursive: true });
+
+  // Create venv
+  try {
+    execFileSync("python3", ["-m", "venv", LOGSCOPE_VENV_DIR], { timeout: 30000 });
+  } catch (err) {
+    throw new Error(
+      `Failed to create Python venv. Ensure python3 is installed.\n${err instanceof Error ? err.message : err}`
+    );
+  }
+
+  // Install pylink-square
+  const pip = path.join(LOGSCOPE_VENV_DIR, process.platform === "win32" ? "Scripts/pip.exe" : "bin/pip");
+  try {
+    execFileSync(pip, ["install", "pylink-square"], { timeout: 60000 });
+    console.log("[LogScope] pylink-square installed successfully");
+  } catch (err) {
+    throw new Error(
+      `Failed to install pylink-square. Check your internet connection.\n${err instanceof Error ? err.message : err}`
+    );
+  }
+
+  return VENV_PYTHON;
+}
 
 /**
  * RTT transport via SEGGER J-Link.
@@ -47,11 +104,7 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
 
   async connect(): Promise<void> {
     const helperPath = path.join(__dirname, "rtt-helper.py");
-
-    // Prefer the venv Python (has pylink), fall back to system
-    const extensionRoot = path.resolve(__dirname, "..");
-    const venvPython = path.join(extensionRoot, ".venv", "bin", "python3");
-    const pythonPath = fs.existsSync(venvPython) ? venvPython : "python3";
+    const pythonPath = await ensurePythonWithPylink();
     console.log(`[LogScope] Using Python: ${pythonPath}`);
 
     return new Promise<void>((resolve, reject) => {

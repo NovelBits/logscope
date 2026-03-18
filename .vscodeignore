@@ -2,9 +2,15 @@
 src/**
 test/**
 node_modules/**
+.venv/**
+build/**
+samples/**
+docs/superpowers/**
+.superpowers/**
+.git/**
 .gitignore
 tsconfig.json
 esbuild.config.mjs
 jest.config.ts
+package-lock.json
 **/*.map
-build/**
