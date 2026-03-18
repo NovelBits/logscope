@@ -337,6 +337,22 @@ body { display: flex; flex-direction: column; }
 #timeline::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground, rgba(100,100,100,0.7)); }
 #timeline::-webkit-scrollbar-corner { background: transparent; }
 
+/* Column headers */
+#column-headers {
+  display: flex; padding: 2px 10px; flex-shrink: 0;
+  background: var(--vscode-sideBar-background, #252526);
+  border-bottom: 1px solid var(--vscode-panel-border, #3c3c3c);
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--vscode-descriptionForeground); opacity: 0.6;
+  white-space: nowrap;
+}
+#column-headers .col-ts { min-width: 100px; margin-right: 10px; }
+#column-headers .col-sev { min-width: 32px; margin-right: 8px; text-align: center; }
+#column-headers .col-mod { min-width: 90px; width: 90px; margin-right: 10px; }
+#column-headers .col-msg { flex: 1; }
+/* Hide timestamp column header when timestamps are hidden */
+#viewer.hide-timestamps #column-headers .col-ts { display: none; }
+
 /* End of log indicator — last element inside scrollable timeline */
 #end-of-log {
   text-align: center; padding: 4px 0 6px;
@@ -434,7 +450,7 @@ body { display: flex; flex-direction: column; }
 }
 
 /* ── Timestamp toggle ───────────────────────────────────── */
-#timeline.hide-timestamps .log-row .ts { display: none; }
+#viewer.hide-timestamps .log-row .ts { display: none; }
 
 /* ── Wrap mode ──────────────────────────────────────────── */
 #timeline.wrap-mode .log-row { white-space: normal; }

@@ -409,7 +409,8 @@ settingsBtn.addEventListener("click", () => {
 timestampBtn.addEventListener("click", () => {
   timestampsVisible = !timestampsVisible;
   timestampBtn.classList.toggle("active", timestampsVisible);
-  timeline.classList.toggle("hide-timestamps", !timestampsVisible);
+  // Toggle on #viewer so both column headers and timeline rows are affected
+  document.getElementById("viewer")!.classList.toggle("hide-timestamps", !timestampsVisible);
 });
 
 // ── Auto-disable auto-scroll when user scrolls up ──────────────
