@@ -13,6 +13,17 @@ export interface LogEntry {
   metadata: Record<string, unknown>;
 }
 
+export interface DecodedField {
+  name: string;
+  value: string;
+  color?: string;
+}
+
+export interface DecodedPacket {
+  summary: string;
+  fields: DecodedField[];
+}
+
 export interface Parser {
   parse(data: string | Uint8Array): LogEntry[];
 }
