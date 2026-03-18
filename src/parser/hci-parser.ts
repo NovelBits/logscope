@@ -175,14 +175,10 @@ export class HciParser {
       }
 
       case OP_USER_LOGGING: {
-        if (payload.length < 2) return null;
-        const priority = payload[0];
-        const identLen = payload[1];
-        const ident = payload.subarray(2, 2 + identLen).toString("utf-8").replace(/\0+$/, "");
-        const msg = payload.subarray(2 + identLen).toString("utf-8").replace(/\0+$/, "");
-        message = `[${ident}] ${msg}`;
-        severity = priority <= 3 ? "err" : priority <= 4 ? "wrn" : priority <= 6 ? "inf" : "dbg";
-        break;
+        // Skip — these are Zephyr log messages mirrored to BT Monitor channel.
+        // They're already captured as proper log entries on RTT Channel 0
+        // with correct module names and severity. Showing them here is duplicate noise.
+        return null;
       }
 
       case OP_NEW_INDEX: {

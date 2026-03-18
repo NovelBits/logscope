@@ -335,10 +335,9 @@ body { display: flex; flex-direction: column; }
 #timeline::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground, rgba(100,100,100,0.7)); }
 #timeline::-webkit-scrollbar-corner { background: transparent; }
 
-/* End of log indicator — sits between timeline and new-data-bar */
+/* End of log indicator — last element inside scrollable timeline */
 #end-of-log {
-  flex-shrink: 0; text-align: center;
-  padding: 6px 0;
+  text-align: center; padding: 12px 0 16px;
   font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
   color: var(--vscode-descriptionForeground); opacity: 0.2;
 }
@@ -380,7 +379,7 @@ body { display: flex; flex-direction: column; }
 .log-row:hover { background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.04)); }
 .log-row .ts { color: var(--vscode-descriptionForeground, #888); margin-right: 10px; flex-shrink: 0; min-width: 100px; }
 .log-row .sev { font-weight: 700; margin-right: 8px; flex-shrink: 0; min-width: 32px; text-align: center; }
-.log-row .mod { color: var(--vscode-textLink-foreground, #3794ff); margin-right: 10px; flex-shrink: 0; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+.log-row .mod { color: var(--vscode-textLink-foreground, #3794ff); margin-right: 10px; flex-shrink: 0; min-width: 90px; width: 90px; overflow: hidden; text-overflow: ellipsis; }
 .log-row .msg { flex: 1; overflow: hidden; text-overflow: ellipsis; }
 
 .log-row.hci .sev { color: #c586c0; }

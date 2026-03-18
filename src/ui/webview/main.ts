@@ -422,7 +422,9 @@ function clearTimeline(): void {
   while (timeline.firstChild) {
     timeline.removeChild(timeline.firstChild);
   }
+  // Re-add end-of-log (hidden until new entries arrive)
   endOfLog.classList.add("hidden");
+  timeline.appendChild(endOfLog);
   newDataBar.classList.add("hidden");
 }
 
@@ -504,7 +506,7 @@ window.addEventListener("message", (event) => {
         fragment.appendChild(row);
       }
 
-      timeline.appendChild(fragment);
+      timeline.insertBefore(fragment, endOfLog);
       endOfLog.classList.remove("hidden");
 
       if (autoScroll) {
