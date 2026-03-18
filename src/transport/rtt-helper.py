@@ -65,7 +65,7 @@ def run_pylink(device_or_addr, poll_ms):
     poll_interval = poll_ms / 1000.0
     consecutive_errors = 0
     last_data_time = time.monotonic()
-    SILENCE_THRESHOLD = 10.0  # seconds of no data before RTT restart
+    SILENCE_THRESHOLD = 3.0  # seconds of no data before RTT restart
     reconnect_stage = 0  # 0=normal, 1=tried RTT restart, 2=tried full reconnect
 
     def write_frame(channel, data):

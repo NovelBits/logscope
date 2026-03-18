@@ -361,20 +361,16 @@ body { display: flex; flex-direction: column; }
 }
 #end-of-log.hidden { display: none; }
 
-/* Reset separator — injected into timeline when board reset detected */
+/* Reset separator — styled like a log row but highlighted */
 .reset-separator {
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  padding: 6px 10px; margin: 4px 0;
-  position: sticky; left: 0; width: 100%;
+  display: flex; padding: 2px 10px; line-height: 1.4; white-space: nowrap;
+  background: rgba(204, 167, 0, 0.08);
+  border-left: 3px solid #cca700;
+  color: #cca700; opacity: 0.7;
+  font-size: var(--vscode-editor-font-size, 13px);
 }
-.reset-separator .reset-line {
-  flex: 1; height: 1px;
-  background: linear-gradient(to right, transparent, #cca700 30%, #cca700 70%, transparent);
-}
-.reset-separator span {
-  font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
-  color: #cca700; white-space: nowrap; flex-shrink: 0; opacity: 0.7;
-}
+.reset-separator .reset-ts { min-width: 100px; margin-right: 10px; }
+.reset-separator .reset-label { font-weight: 600; }
 
 /* New data indicator */
 #new-data-bar {

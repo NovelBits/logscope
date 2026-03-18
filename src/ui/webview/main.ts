@@ -709,19 +709,19 @@ window.addEventListener("message", (event) => {
     }
 
     case "reset": {
-      // Insert a visual reset separator in the timeline
+      // Insert a reset row styled like a log entry
       const sep = document.createElement("div");
       sep.className = "reset-separator";
-      const line1 = document.createElement("div");
-      line1.className = "reset-line";
+      const ts = document.createElement("span");
+      ts.className = "reset-ts";
+      ts.textContent = new Date().toTimeString().slice(0, 8);
       const label = document.createElement("span");
-      label.textContent = "Device Reset";
-      const line2 = document.createElement("div");
-      line2.className = "reset-line";
-      sep.appendChild(line1);
+      label.className = "reset-label";
+      label.textContent = "\u26A0 Device Reset Detected";
+      sep.appendChild(ts);
       sep.appendChild(label);
-      sep.appendChild(line2);
-      timeline.appendChild(sep);
+      // Insert before end-of-log so it stays in proper order
+      timeline.insertBefore(sep, endOfLog);
       if (autoScroll) {
         programmaticScroll = true;
         timeline.scrollTop = timeline.scrollHeight;

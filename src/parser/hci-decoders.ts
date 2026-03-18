@@ -196,14 +196,30 @@ function decodeLeMetaEvent(payload: Buffer): DecodedPacket | null {
           ? payload.readInt8(rssiOffset)
           : undefined;
       const rssiStr = rssi !== undefined ? `${rssi} dBm` : "N/A";
+
+      // Decode AD structures from the advertising data
+      const adFields: DecodedField[] = [];
+      let deviceName: string | undefined;
+      const adStart = 13;
+      const adEnd = 13 + dataLen;
+      if (adEnd <= payload.length) {
+        const adStructures = parseAdStructures(payload, adStart, adEnd);
+        for (const ad of adStructures) {
+          adFields.push(...ad.fields);
+          if (ad.name) deviceName = ad.name;
+        }
+      }
+
+      const summaryName = deviceName ? `, name: "${deviceName}"` : "";
       return {
-        summary: `(addr: ${addr}, RSSI: ${rssiStr})`,
+        summary: `(addr: ${addr}${summaryName}, RSSI: ${rssiStr})`,
         fields: [
           field("Num Reports", numReports.toString()),
           field("Event Type", eventType.toString()),
           field("Address Type", formatAddressType(addrType)),
           field("Address", addr, COLOR_ADDRESS),
           field("Data Length", dataLen.toString()),
+          ...adFields,
           ...(rssi !== undefined ? [field("RSSI", rssiStr)] : []),
         ],
       };
