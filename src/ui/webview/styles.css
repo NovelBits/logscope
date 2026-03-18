@@ -361,16 +361,16 @@ body { display: flex; flex-direction: column; }
 }
 #end-of-log.hidden { display: none; }
 
-/* Reset separator — styled like a log row but highlighted */
+/* Reset separator — timestamp left, label centered */
 .reset-separator {
-  display: flex; padding: 2px 10px; line-height: 1.4; white-space: nowrap;
+  display: flex; align-items: center; padding: 3px 10px; line-height: 1.4; white-space: nowrap;
   background: rgba(204, 167, 0, 0.08);
   border-left: 3px solid #cca700;
   color: #cca700; opacity: 0.7;
   font-size: var(--vscode-editor-font-size, 13px);
 }
-.reset-separator .reset-ts { min-width: 100px; margin-right: 10px; }
-.reset-separator .reset-label { font-weight: 600; }
+.reset-separator .reset-ts { flex-shrink: 0; margin-right: 10px; font-size: 11px; }
+.reset-separator .reset-label { flex: 1; text-align: center; font-weight: 600; font-size: 11px; letter-spacing: 0.5px; }
 
 /* New data indicator */
 #new-data-bar {
