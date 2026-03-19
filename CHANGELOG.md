@@ -2,6 +2,27 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.1.7] — 2026-03-19
+
+### Fixed
+- Prevent J-Link TCP/IP dialog popup when no USB probe is connected
+- Error banner moved below Connect button and centered for cleaner layout
+- Strip "ERROR:" prefix from error messages (red styling is sufficient)
+
+### Security
+- Fix message origin verification in webview (SonarCloud S2819)
+- Replace regex patterns vulnerable to backtracking DoS in HCI parser (S5852)
+- Replace Math.random() with crypto.randomBytes() for session IDs and nonces (S2245)
+- Resolve python3 to absolute path before spawning (S4036)
+- Pin GitHub Actions dependencies to full commit SHA (S7637)
+
+### Changed
+- Modernize code: replaceAll(), Number.parseInt(), String.fromCodePoint()
+- Use proper localeCompare for string sorting
+- Add GitHub Actions CI (build + test on push/PR) and auto-publish on version tags
+- Add CHANGELOG.md
+- Internal docs removed from public repo
+
 ## [0.1.1] — 2026-03-19
 
 ### Added
