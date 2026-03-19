@@ -5,22 +5,17 @@ describe("exportAsBtsnoop", () => {
   const sessionStart = new Date("2026-03-18T12:00:00Z");
 
   it("produces valid btsnoop header", () => {
-    const entries: LogEntry[] = [];
-    const buf = exportAsBtsnoop(entries, sessionStart);
-    // Header is 16 bytes even with no entries
+    const buf = exportAsBtsnoop([], sessionStart);
     expect(buf.length).toBe(16);
-    // Magic
     expect(buf.subarray(0, 8).toString("ascii")).toBe("btsnoop\0");
-    // Version = 1
-    expect(buf.readUInt32BE(8)).toBe(1);
-    // Datalink = 2001 (BTSNOOP_FORMAT_MONITOR)
-    expect(buf.readUInt32BE(12)).toBe(2001);
+    expect(buf.readUInt32BE(8)).toBe(1); // version
+    expect(buf.readUInt32BE(12)).toBe(2001); // datalink
   });
 
-  it("includes HCI entries with raw data", () => {
+  it("includes HCI entries with monitor header", () => {
     const entries: LogEntry[] = [
       {
-        timestamp: 100000, // 100ms
+        timestamp: 100000,
         source: "hci",
         severity: "inf",
         module: "CMD",
@@ -29,7 +24,7 @@ describe("exportAsBtsnoop", () => {
         metadata: { opcode: 2, direction: "tx" },
       },
       {
-        // Non-HCI entry — should be excluded
+        // Non-HCI — excluded
         timestamp: 200000,
         source: "log",
         severity: "inf",
@@ -40,33 +35,46 @@ describe("exportAsBtsnoop", () => {
     ];
 
     const buf = exportAsBtsnoop(entries, sessionStart);
-    // Header (16) + 1 record header (24) + 3 bytes payload
-    expect(buf.length).toBe(16 + 24 + 3);
+    // Header(16) + record header(24) + monitor header(6) + 3 bytes payload = 49
+    expect(buf.length).toBe(49);
 
-    // Record: original_length = 3
-    expect(buf.readUInt32BE(16)).toBe(3);
-    // included_length = 3
-    expect(buf.readUInt32BE(20)).toBe(3);
-    // flags = opcode = 2 (COMMAND)
+    // Record original_length = 6 (monitor hdr) + 3 (payload) = 9
+    expect(buf.readUInt32BE(16)).toBe(9);
+    // included_length = 9
+    expect(buf.readUInt32BE(20)).toBe(9);
+    // flags = opcode = 2
     expect(buf.readUInt32BE(24)).toBe(2);
-    // drops = 0
-    expect(buf.readUInt32BE(28)).toBe(0);
-    // Payload bytes
-    expect(buf[40]).toBe(0x03);
-    expect(buf[41]).toBe(0x0c);
-    expect(buf[42]).toBe(0x00);
+
+    // Monitor header at offset 40: opcode LE = 0x0002
+    expect(buf.readUInt16LE(40)).toBe(2);
+    // Adapter index = 0
+    expect(buf.readUInt16LE(42)).toBe(0);
+    // Data length = 3
+    expect(buf.readUInt16LE(44)).toBe(3);
+
+    // Payload at offset 46
+    expect(buf[46]).toBe(0x03);
+    expect(buf[47]).toBe(0x0c);
+    expect(buf[48]).toBe(0x00);
   });
 
-  it("skips entries without raw data or opcode", () => {
+  it("skips non-HCI opcodes (system notes, user logging)", () => {
     const entries: LogEntry[] = [
       {
         timestamp: 0,
         source: "hci",
-        severity: "inf",
+        severity: "dbg",
         module: "SYS",
-        message: "System note",
-        metadata: {},
-        // No raw, no opcode
+        message: "BT Monitor opcode 0x08",
+        metadata: { opcode: 8 }, // OPEN_INDEX — not a real HCI packet
+      },
+      {
+        timestamp: 0,
+        source: "hci",
+        severity: "inf",
+        module: "MON",
+        message: "mirrored log",
+        metadata: { opcode: 13 }, // USER_LOGGING
       },
     ];
 
@@ -74,14 +82,14 @@ describe("exportAsBtsnoop", () => {
     expect(buf.length).toBe(16); // Header only
   });
 
-  it("handles multiple HCI entries", () => {
+  it("handles multiple records", () => {
     const entries: LogEntry[] = [
       {
         timestamp: 0,
         source: "hci",
         severity: "inf",
         module: "CMD",
-        message: "cmd1",
+        message: "cmd",
         raw: new Uint8Array([0x01, 0x02]),
         metadata: { opcode: 2 },
       },
@@ -90,14 +98,14 @@ describe("exportAsBtsnoop", () => {
         source: "hci",
         severity: "inf",
         module: "EVT",
-        message: "evt1",
+        message: "evt",
         raw: new Uint8Array([0x0E, 0x04, 0x01, 0x03, 0x0C, 0x00]),
         metadata: { opcode: 3 },
       },
     ];
 
     const buf = exportAsBtsnoop(entries, sessionStart);
-    // Header (16) + record1 (24+2) + record2 (24+6) = 72
-    expect(buf.length).toBe(72);
+    // Header(16) + record1(24+6+2) + record2(24+6+6) = 84
+    expect(buf.length).toBe(84);
   });
 });

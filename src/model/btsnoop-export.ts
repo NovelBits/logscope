@@ -1,92 +1,93 @@
 /**
  * Export HCI log entries as a btsnoop file for Wireshark.
  *
- * Uses btsnoop format with datalink type 2001 (BTSNOOP_FORMAT_MONITOR)
- * which matches the Zephyr BT Monitor protocol. Wireshark opens these
- * natively — no plugins required.
+ * Uses btsnoop format with datalink type 2001 (Linux Bluetooth Monitor)
+ * which Wireshark recognizes natively.
  *
- * Reference: https://www.kernel.org/doc/html/latest/dev-tools/kunit/running_tests.html
- * btsnoop format: https://fte.com/webhelpII/HSpy/Content/Technical_Information/BT_Snoop_File_Format.htm
+ * Each record contains a 6-byte BT Monitor header:
+ *   [opcode:2 LE][adapter_index:2 LE][data_length:2 LE]
+ * followed by the HCI payload.
+ *
+ * btsnoop spec: RFC 1761 (original) + BlueZ extensions for type 2001
  */
 
 import type { LogEntry } from "../parser/types";
 
-// btsnoop header magic
+// btsnoop file header
 const BTSNOOP_MAGIC = Buffer.from("btsnoop\0", "ascii");
 const BTSNOOP_VERSION = 1;
-const BTSNOOP_DATALINK_MONITOR = 2001; // HCI Monitor format
+const BTSNOOP_DATALINK_MONITOR = 2001;
 
-// BT Monitor opcode mapping (matches Zephyr BT Monitor protocol)
-const MONITOR_OPCODES: Record<string, number> = {
-  // Map our opcode metadata values to btsnoop flags
-};
+// btsnoop timestamp epoch: microseconds since 0 AD (January 1, year 0)
+// Unix epoch (Jan 1 1970) in btsnoop epoch = 0x00dcddb30f2f8000
+const BTSNOOP_UNIX_EPOCH = BigInt("0x00dcddb30f2f8000");
 
-// Epoch offset: btsnoop timestamps are microseconds since 2000-01-01 00:00:00 UTC
-// Difference between Unix epoch (1970) and btsnoop epoch (2000) in microseconds
-const BTSNOOP_EPOCH_OFFSET_US = BigInt(946684800) * BigInt(1_000_000);
+/**
+ * Build a 6-byte BT Monitor header for a record.
+ */
+function monitorHeader(opcode: number, payloadLength: number): Buffer {
+  const hdr = Buffer.alloc(6);
+  hdr.writeUInt16LE(opcode, 0);      // BT Monitor opcode
+  hdr.writeUInt16LE(0, 2);           // Adapter index (always 0)
+  hdr.writeUInt16LE(payloadLength, 4); // Data length
+  return hdr;
+}
 
 /**
  * Export HCI entries as a btsnoop binary buffer.
  * Only includes entries with source === "hci" and valid raw bytes.
  */
 export function exportAsBtsnoop(entries: LogEntry[], sessionStartTime: Date): Buffer {
-  // Filter to HCI entries with raw data and a real opcode
+  // Filter to HCI entries with raw data and a real HCI opcode (2-7, 18-19)
   const hciEntries = entries.filter(
     (e) => e.source === "hci" && e.raw && e.raw.length > 0 && typeof e.metadata?.opcode === "number"
+      && [2, 3, 4, 5, 6, 7, 18, 19].includes(e.metadata.opcode as number)
   );
 
-  // Calculate total size: header (16) + records
+  // Calculate total size
   const HEADER_SIZE = 16;
   const RECORD_HEADER_SIZE = 24; // 4+4+4+4+8
+  const MONITOR_HEADER_SIZE = 6;
   let totalSize = HEADER_SIZE;
   for (const entry of hciEntries) {
-    totalSize += RECORD_HEADER_SIZE + entry.raw!.length;
+    totalSize += RECORD_HEADER_SIZE + MONITOR_HEADER_SIZE + entry.raw!.length;
   }
 
   const buf = Buffer.alloc(totalSize);
   let offset = 0;
 
-  // Write btsnoop header
-  BTSNOOP_MAGIC.copy(buf, offset);
-  offset += 8;
-  buf.writeUInt32BE(BTSNOOP_VERSION, offset);
-  offset += 4;
-  buf.writeUInt32BE(BTSNOOP_DATALINK_MONITOR, offset);
-  offset += 4;
+  // Write btsnoop file header
+  BTSNOOP_MAGIC.copy(buf, offset); offset += 8;
+  buf.writeUInt32BE(BTSNOOP_VERSION, offset); offset += 4;
+  buf.writeUInt32BE(BTSNOOP_DATALINK_MONITOR, offset); offset += 4;
 
-  // Session start as Unix timestamp in microseconds
-  const sessionStartUs = BigInt(sessionStartTime.getTime()) * BigInt(1000);
+  // Session start in btsnoop epoch (microseconds)
+  const sessionStartUs = BTSNOOP_UNIX_EPOCH + BigInt(sessionStartTime.getTime()) * BigInt(1000);
 
   // Write records
   for (const entry of hciEntries) {
     const raw = entry.raw!;
     const opcode = entry.metadata.opcode as number;
-    const dataLen = raw.length;
+    const monHdr = monitorHeader(opcode, raw.length);
+    const recordDataLen = MONITOR_HEADER_SIZE + raw.length;
 
-    // Original length and included length (same — we have the full payload)
-    buf.writeUInt32BE(dataLen, offset);
-    offset += 4;
-    buf.writeUInt32BE(dataLen, offset);
-    offset += 4;
+    // Original length = included length (we have full data)
+    buf.writeUInt32BE(recordDataLen, offset); offset += 4;
+    buf.writeUInt32BE(recordDataLen, offset); offset += 4;
 
-    // Flags: the BT Monitor opcode (used by Wireshark to identify packet type)
-    buf.writeUInt32BE(opcode, offset);
-    offset += 4;
+    // Flags: for datalink 2001, flags = opcode in network byte order
+    buf.writeUInt32BE(opcode, offset); offset += 4;
 
-    // Cumulative drops (0 — we don't track drops)
-    buf.writeUInt32BE(0, offset);
-    offset += 4;
+    // Cumulative drops
+    buf.writeUInt32BE(0, offset); offset += 4;
 
-    // Timestamp: microseconds since 2000-01-01 UTC
-    // entry.timestamp is microseconds since session start
-    const entryTimestampUs = sessionStartUs + BigInt(entry.timestamp) + BTSNOOP_EPOCH_OFFSET_US;
-    // Write as 64-bit big-endian
-    buf.writeBigUInt64BE(entryTimestampUs, offset);
-    offset += 8;
+    // Timestamp in btsnoop epoch
+    const ts = sessionStartUs + BigInt(entry.timestamp);
+    buf.writeBigUInt64BE(ts, offset); offset += 8;
 
-    // Packet data (raw payload)
-    Buffer.from(raw).copy(buf, offset);
-    offset += dataLen;
+    // BT Monitor header + HCI payload
+    monHdr.copy(buf, offset); offset += MONITOR_HEADER_SIZE;
+    Buffer.from(raw).copy(buf, offset); offset += raw.length;
   }
 
   return buf;
