@@ -29,7 +29,8 @@
     "nordic",
     "nrf",
     "wireshark",
-    "cortex-m"
+    "cortex-m",
+    "uart"
   ],
   "activationEvents": [
     "onView:logscope.sidebar"
@@ -79,13 +80,13 @@
           "default": "rtt",
           "enum": [
             "rtt",
-            "jlink-telnet"
+            "uart"
           ],
           "enumDescriptions": [
             "J-Link RTT via pylink (recommended — works with any J-Link device)",
-            "Connect to J-Link RTT telnet server (legacy)"
+            "Serial UART (CDC ACM or USB-to-UART bridge)"
           ],
-          "description": "Transport mode for reading RTT data."
+          "description": "Transport mode for reading log data."
         },
         "logscope.rtt.address": {
           "type": "string",
@@ -111,6 +112,17 @@
           "type": "number",
           "default": 19021,
           "description": "J-Link RTT telnet server port (jlink-telnet transport only)"
+        },
+        "logscope.uart.baudRate": {
+          "type": "number",
+          "default": 115200,
+          "enum": [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600, 1000000],
+          "description": "Serial baud rate for UART transport."
+        },
+        "logscope.uart.lastPort": {
+          "type": "string",
+          "default": "",
+          "description": "Last used serial port path (used for auto-connect). Set automatically."
         },
         "logscope.maxEntries": {
           "type": "number",
@@ -197,5 +209,8 @@
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "serialport": "^13.0.0"
   }
 }
