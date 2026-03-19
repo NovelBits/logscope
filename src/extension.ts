@@ -317,7 +317,7 @@ export function activate(context: vscode.ExtensionContext) {
             return;
           }
           const uri = await vscode.window.showSaveDialog({
-            defaultUri: vscode.Uri.file(`logscope-${new Date().toISOString().slice(0,19).replace(/[T:]/g, "-")}.btsnoop`),
+            defaultUri: vscode.Uri.file(`logscope-${new Date().toISOString().slice(0,19).replaceAll(/[T:]/g, "-")}.btsnoop`),
             filters: { "btsnoop files": ["btsnoop"], "All files": ["*"] },
           });
           if (!uri) return;
@@ -331,7 +331,7 @@ export function activate(context: vscode.ExtensionContext) {
         } else {
           const ext = formatValue === "jsonl" ? "jsonl" : "log";
           const uri = await vscode.window.showSaveDialog({
-            defaultUri: vscode.Uri.file(`logscope-${new Date().toISOString().slice(0,19).replace(/[T:]/g, "-")}.${ext}`),
+            defaultUri: vscode.Uri.file(`logscope-${new Date().toISOString().slice(0,19).replaceAll(/[T:]/g, "-")}.${ext}`),
             filters: { "Log files": [ext] },
           });
           if (!uri) return;
@@ -421,7 +421,7 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
         const uri = await vscode.window.showSaveDialog({
-          defaultUri: vscode.Uri.file(`logscope-${new Date().toISOString().slice(0,19).replace(/[T:]/g, "-")}.btsnoop`),
+          defaultUri: vscode.Uri.file(`logscope-${new Date().toISOString().slice(0,19).replaceAll(/[T:]/g, "-")}.btsnoop`),
           filters: { "btsnoop files": ["btsnoop"], "All files": ["*"] },
         });
         if (!uri) return;
@@ -432,7 +432,7 @@ export function activate(context: vscode.ExtensionContext) {
       } else {
         const ext = formatValue === "jsonl" ? "jsonl" : "log";
         const uri = await vscode.window.showSaveDialog({
-          defaultUri: vscode.Uri.file(`logscope-${new Date().toISOString().slice(0,19).replace(/[T:]/g, "-")}.${ext}`),
+          defaultUri: vscode.Uri.file(`logscope-${new Date().toISOString().slice(0,19).replaceAll(/[T:]/g, "-")}.${ext}`),
           filters: { "Log files": [ext] },
         });
         if (!uri) return;

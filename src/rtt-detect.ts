@@ -10,7 +10,7 @@ export function parseRttAddressFromNmOutput(nmOutput: string): number | null {
   for (const line of nmOutput.split("\n")) {
     const match = line.match(/^([0-9a-fA-F]+)\s+\w\s+_SEGGER_RTT$/);
     if (match) {
-      return parseInt(match[1], 16);
+      return Number.parseInt(match[1], 16);
     }
   }
   return null;

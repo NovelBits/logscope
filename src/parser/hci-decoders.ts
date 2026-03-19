@@ -29,7 +29,7 @@ function field(name: string, value: string, color?: string): DecodedField {
 function formatValueBytes(bytes: Uint8Array | Buffer): string {
   if (bytes.length === 0) return "(empty)";
   const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join(" ");
-  const ascii = Array.from(bytes).map(b => b >= 0x20 && b <= 0x7e ? String.fromCharCode(b) : ".").join("");
+  const ascii = Array.from(bytes).map(b => b >= 0x20 && b <= 0x7e ? String.fromCodePoint(b) : ".").join("");
   return `${hex}  ${ascii}`;
 }
 
@@ -203,7 +203,7 @@ function parseAdStructures(
   for (const f of adFields) {
     if (f.name === "Complete Local Name" || f.name === "Shortened Local Name") {
       // Strip surrounding quotes
-      name = f.value.replace(/^"|"$/g, "");
+      name = f.value.replaceAll(/^"|"$/g, "");
       break;
     }
   }

@@ -203,11 +203,11 @@ export class LogScopePanel {
     let html = fs.readFileSync(templatePath, "utf-8");
 
     html = html
-      .replace(/\{\{nonce\}\}/g, nonce)
-      .replace(/\{\{cspSource\}\}/g, webview.cspSource)
-      .replace(/\{\{stylesUri\}\}/g, stylesUri.toString())
-      .replace(/\{\{logoUri\}\}/g, logoUri.toString())
-      .replace(/\{\{scriptUri\}\}/g, scriptUri.toString());
+      .replaceAll("{{nonce}}", nonce)
+      .replaceAll("{{cspSource}}", webview.cspSource)
+      .replaceAll("{{stylesUri}}", stylesUri.toString())
+      .replaceAll("{{logoUri}}", logoUri.toString())
+      .replaceAll("{{scriptUri}}", scriptUri.toString());
 
     return html;
   }

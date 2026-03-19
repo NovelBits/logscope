@@ -145,7 +145,7 @@ export class HciParser {
               const roleField = decoded.fields.find((f) => f.name === "Role");
               const statusField = decoded.fields.find((f) => f.name === "Status");
               if (handleField && addrField && roleField && statusField?.value === "Success") {
-                const h = parseInt(handleField.value, 16);
+                const h = Number.parseInt(handleField.value, 16);
                 this.tracker.onConnectionComplete(h, addrField.value, roleField.value);
               }
             }
@@ -155,7 +155,7 @@ export class HciParser {
           if (decoded && evtCode === 0x05) {
             const handleField = decoded.fields.find((f) => f.name === "Handle");
             if (handleField) {
-              const h = parseInt(handleField.value, 16);
+              const h = Number.parseInt(handleField.value, 16);
               this.tracker.onDisconnection(h);
             }
           }

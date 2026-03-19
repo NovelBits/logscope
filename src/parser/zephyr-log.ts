@@ -15,7 +15,7 @@ export class ZephyrLogParser implements Parser {
     const entries: LogEntry[] = [];
 
     for (const line of lines) {
-      const trimmed = line.replace(ANSI_RE, "").trimEnd();
+      const trimmed = line.replaceAll(ANSI_RE, "").trimEnd();
       if (!trimmed) continue;
 
       const match = trimmed.match(ZEPHYR_LOG_RE);
@@ -23,11 +23,11 @@ export class ZephyrLogParser implements Parser {
         const [, hours, minutes, seconds, millis, micros, severity, module, message] = match;
 
         const timestamp =
-          parseInt(hours) * 3_600_000_000 +
-          parseInt(minutes) * 60_000_000 +
-          parseInt(seconds) * 1_000_000 +
-          parseInt(millis) * 1_000 +
-          parseInt(micros);
+          Number.parseInt(hours) * 3_600_000_000 +
+          Number.parseInt(minutes) * 60_000_000 +
+          Number.parseInt(seconds) * 1_000_000 +
+          Number.parseInt(millis) * 1_000 +
+          Number.parseInt(micros);
 
         entries.push({
           timestamp,

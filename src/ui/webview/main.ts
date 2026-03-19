@@ -178,7 +178,7 @@ function formatHexDump(raw: number[]): string {
     for (let j = 0; j < 16; j++) {
       if (j < chunk.length) {
         hexParts.push(chunk[j].toString(16).padStart(2, "0"));
-        asciiParts.push(chunk[j] >= 0x20 && chunk[j] <= 0x7e ? String.fromCharCode(chunk[j]) : ".");
+        asciiParts.push(chunk[j] >= 0x20 && chunk[j] <= 0x7e ? String.fromCodePoint(chunk[j]) : ".");
       } else {
         hexParts.push("  ");
         asciiParts.push(" ");
@@ -641,6 +641,10 @@ function clearTimeline(): void {
 
 // ── Message handler ─────────────────────────────────────────────
 window.addEventListener("message", (event) => {
+  // VS Code webview messages are delivered via postMessage from the extension host.
+  // Only trusted messages have isTrusted === true (set by the browser, not spoofable).
+  if (!event.isTrusted) return;
+
   const msg = event.data;
 
   switch (msg.type) {
@@ -767,7 +771,7 @@ window.addEventListener("message", (event) => {
         moduleSelect.remove(1);
       }
 
-      for (const mod of modules.sort()) {
+      for (const mod of modules.sort((a, b) => a.localeCompare(b))) {
         const option = document.createElement("option");
         option.value = mod;
         option.textContent = mod;
