@@ -5,6 +5,7 @@ import { ZephyrLogParser } from "./parser/zephyr-log";
 import { HciParser } from "./parser/hci-parser";
 import { RingBuffer } from "./model/ring-buffer";
 import { Session, exportAsText, exportAsJsonLines } from "./model/session";
+import { exportAsBtsnoop } from "./model/btsnoop-export";
 import { LogScopePanel } from "./ui/webview-provider";
 import { StatusBar } from "./ui/status-bar";
 import { LogScopeSidebarProvider } from "./ui/sidebar-provider";
@@ -286,28 +287,52 @@ export function activate(context: vscode.ExtensionContext) {
         }
         const format = await vscode.window.showQuickPick(
           [
-            { label: "Text (.log)", value: "text" },
-            { label: "JSON Lines (.jsonl)", value: "jsonl" },
+            { label: "Text (.log)", value: "text", description: "All log entries as plain text" },
+            { label: "JSON Lines (.jsonl)", value: "jsonl", description: "All log entries as JSON" },
+            { label: "Wireshark (.btsnoop)", value: "btsnoop", description: "HCI packets only — opens in Wireshark" },
           ],
           { placeHolder: "Select export format" }
         );
         if (!format) return;
 
-        const ext = (format as { label: string; value: string }).value === "jsonl" ? "jsonl" : "log";
-        const uri = await vscode.window.showSaveDialog({
-          defaultUri: vscode.Uri.file(`logscope-${new Date().toISOString().slice(0,19).replace(/[T:]/g, "-")}.${ext}`),
-          filters: { "Log files": [ext] },
-        });
-        if (!uri) return;
-
+        const formatValue = (format as { label: string; value: string }).value;
         const entries = ringBuffer.getAll();
-        const content = (format as { label: string; value: string }).value === "jsonl"
-          ? exportAsJsonLines(entries)
-          : exportAsText(entries);
-        await vscode.workspace.fs.writeFile(uri, Buffer.from(content, "utf-8"));
-        vscode.window.showInformationMessage(
-          `LogScope: Exported ${entries.length} entries to ${uri.fsPath}`
-        );
+
+        if (formatValue === "btsnoop") {
+          // Export HCI packets as btsnoop for Wireshark
+          const hciCount = entries.filter(e => e.source === "hci" && e.raw && e.metadata?.opcode).length;
+          if (hciCount === 0) {
+            vscode.window.showWarningMessage("LogScope: No HCI packets to export. Connect a Bluetooth LE device to generate HCI traffic.");
+            return;
+          }
+          const uri = await vscode.window.showSaveDialog({
+            defaultUri: vscode.Uri.file(`logscope-${new Date().toISOString().slice(0,19).replace(/[T:]/g, "-")}.btsnoop`),
+            filters: { "btsnoop files": ["btsnoop"], "All files": ["*"] },
+          });
+          if (!uri) return;
+
+          const startTime = session?.startTime ?? new Date();
+          const btsnoopData = exportAsBtsnoop(entries, startTime);
+          await vscode.workspace.fs.writeFile(uri, btsnoopData);
+          vscode.window.showInformationMessage(
+            `LogScope: Exported ${hciCount} HCI packets to ${uri.fsPath} — open with Wireshark`
+          );
+        } else {
+          const ext = formatValue === "jsonl" ? "jsonl" : "log";
+          const uri = await vscode.window.showSaveDialog({
+            defaultUri: vscode.Uri.file(`logscope-${new Date().toISOString().slice(0,19).replace(/[T:]/g, "-")}.${ext}`),
+            filters: { "Log files": [ext] },
+          });
+          if (!uri) return;
+
+          const content = formatValue === "jsonl"
+            ? exportAsJsonLines(entries)
+            : exportAsText(entries);
+          await vscode.workspace.fs.writeFile(uri, Buffer.from(content, "utf-8"));
+          vscode.window.showInformationMessage(
+            `LogScope: Exported ${entries.length} entries to ${uri.fsPath}`
+          );
+        }
         break;
       }
 
@@ -369,24 +394,41 @@ export function activate(context: vscode.ExtensionContext) {
     }
     vscode.window.showQuickPick(
       [
-        { label: "Text (.log)", value: "text" },
-        { label: "JSON Lines (.jsonl)", value: "jsonl" },
+        { label: "Text (.log)", value: "text", description: "All log entries as plain text" },
+        { label: "JSON Lines (.jsonl)", value: "jsonl", description: "All log entries as JSON" },
+        { label: "Wireshark (.btsnoop)", value: "btsnoop", description: "HCI packets only — opens in Wireshark" },
       ],
       { placeHolder: "Select export format" }
     ).then(async (format) => {
       if (!format || !ringBuffer) return;
-      const ext = (format as { label: string; value: string }).value === "jsonl" ? "jsonl" : "log";
-      const uri = await vscode.window.showSaveDialog({
-        defaultUri: vscode.Uri.file(`logscope-${new Date().toISOString().slice(0,19).replace(/[T:]/g, "-")}.${ext}`),
-        filters: { "Log files": [ext] },
-      });
-      if (!uri) return;
+      const formatValue = (format as { label: string; value: string }).value;
       const entries = ringBuffer.getAll();
-      const content = (format as { label: string; value: string }).value === "jsonl"
-        ? exportAsJsonLines(entries)
-        : exportAsText(entries);
-      await vscode.workspace.fs.writeFile(uri, Buffer.from(content, "utf-8"));
-      vscode.window.showInformationMessage(`LogScope: Exported ${entries.length} entries to ${uri.fsPath}`);
+      if (formatValue === "btsnoop") {
+        const hciCount = entries.filter(e => e.source === "hci" && e.raw && e.metadata?.opcode).length;
+        if (hciCount === 0) {
+          vscode.window.showWarningMessage("LogScope: No HCI packets to export.");
+          return;
+        }
+        const uri = await vscode.window.showSaveDialog({
+          defaultUri: vscode.Uri.file(`logscope-${new Date().toISOString().slice(0,19).replace(/[T:]/g, "-")}.btsnoop`),
+          filters: { "btsnoop files": ["btsnoop"], "All files": ["*"] },
+        });
+        if (!uri) return;
+        const startTime = session?.startTime ?? new Date();
+        const btsnoopData = exportAsBtsnoop(entries, startTime);
+        await vscode.workspace.fs.writeFile(uri, btsnoopData);
+        vscode.window.showInformationMessage(`LogScope: Exported ${hciCount} HCI packets to ${uri.fsPath} — open with Wireshark`);
+      } else {
+        const ext = formatValue === "jsonl" ? "jsonl" : "log";
+        const uri = await vscode.window.showSaveDialog({
+          defaultUri: vscode.Uri.file(`logscope-${new Date().toISOString().slice(0,19).replace(/[T:]/g, "-")}.${ext}`),
+          filters: { "Log files": [ext] },
+        });
+        if (!uri) return;
+        const content = formatValue === "jsonl" ? exportAsJsonLines(entries) : exportAsText(entries);
+        await vscode.workspace.fs.writeFile(uri, Buffer.from(content, "utf-8"));
+        vscode.window.showInformationMessage(`LogScope: Exported ${entries.length} entries to ${uri.fsPath}`);
+      }
     });
   });
 

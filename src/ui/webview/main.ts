@@ -120,11 +120,11 @@ function createRow(entry: SerializedEntry): HTMLDivElement {
     row._decoded = entry.decoded;
     row._raw = entry.raw;
 
-    // Left-side expand icon (▶ rotates to ▼ when expanded)
+    // Expand icon inside module column (right edge, like a tree disclosure)
     const expandIcon = document.createElement("span");
     expandIcon.className = "expand-icon";
     expandIcon.textContent = "\u25B6";
-    row.appendChild(expandIcon);
+    mod.appendChild(expandIcon);
   }
 
   row.appendChild(ts);

@@ -413,14 +413,16 @@ body { display: flex; flex-direction: column; }
   background: rgba(197, 134, 192, 0.03);
 }
 .hci-expandable:hover { background: rgba(197, 134, 192, 0.08); }
+.hci-expandable .mod { position: relative; }
 .hci-expandable .expand-icon {
-  flex-shrink: 0; width: 14px; margin-right: 4px;
+  position: absolute; right: 2px; top: 50%; transform: translateY(-50%);
   font-size: 8px; opacity: 0.4; color: #c586c0;
-  text-align: center;
   transition: opacity 0.15s, transform 0.15s;
 }
-.hci-expandable:hover .expand-icon { opacity: 0.9; }
-.hci-expandable.expanded .expand-icon { transform: rotate(90deg); opacity: 0.9; }
+.hci-expandable:hover .expand-icon { opacity: 1; }
+.hci-expandable.expanded .expand-icon {
+  transform: translateY(-50%) rotate(90deg); opacity: 1;
+}
 .hci-expandable.expanded { background: rgba(197, 134, 192, 0.06); }
 
 /* Detail panel */
