@@ -140,6 +140,7 @@ body { display: flex; flex-direction: column; }
   border: 1px solid var(--vscode-inputValidation-errorBorder, #f44747);
   border-radius: 4px;
   background: var(--vscode-inputValidation-errorBackground, rgba(244, 71, 71, 0.08));
+  text-align: center;
 }
 
 /* Footer branding */

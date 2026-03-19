@@ -714,7 +714,8 @@ window.addEventListener("message", (event) => {
     case "connectError": {
       connectBtn.disabled = false;
       connectBtn.textContent = "Connect";
-      connectError.textContent = msg.message;
+      const errText = (msg.message as string).replace(/^ERROR:\s*/i, "");
+      connectError.textContent = errText;
       connectError.classList.remove("hidden");
       break;
     }
