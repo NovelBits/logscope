@@ -175,7 +175,10 @@
     "watch": "node esbuild.config.mjs --watch",
     "test": "jest",
     "package": "npx @vscode/vsce package",
-    "install-ext": "npx @vscode/vsce package && code --install-extension novelbits-logscope-*.vsix"
+    "install-ext": "npx @vscode/vsce package && code --install-extension novelbits-logscope-*.vsix",
+    "publish": "npx @vscode/vsce publish",
+    "publish:patch": "npx @vscode/vsce publish patch",
+    "publish:minor": "npx @vscode/vsce publish minor"
   },
   "repository": {
     "type": "git",
