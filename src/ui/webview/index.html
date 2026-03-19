@@ -29,7 +29,7 @@
           <span class="form-label">Device</span>
           <div id="device-row">
             <div id="device-picker">
-              <button id="device-picker-btn" type="button">
+              <button id="device-picker-btn" type="button" title="Select J-Link device">
                 <span id="device-picker-text">Scanning...</span>
                 <span class="chevron">&#x25BE;</span>
               </button>
@@ -48,7 +48,7 @@
           Connect automatically on open
         </label>
 
-        <button id="connect-btn">Connect</button>
+        <button id="connect-btn" title="Connect to selected device">Connect</button>
       </div>
 
       <div id="welcome-footer">
@@ -92,8 +92,8 @@
     <div id="reconnect-bar" class="hidden">
       <span class="dot amber"></span>
       <span>Connection lost</span>
-      <button id="reconnect-btn">Reconnect</button>
-      <button id="dismiss-btn">Dismiss</button>
+      <button id="reconnect-btn" title="Reconnect to last device">Reconnect</button>
+      <button id="dismiss-btn" title="Dismiss notification">Dismiss</button>
     </div>
 
     <!-- Filter bar -->
@@ -101,15 +101,17 @@
       <div id="filter-left">
         <button id="timestamp-btn" class="filter-toggle active" title="Show/hide timestamps">Time</button>
         <div id="severity-toggles">
-          <button class="severity-btn hci-btn active" data-severity="hci">HCI</button>
+          <button id="check-all-btn" class="severity-meta-btn" title="Enable all (except MON)">&#10003;</button>
+          <button id="uncheck-all-btn" class="severity-meta-btn" title="Disable all">&#10007;</button>
+          <button class="severity-btn hci-btn active" data-severity="hci" title="Bluetooth LE HCI packets">HCI</button>
           <button class="severity-btn mon-btn" data-severity="mon" title="BT Monitor mirrored logs (off by default)">MON</button>
-          <button class="severity-btn active" data-severity="err">ERR</button>
-          <button class="severity-btn active" data-severity="wrn">WRN</button>
-          <button class="severity-btn active" data-severity="inf">INF</button>
-          <button class="severity-btn active" data-severity="dbg">DBG</button>
+          <button class="severity-btn active" data-severity="err" title="Error level logs">ERR</button>
+          <button class="severity-btn active" data-severity="wrn" title="Warning level logs">WRN</button>
+          <button class="severity-btn active" data-severity="inf" title="Info level logs">INF</button>
+          <button class="severity-btn active" data-severity="dbg" title="Debug level logs">DBG</button>
         </div>
         <div id="module-picker" class="mini-picker">
-          <button id="module-picker-btn" type="button" class="mini-picker-btn">
+          <button id="module-picker-btn" type="button" class="mini-picker-btn" title="Filter by module">
             <span id="module-picker-text">All modules</span>
             <span class="chevron">&#x25BE;</span>
           </button>
@@ -120,7 +122,7 @@
         </select>
       </div>
 
-      <input id="search-input" type="text" placeholder="Search logs..." spellcheck="false" />
+      <input id="search-input" type="text" placeholder="Search logs..." spellcheck="false" title="Search by message, module, level, or timestamp" />
 
       <div id="filter-right">
         <button id="wrap-btn" class="filter-toggle" title="Toggle line wrap">Wrap</button>

@@ -25,7 +25,12 @@ export function applyFilters(entries: LogEntry[], filter: FilterState): LogEntry
       const search = filter.searchText.toLowerCase();
       const matchesMessage = entry.message.toLowerCase().includes(search);
       const matchesModule = entry.module.toLowerCase().includes(search);
-      if (!matchesMessage && !matchesModule) return false;
+      const matchesSeverity = entry.severity.toLowerCase().includes(search);
+      const matchesLevel =
+        entry.source === "hci"
+          ? "hci".includes(search)
+          : entry.severity.toUpperCase().includes(search.toUpperCase());
+      if (!matchesMessage && !matchesModule && !matchesSeverity && !matchesLevel) return false;
     }
     return true;
   });

@@ -64,6 +64,19 @@ static ssize_t write_cmd(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 	case 0x03:
 		LOG_INF("Manual flash erase triggered via GATT");
 		break;
+	case 0x04:
+		LOG_ERR("***** HARD FAULT *****");
+		LOG_ERR("  Fault escalation (see below)");
+		LOG_ERR("  r0/a1:  0x00000000  r1/a2:  0x00000004");
+		LOG_ERR("  r12/ip: 0x00000000  r14/lr: 0x0000abcd");
+		LOG_ERR("  Faulting instruction address: 0x00012345");
+		LOG_ERR(">>> ZEPHYR FATAL ERROR 1: Unhandled interrupt");
+		LOG_ERR("Halting system");
+		break;
+	case 0x05:
+		LOG_ERR("Triggering real hard fault (invalid memory access)...");
+		*((volatile uint32_t *)0xDEADBEEF) = 0;
+		break;
 	default:
 		LOG_WRN("Unknown command byte: 0x%02x", cmd);
 		break;

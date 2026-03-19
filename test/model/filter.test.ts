@@ -89,4 +89,34 @@ describe("applyFilters", () => {
     const filter = { ...defaultFilter, searchText: "" };
     expect(applyFilters(entries, filter)).toHaveLength(2);
   });
+
+  test("search matches severity/level", () => {
+    const entries = [
+      makeEntry({ severity: "err", message: "something" }),
+      makeEntry({ severity: "wrn", message: "something" }),
+      makeEntry({ severity: "inf", message: "something" }),
+    ];
+    const filter = { ...defaultFilter, searchText: "err" };
+    expect(applyFilters(entries, filter)).toHaveLength(1);
+    expect(applyFilters(entries, filter)[0].severity).toBe("err");
+  });
+
+  test("search matches HCI source as level", () => {
+    const entries = [
+      makeEntry({ source: "hci", severity: "inf", message: "LE Connection Complete" }),
+      makeEntry({ source: "log", severity: "inf", message: "hello" }),
+    ];
+    const filter = { ...defaultFilter, searchText: "hci" };
+    expect(applyFilters(entries, filter)).toHaveLength(1);
+    expect(applyFilters(entries, filter)[0].source).toBe("hci");
+  });
+
+  test("search matches severity case-insensitively", () => {
+    const entries = [
+      makeEntry({ severity: "err", message: "fail" }),
+      makeEntry({ severity: "inf", message: "ok" }),
+    ];
+    const filter = { ...defaultFilter, searchText: "ERR" };
+    expect(applyFilters(entries, filter)).toHaveLength(1);
+  });
 });

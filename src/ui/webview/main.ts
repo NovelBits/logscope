@@ -1,6 +1,8 @@
 // WebView client — runs in the browser context inside VS Code's WebView.
 // Communicates with the extension host via postMessage / onDidReceiveMessage.
 
+import { detectFault } from "../../parser/fault-detector";
+
 interface DecodedPacket {
   summary: string;
   fields: { name: string; value: string; color?: string }[];
@@ -130,12 +132,39 @@ function createRow(entry: SerializedEntry): HTMLDivElement {
     mod.appendChild(expandIcon);
   }
 
+  // Fault detection
+  const fault = detectFault(entry.message);
+  if (fault) {
+    row.classList.add("fault");
+    // Auto-pause scrolling so the fault doesn't fly past
+    if (autoScroll) {
+      autoScroll = false;
+      autoScrollBtn.classList.remove("active");
+      showFaultNotification();
+    }
+  }
+
   row.appendChild(ts);
   row.appendChild(sev);
   row.appendChild(mod);
   row.appendChild(msg);
 
   return row;
+}
+
+// ── Fault notification ──────────────────────────────────────────
+function showFaultNotification(): void {
+  // Remove any existing notification
+  const existing = document.querySelector(".fault-notification");
+  if (existing) existing.remove();
+
+  const notification = document.createElement("div");
+  notification.className = "fault-notification";
+  notification.textContent = "Fault detected \u2014 auto-scroll paused";
+  document.body.appendChild(notification);
+
+  // Auto-dismiss after animation completes
+  setTimeout(() => notification.remove(), 3000);
 }
 
 // ── Hex dump formatting ─────────────────────────────────────────
@@ -268,9 +297,12 @@ function shouldShow(entry: SerializedEntry): boolean {
   if (selectedModule && entry.module !== selectedModule) return false;
   if (searchText) {
     const lower = searchText.toLowerCase();
+    const levelLabel = entry.source === "hci" ? "hci" : entry.severity.toLowerCase();
     if (
       !entry.message.toLowerCase().includes(lower) &&
-      !entry.module.toLowerCase().includes(lower)
+      !entry.module.toLowerCase().includes(lower) &&
+      !levelLabel.includes(lower) &&
+      !formatTimestamp(entry.timestamp).includes(lower)
     ) {
       return false;
     }
@@ -446,6 +478,29 @@ wrapBtn.addEventListener("click", () => {
 });
 
 // ── Filter controls ─────────────────────────────────────────────
+
+// Check all / uncheck all severity buttons
+const allDefaultSeverities = ["hci", "err", "wrn", "inf", "dbg"];
+
+document.getElementById("check-all-btn")!.addEventListener("click", () => {
+  for (const sev of allDefaultSeverities) activeSeverities.add(sev);
+  // MON stays off — user must enable it explicitly
+  document.querySelectorAll(".severity-btn").forEach((btn) => {
+    const sev = (btn as HTMLElement).dataset.severity!;
+    btn.classList.toggle("active", activeSeverities.has(sev));
+  });
+  refilterTimeline();
+  sendFilterChanged();
+});
+
+document.getElementById("uncheck-all-btn")!.addEventListener("click", () => {
+  activeSeverities.clear();
+  document.querySelectorAll(".severity-btn").forEach((btn) => {
+    btn.classList.remove("active");
+  });
+  refilterTimeline();
+  sendFilterChanged();
+});
 
 // Severity toggle buttons
 document.querySelectorAll(".severity-btn").forEach((btn) => {
