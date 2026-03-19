@@ -420,6 +420,12 @@ function setTransport(transport: "rtt" | "uart") {
   rttForm.classList.toggle("hidden", transport !== "rtt");
   uartForm.classList.toggle("hidden", transport !== "uart");
   connectError.classList.add("hidden");
+  // Re-enable connect button if the target transport already has a selection
+  if (transport === "uart" && cfgPort.value) {
+    connectBtn.disabled = false;
+  } else if (transport === "rtt" && cfgDevice.value) {
+    connectBtn.disabled = false;
+  }
 }
 
 transportRttBtn.addEventListener("click", () => {
@@ -884,6 +890,10 @@ window.addEventListener("message", (event) => {
       connectToggleBtn.textContent = "Connect";
       connectToggleBtn.className = "conn-btn connect";
       (connectToggleBtn as HTMLButtonElement).disabled = false;
+      // Show reconnect bar on unexpected disconnect so the user can retry
+      if (msg.unexpected) {
+        reconnectBar.classList.remove("hidden");
+      }
       break;
     }
 

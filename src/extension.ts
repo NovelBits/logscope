@@ -318,7 +318,8 @@ export function activate(context: vscode.ExtensionContext) {
         disconnectAll();
         panel?.sendDisconnected(false);
         sidebarProvider.updateState({ connected: false });
-        userDisconnecting = false;
+        // Delay reset so async transport close events see userDisconnecting=true
+        setTimeout(() => { userDisconnecting = false; }, 100);
         break;
       }
 
@@ -420,7 +421,8 @@ export function activate(context: vscode.ExtensionContext) {
     disconnectAll();
     panel?.sendDisconnected(false);
     sidebarProvider.updateState({ connected: false });
-    userDisconnecting = false;
+    // Delay reset so async transport close events see userDisconnecting=true
+    setTimeout(() => { userDisconnecting = false; }, 100);
   });
 
   const exportCmd = vscode.commands.registerCommand("logscope.export", () => {
