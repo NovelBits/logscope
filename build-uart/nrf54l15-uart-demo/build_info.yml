@@ -1,0 +1,53 @@
+cmake:
+  application:
+    configuration-dir: '/Users/mafaneh/Projects/tools/logscope/samples/nrf54l15-uart-demo'
+    source-dir: '/Users/mafaneh/Projects/tools/logscope/samples/nrf54l15-uart-demo'
+  board:
+    name: 'nrf54l15dk'
+    path:
+     - '/opt/nordic/ncs/v3.2.0/zephyr/boards/nordic/nrf54l15dk'
+    qualifiers: 'nrf54l15/cpuapp'
+    revision: ''
+  devicetree:
+    bindings-dirs:
+     - '/opt/nordic/ncs/v3.2.0/nrf/dts/bindings'
+     - '/opt/nordic/ncs/v3.2.0/zephyr/dts/bindings'
+    files:
+     - '/opt/nordic/ncs/v3.2.0/zephyr/boards/nordic/nrf54l15dk/nrf54l15dk_nrf54l15_cpuapp.dts'
+    include-dirs:
+     - '/opt/nordic/ncs/v3.2.0/nrf/include'
+     - '/opt/nordic/ncs/v3.2.0/nrf/dts/common'
+     - '/opt/nordic/ncs/v3.2.0/nrf/dts/riscv'
+     - '/opt/nordic/ncs/v3.2.0/nrf/dts/arm'
+     - '/opt/nordic/ncs/v3.2.0/nrf/dts'
+     - '/opt/nordic/ncs/v3.2.0/zephyr/include'
+     - '/opt/nordic/ncs/v3.2.0/zephyr/include/zephyr'
+     - '/opt/nordic/ncs/v3.2.0/zephyr/dts/common'
+     - '/opt/nordic/ncs/v3.2.0/zephyr/dts/vendor'
+     - '/opt/nordic/ncs/v3.2.0/zephyr/dts/rx'
+     - '/opt/nordic/ncs/v3.2.0/zephyr/dts/x86'
+     - '/opt/nordic/ncs/v3.2.0/zephyr/dts/xtensa'
+     - '/opt/nordic/ncs/v3.2.0/zephyr/dts/sparc'
+     - '/opt/nordic/ncs/v3.2.0/zephyr/dts/riscv'
+     - '/opt/nordic/ncs/v3.2.0/zephyr/dts/posix'
+     - '/opt/nordic/ncs/v3.2.0/zephyr/dts/arm64'
+     - '/opt/nordic/ncs/v3.2.0/zephyr/dts/arm'
+     - '/opt/nordic/ncs/v3.2.0/zephyr/dts/arc'
+     - '/opt/nordic/ncs/v3.2.0/zephyr/dts'
+  kconfig:
+    files:
+     - '/opt/nordic/ncs/v3.2.0/zephyr/boards/nordic/nrf54l15dk/nrf54l15dk_nrf54l15_cpuapp_defconfig'
+     - '/Users/mafaneh/Projects/tools/logscope/samples/nrf54l15-uart-demo/prj.conf'
+     - '/Users/mafaneh/Projects/tools/logscope/build-uart/nrf54l15-uart-demo/zephyr/.config.sysbuild'
+    user-files:
+     - '/Users/mafaneh/Projects/tools/logscope/samples/nrf54l15-uart-demo/prj.conf'
+  toolchain:
+    name: 'zephyr'
+    path: '/opt/nordic/ncs/toolchains/322ac893fe/opt/zephyr-sdk'
+  vendor-specific:
+    nordic:
+      svdfile: '/opt/nordic/ncs/v3.2.0/modules/hal/nordic/nrfx/bsp/stable/mdk/nrf54l15_application.svd'
+  zephyr:
+    version: '4.2.99'
+    zephyr-base: '/opt/nordic/ncs/v3.2.0/zephyr'
+version: '0.1.0'

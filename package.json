@@ -116,7 +116,17 @@
         "logscope.uart.baudRate": {
           "type": "number",
           "default": 115200,
-          "enum": [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600, 1000000],
+          "enum": [
+            9600,
+            19200,
+            38400,
+            57600,
+            115200,
+            230400,
+            460800,
+            921600,
+            1000000
+          ],
           "description": "Serial baud rate for UART transport."
         },
         "logscope.uart.lastPort": {
@@ -209,8 +219,5 @@
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
-  },
-  "dependencies": {
-    "serialport": "^13.0.0"
   }
 }

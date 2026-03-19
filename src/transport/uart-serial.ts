@@ -1,17 +1,14 @@
 import { EventEmitter } from "events";
+import { ChildProcess, spawn } from "child_process";
+import * as path from "path";
 import type { Transport } from "./types";
 
-// Lazy-load serialport to avoid crashing extension activation if the native
-// module has ABI issues. Only loaded when UART transport is actually used.
-function getSerialPort(): typeof import("serialport").SerialPort {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { SerialPort } = require("serialport") as typeof import("serialport");
-  return SerialPort;
-}
+// Reuse the same Python environment setup from the RTT transport
+// (ensurePythonWithPylink checks for system python3 or managed venv)
 
 /** Configuration for UART serial transport */
 export interface UartTransportConfig {
-  /** Serial port path (e.g., "/dev/ttyACM0", "COM3") */
+  /** Serial port path (e.g., "/dev/cu.usbmodem...", "COM3") */
   port: string;
   /** Baud rate (default 115200) */
   baudRate?: number;
@@ -22,47 +19,56 @@ export interface DiscoveredSerialPort {
   path: string;
   manufacturer?: string;
   serialNumber?: string;
-  pnpId?: string;
 }
 
-/** Patterns to exclude from port discovery (Bluetooth, debug, etc.) */
-const EXCLUDED_PORT_PATTERNS = [/bluetooth/i, /debug/i];
-
 /**
- * Discover available serial ports, filtering out Bluetooth virtual ports
- * and debug consoles that are not real UART devices.
+ * Discover available serial ports via the Python uart-helper.
+ * Filters out Bluetooth and debug virtual ports.
  */
 export async function discoverSerialPorts(): Promise<DiscoveredSerialPort[]> {
-  try {
-    const SP = getSerialPort();
-    const allPorts = await SP.list();
-    console.log(`[LogScope] Serial port scan found ${allPorts.length} ports`);
+  const helperPath = path.join(__dirname, "uart-helper.py");
 
-    return allPorts
-      .filter((p) => !EXCLUDED_PORT_PATTERNS.some((re) => re.test(p.path)))
-      .map((p) => ({
-        path: p.path,
-        manufacturer: p.manufacturer || undefined,
-        serialNumber: p.serialNumber || undefined,
-        pnpId: p.pnpId || undefined,
-      }));
-  } catch (err) {
-    console.error("[LogScope] Serial port scan failed:", err);
-    return [];
-  }
+  return new Promise((resolve) => {
+    const proc = spawn("python3", [helperPath, "discover"], {
+      stdio: ["pipe", "pipe", "pipe"],
+      timeout: 10_000,
+    });
+
+    let stdout = "";
+    proc.stdout!.on("data", (chunk: Buffer) => { stdout += chunk.toString(); });
+
+    proc.on("exit", () => {
+      try {
+        const result = JSON.parse(stdout);
+        console.log(`[LogScope] Serial port scan found ${result.ports?.length ?? 0} ports`);
+        resolve(result.ports ?? []);
+      } catch {
+        console.error("[LogScope] Failed to parse serial port scan output");
+        resolve([]);
+      }
+    });
+
+    proc.on("error", (err) => {
+      console.error("[LogScope] Serial port scan failed:", err.message);
+      resolve([]);
+    });
+  });
 }
 
 /**
  * UART serial transport for log streaming.
  *
- * Connects to a serial port (CDC ACM, USB-to-UART bridge, etc.) and
- * emits raw data buffers. No HCI framing — UART is log-only.
+ * Spawns a Python helper (uart-helper.py) that reads from a serial port
+ * using pyserial and pipes raw bytes to stdout. Same subprocess pattern
+ * as the RTT transport.
+ *
+ * No HCI framing — UART is log-only.
  *
  * Events: connected, disconnected, data, error
  */
 export class UartTransport extends EventEmitter implements Transport {
   private _connected = false;
-  private serialPort: InstanceType<ReturnType<typeof getSerialPort>> | null = null;
+  private helper: ChildProcess | null = null;
   private readonly portPath: string;
   private readonly baudRate: number;
 
@@ -81,77 +87,93 @@ export class UartTransport extends EventEmitter implements Transport {
       return Promise.reject(new Error("Already connected"));
     }
 
+    const helperPath = path.join(__dirname, "uart-helper.py");
+
     return new Promise<void>((resolve, reject) => {
-      const SP = getSerialPort();
-      const port = new SP({
-        path: this.portPath,
-        baudRate: this.baudRate,
-        autoOpen: false,
+      const proc = spawn("python3", [
+        helperPath,
+        this.portPath,
+        String(this.baudRate),
+      ], {
+        stdio: ["pipe", "pipe", "pipe"],
       });
 
-      this.serialPort = port;
-      let settled = false;
+      this.helper = proc;
+      let stderrBuf = "";
+      let resolved = false;
 
-      port.on("open", () => {
-        if (settled) return;
-        settled = true;
-        this._connected = true;
-        this.emit("connected");
-        resolve();
+      proc.stderr!.on("data", (chunk: Buffer) => {
+        const text = chunk.toString("utf-8");
+        stderrBuf += text;
+
+        for (const line of text.split("\n")) {
+          const trimmed = line.trim();
+          if (trimmed) {
+            console.log(`[LogScope uart-helper] ${trimmed}`);
+          }
+        }
+
+        if (!resolved && stderrBuf.includes("SERIAL_READY")) {
+          resolved = true;
+          this._connected = true;
+          this.emit("connected");
+          resolve();
+        }
+
+        if (!resolved && stderrBuf.includes("ERROR:")) {
+          resolved = true;
+          const errLine = stderrBuf.split("\n").find(l => l.includes("ERROR:")) ?? "Unknown error";
+          reject(new Error(errLine.replace(/^ERROR:\s*/i, "")));
+        }
       });
 
-      port.on("data", (chunk: Buffer) => {
-        this.emit("data", chunk);
+      // Raw stdout — no framing (unlike RTT which uses channel framing)
+      proc.stdout!.on("data", (chunk: Buffer) => {
+        if (this._connected) {
+          this.emit("data", chunk);
+        }
       });
 
-      port.on("close", () => {
+      proc.on("exit", (code) => {
+        const wasConnected = this._connected;
         this._connected = false;
-        this.emit("disconnected");
+        this.helper = null;
+
+        if (!resolved) {
+          resolved = true;
+          reject(new Error(`UART helper exited with code ${code} before connecting`));
+        } else if (wasConnected) {
+          this.emit("disconnected");
+        }
       });
 
-      port.on("error", (err: Error) => {
-        if (!settled) {
-          settled = true;
-          this._connected = false;
+      proc.on("error", (err) => {
+        this._connected = false;
+        this.helper = null;
+        if (!resolved) {
+          resolved = true;
           reject(err);
         } else {
           this.emit("error", err);
         }
       });
 
-      // Timeout: reject if port doesn't open within 10 seconds
-      const timeout = setTimeout(() => {
-        if (!settled) {
-          settled = true;
-          port.destroy();
-          this.serialPort = null;
+      setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          proc.kill();
           reject(new Error(`Timed out opening serial port ${this.portPath}`));
         }
       }, 10_000);
-
-      port.open((err) => {
-        clearTimeout(timeout);
-        if (err && !settled) {
-          settled = true;
-          this._connected = false;
-          reject(err);
-        }
-      });
     });
   }
 
   disconnect(): void {
-    if (this.serialPort) {
-      const port = this.serialPort;
-      this.serialPort = null;
-      this._connected = false;
-
-      if (port.isOpen) {
-        port.close();
-      } else {
-        port.destroy();
-        this.emit("disconnected");
-      }
+    if (this.helper) {
+      this.helper.kill();
+      this.helper = null;
     }
+    this._connected = false;
+    this.emit("disconnected");
   }
 }

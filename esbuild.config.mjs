@@ -8,7 +8,7 @@ const extensionConfig = {
   entryPoints: ["src/extension.ts"],
   bundle: true,
   outfile: "out/extension.js",
-  external: ["vscode", "serialport", "@serialport/bindings-cpp"],
+  external: ["vscode"],
   format: "cjs",
   platform: "node",
   sourcemap: true,
@@ -31,8 +31,9 @@ function copyAssets() {
   mkdirSync("out/webview", { recursive: true });
   copyFileSync("src/ui/webview/styles.css", "out/webview/styles.css");
   copyFileSync("src/ui/webview/index.html", "out/webview/index.html");
-  // RTT helper script (runs as subprocess, not bundled into JS)
+  // Helper scripts (run as subprocesses, not bundled into JS)
   copyFileSync("src/transport/rtt-helper.py", "out/rtt-helper.py");
+  copyFileSync("src/transport/uart-helper.py", "out/uart-helper.py");
 }
 
 if (isWatch) {

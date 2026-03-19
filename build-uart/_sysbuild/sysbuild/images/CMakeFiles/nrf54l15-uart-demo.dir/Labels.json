@@ -1,0 +1,43 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/sysbuild/images/CMakeFiles/nrf54l15-uart-demo"
+		},
+		{
+			"file" : "/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/sysbuild/images/CMakeFiles/nrf54l15-uart-demo.rule"
+		},
+		{
+			"file" : "/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/sysbuild/images/CMakeFiles/nrf54l15-uart-demo-complete.rule"
+		},
+		{
+			"file" : "/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/sysbuild/images/nrf54l15-uart-demo-prefix/src/nrf54l15-uart-demo-stamp/nrf54l15-uart-demo-build.rule"
+		},
+		{
+			"file" : "/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/sysbuild/images/nrf54l15-uart-demo-prefix/src/nrf54l15-uart-demo-stamp/nrf54l15-uart-demo-configure.rule"
+		},
+		{
+			"file" : "/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/sysbuild/images/nrf54l15-uart-demo-prefix/src/nrf54l15-uart-demo-stamp/nrf54l15-uart-demo-download.rule"
+		},
+		{
+			"file" : "/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/sysbuild/images/nrf54l15-uart-demo-prefix/src/nrf54l15-uart-demo-stamp/nrf54l15-uart-demo-install.rule"
+		},
+		{
+			"file" : "/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/sysbuild/images/nrf54l15-uart-demo-prefix/src/nrf54l15-uart-demo-stamp/nrf54l15-uart-demo-mkdir.rule"
+		},
+		{
+			"file" : "/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/sysbuild/images/nrf54l15-uart-demo-prefix/src/nrf54l15-uart-demo-stamp/nrf54l15-uart-demo-patch.rule"
+		},
+		{
+			"file" : "/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/sysbuild/images/nrf54l15-uart-demo-prefix/src/nrf54l15-uart-demo-stamp/nrf54l15-uart-demo-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"nrf54l15-uart-demo"
+		],
+		"name" : "nrf54l15-uart-demo"
+	}
+}

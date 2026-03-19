@@ -1,0 +1,22 @@
+cmake:
+  board:
+    name: 'nrf54l15dk'
+    path:
+     - '/opt/nordic/ncs/v3.2.0/zephyr/boards/nordic/nrf54l15dk'
+    qualifiers: 'nrf54l15/cpuapp'
+    revision: ''
+  images:
+   - name: 'nrf54l15-uart-demo'
+     source-dir: '/Users/mafaneh/Projects/tools/logscope/samples/nrf54l15-uart-demo'
+     type: 'MAIN'
+  kconfig:
+    files:
+     - '/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/empty.conf'
+     - '/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/empty.conf'
+    user-files:
+     - '/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/empty.conf'
+version: '0.1.0'
+west:
+  command: '/opt/nordic/ncs/toolchains/322ac893fe/bin/west build -b nrf54l15dk/nrf54l15/cpuapp samples/nrf54l15-uart-demo --build-dir build-uart -p'
+  topdir: '/opt/nordic/ncs/v3.2.0'
+  version: '1.4.0'

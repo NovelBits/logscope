@@ -1,218 +1,163 @@
+import { UartTransport, discoverSerialPorts } from "../../src/transport/uart-serial";
+import { ChildProcess, spawn } from "child_process";
 import { EventEmitter } from "events";
 
-// --- Mock serialport module ---
+// Mock child_process.spawn
+jest.mock("child_process", () => {
+  const actual = jest.requireActual("child_process");
+  return {
+    ...actual,
+    spawn: jest.fn(),
+  };
+});
 
-/** Error to inject on next open() call, or null for success */
-let mockOpenError: Error | null = null;
+const mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
 
-class MockSerialPort extends EventEmitter {
-  isOpen = false;
-  readonly path: string;
-  readonly baudRate: number;
-
-  constructor(options: { path: string; baudRate: number; autoOpen: boolean }) {
-    super();
-    this.path = options.path;
-    this.baudRate = options.baudRate;
-  }
-
-  open(callback?: (err: Error | null) => void): void {
-    const err = mockOpenError;
-    mockOpenError = null; // reset for next test
-    if (err) {
-      if (callback) callback(err);
-      return;
-    }
-    this.isOpen = true;
-    if (callback) callback(null);
-    // Simulate async open event
-    process.nextTick(() => this.emit("open"));
-  }
-
-  close(callback?: (err: Error | null) => void): void {
-    this.isOpen = false;
-    if (callback) callback(null);
-    process.nextTick(() => this.emit("close"));
-  }
-
-  destroy(): void {
-    this.isOpen = false;
-    this.removeAllListeners();
-  }
+function createMockProcess(): ChildProcess {
+  const proc = new EventEmitter() as ChildProcess;
+  proc.stdout = new EventEmitter() as any;
+  proc.stderr = new EventEmitter() as any;
+  proc.kill = jest.fn();
+  Object.defineProperty(proc, "pid", { value: 12345, writable: true });
+  return proc;
 }
-
-let mockInstance: MockSerialPort | null = null;
-let mockListResult: Array<{
-  path: string;
-  manufacturer?: string;
-  serialNumber?: string;
-  pnpId?: string;
-}> = [];
-
-jest.mock("serialport", () => ({
-  SerialPort: class extends MockSerialPort {
-    constructor(options: { path: string; baudRate: number; autoOpen: boolean }) {
-      super(options);
-      mockInstance = this;
-    }
-    static list: jest.Mock = jest.fn(async () => mockListResult);
-  },
-}));
-
-import {
-  UartTransport,
-  discoverSerialPorts,
-  UartTransportConfig,
-} from "../../src/transport/uart-serial";
 
 describe("UartTransport", () => {
   beforeEach(() => {
-    mockInstance = null;
-    mockOpenError = null;
+    jest.clearAllMocks();
   });
 
-  test("creates with default baud rate (115200)", () => {
-    const transport = new UartTransport({ port: "/dev/ttyACM0" });
-    expect(transport).toBeDefined();
-    expect(transport.connected).toBe(false);
-  });
-
-  test("creates with custom baud rate", () => {
-    const transport = new UartTransport({ port: "/dev/ttyACM0", baudRate: 9600 });
-    expect(transport).toBeDefined();
-    expect(transport.connected).toBe(false);
-  });
-
-  test("connects and emits connected event", async () => {
-    const transport = new UartTransport({ port: "/dev/ttyACM0" });
-    const connectedPromise = new Promise<void>((resolve) => {
-      transport.on("connected", () => resolve());
-    });
-
-    await transport.connect();
-
-    expect(transport.connected).toBe(true);
-    await connectedPromise;
-  });
-
-  test("emits data event on received bytes", async () => {
-    const transport = new UartTransport({ port: "/dev/ttyACM0" });
-    await transport.connect();
-
-    const dataPromise = new Promise<Buffer>((resolve) => {
-      transport.on("data", (chunk: Buffer) => resolve(chunk));
-    });
-
-    // Simulate data arriving on the serial port
-    const testData = Buffer.from("[00:00:01.000,000] <inf> test: hello\n");
-    mockInstance!.emit("data", testData);
-
-    const received = await dataPromise;
-    expect(received).toEqual(testData);
-  });
-
-  test("disconnects cleanly and emits disconnected", async () => {
-    const transport = new UartTransport({ port: "/dev/ttyACM0" });
-    await transport.connect();
-    expect(transport.connected).toBe(true);
-
-    const disconnectedPromise = new Promise<void>((resolve) => {
-      transport.on("disconnected", () => resolve());
-    });
-
-    transport.disconnect();
-    await disconnectedPromise;
-
-    expect(transport.connected).toBe(false);
-  });
-
-  test("handles disconnect when not connected (no throw)", () => {
-    const transport = new UartTransport({ port: "/dev/ttyACM0" });
-    expect(() => transport.disconnect()).not.toThrow();
-  });
-
-  test("connect rejects on serial port open error", async () => {
-    mockOpenError = new Error("ENOENT: no such device");
-    const transport = new UartTransport({ port: "/dev/nonexistent" });
-
-    await expect(transport.connect()).rejects.toThrow("ENOENT");
-    expect(transport.connected).toBe(false);
-  });
-
-  test("rejects if already connected", async () => {
+  it("creates with default baud rate", () => {
     const t = new UartTransport({ port: "/dev/ttyACM0" });
-    await t.connect();
-    await expect(t.connect()).rejects.toThrow("Already connected");
+    expect(t.connected).toBe(false);
   });
 
-  test("rejects with timeout if port never opens", async () => {
-    jest.useFakeTimers();
+  it("creates with custom baud rate", () => {
+    const t = new UartTransport({ port: "/dev/ttyACM0", baudRate: 9600 });
+    expect(t.connected).toBe(false);
+  });
 
-    // Save original open behavior and replace with one that never calls back
-    const origOpen = MockSerialPort.prototype.open;
-    MockSerialPort.prototype.open = function () {
-      /* never calls back or emits open */
-    };
+  it("connects when helper reports SERIAL_READY", async () => {
+    const proc = createMockProcess();
+    mockSpawn.mockReturnValue(proc);
 
     const t = new UartTransport({ port: "/dev/ttyACM0" });
     const connectPromise = t.connect();
 
-    jest.advanceTimersByTime(10_001);
+    proc.stderr!.emit("data", Buffer.from("SERIAL_READY port=/dev/ttyACM0 baud=115200\n"));
 
-    await expect(connectPromise).rejects.toThrow(/timed out/i);
-
-    MockSerialPort.prototype.open = origOpen;
-    jest.useRealTimers();
+    await connectPromise;
+    expect(t.connected).toBe(true);
   });
 
-  test("emits error event on serial port error after connected", async () => {
-    const transport = new UartTransport({ port: "/dev/ttyACM0" });
-    await transport.connect();
+  it("emits data event from stdout", async () => {
+    const proc = createMockProcess();
+    mockSpawn.mockReturnValue(proc);
 
-    const errorPromise = new Promise<Error>((resolve) => {
-      transport.on("error", (err: Error) => resolve(err));
-    });
+    const t = new UartTransport({ port: "/dev/ttyACM0" });
+    const connectPromise = t.connect();
+    proc.stderr!.emit("data", Buffer.from("SERIAL_READY port=/dev/ttyACM0 baud=115200\n"));
+    await connectPromise;
 
-    mockInstance!.emit("error", new Error("device unplugged"));
+    const dataPromise = new Promise<Buffer>((resolve) => t.on("data", resolve));
+    proc.stdout!.emit("data", Buffer.from("Hello from UART\n"));
+    const received = await dataPromise;
+    expect(received.toString()).toBe("Hello from UART\n");
+  });
 
-    const err = await errorPromise;
-    expect(err.message).toBe("device unplugged");
+  it("rejects on ERROR from helper", async () => {
+    const proc = createMockProcess();
+    mockSpawn.mockReturnValue(proc);
+
+    const t = new UartTransport({ port: "/dev/ttyACM0" });
+    const connectPromise = t.connect();
+
+    proc.stderr!.emit("data", Buffer.from("ERROR: No such port /dev/ttyACM0\n"));
+
+    await expect(connectPromise).rejects.toThrow("No such port");
+  });
+
+  it("disconnects cleanly", async () => {
+    const proc = createMockProcess();
+    mockSpawn.mockReturnValue(proc);
+
+    const t = new UartTransport({ port: "/dev/ttyACM0" });
+    const connectPromise = t.connect();
+    proc.stderr!.emit("data", Buffer.from("SERIAL_READY\n"));
+    await connectPromise;
+
+    t.disconnect();
+    expect(t.connected).toBe(false);
+    expect(proc.kill).toHaveBeenCalled();
+  });
+
+  it("handles disconnect when not connected", () => {
+    const t = new UartTransport({ port: "/dev/ttyACM0" });
+    expect(() => t.disconnect()).not.toThrow();
+  });
+
+  it("rejects if already connected", async () => {
+    const proc = createMockProcess();
+    mockSpawn.mockReturnValue(proc);
+
+    const t = new UartTransport({ port: "/dev/ttyACM0" });
+    const connectPromise = t.connect();
+    proc.stderr!.emit("data", Buffer.from("SERIAL_READY\n"));
+    await connectPromise;
+
+    await expect(t.connect()).rejects.toThrow("Already connected");
+  });
+
+  it("emits disconnected when helper exits", async () => {
+    const proc = createMockProcess();
+    mockSpawn.mockReturnValue(proc);
+
+    const t = new UartTransport({ port: "/dev/ttyACM0" });
+    const connectPromise = t.connect();
+    proc.stderr!.emit("data", Buffer.from("SERIAL_READY\n"));
+    await connectPromise;
+
+    const disconnectedPromise = new Promise<void>((resolve) => t.on("disconnected", resolve));
+    proc.emit("exit", 0);
+    await disconnectedPromise;
+    expect(t.connected).toBe(false);
   });
 });
 
 describe("discoverSerialPorts", () => {
-  test("returns filtered port list excluding Bluetooth and debug ports", async () => {
-    mockListResult = [
-      { path: "/dev/ttyACM0", manufacturer: "Nordic Semiconductor" },
-      { path: "/dev/ttyACM1", manufacturer: "SEGGER" },
-      { path: "/dev/tty.Bluetooth-Incoming-Port", manufacturer: undefined },
-      { path: "/dev/cu.Bluetooth-Incoming-Port", manufacturer: undefined },
-      { path: "/dev/tty.debug-console", manufacturer: undefined },
-      { path: "COM3", manufacturer: "FTDI", serialNumber: "ABC123" },
-    ];
-
-    const ports = await discoverSerialPorts();
-
-    // Should include real serial ports
-    expect(ports.some((p) => p.path === "/dev/ttyACM0")).toBe(true);
-    expect(ports.some((p) => p.path === "/dev/ttyACM1")).toBe(true);
-    expect(ports.some((p) => p.path === "COM3")).toBe(true);
-
-    // Should exclude Bluetooth and debug ports
-    expect(ports.some((p) => p.path.includes("Bluetooth"))).toBe(false);
-    expect(ports.some((p) => p.path.includes("debug"))).toBe(false);
-
-    // Verify structure
-    const nordic = ports.find((p) => p.path === "/dev/ttyACM0");
-    expect(nordic?.manufacturer).toBe("Nordic Semiconductor");
-
-    const ftdi = ports.find((p) => p.path === "COM3");
-    expect(ftdi?.serialNumber).toBe("ABC123");
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
-  test("returns empty array when no ports found", async () => {
-    mockListResult = [];
-    const ports = await discoverSerialPorts();
-    expect(ports).toEqual([]);
+  it("returns discovered ports from helper", async () => {
+    const proc = createMockProcess();
+    mockSpawn.mockReturnValue(proc);
+
+    const promise = discoverSerialPorts();
+
+    const response = JSON.stringify({
+      ports: [
+        { path: "/dev/cu.usbmodem001", manufacturer: "SEGGER", serialNumber: "1234" },
+        { path: "/dev/cu.usbmodem002", manufacturer: "FTDI", serialNumber: "5678" },
+      ],
+    });
+    proc.stdout!.emit("data", Buffer.from(response));
+    proc.emit("exit", 0);
+
+    const ports = await promise;
+    expect(ports).toHaveLength(2);
+    expect(ports[0].path).toBe("/dev/cu.usbmodem001");
+    expect(ports[0].manufacturer).toBe("SEGGER");
+  });
+
+  it("returns empty array on error", async () => {
+    const proc = createMockProcess();
+    mockSpawn.mockReturnValue(proc);
+
+    const promise = discoverSerialPorts();
+    proc.emit("error", new Error("spawn failed"));
+
+    const ports = await promise;
+    expect(ports).toHaveLength(0);
   });
 });

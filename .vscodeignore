@@ -2,8 +2,6 @@
 src/**
 test/**
 node_modules/**
-!node_modules/serialport/**
-!node_modules/@serialport/**
 .venv/**
 build/**
 build-hci/**

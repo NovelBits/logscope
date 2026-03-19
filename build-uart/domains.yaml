@@ -1,0 +1,7 @@
+default: nrf54l15-uart-demo
+build_dir: /Users/mafaneh/Projects/tools/logscope/build-uart
+domains:
+  - name: nrf54l15-uart-demo
+    build_dir: /Users/mafaneh/Projects/tools/logscope/build-uart/nrf54l15-uart-demo
+flash_order:
+  - nrf54l15-uart-demo

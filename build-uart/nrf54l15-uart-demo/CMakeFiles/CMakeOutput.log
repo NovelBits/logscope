@@ -1,0 +1,43 @@
+The target system is: Generic - 4.2.99 - arm
+The host system is: Darwin - 25.3.0 - arm64
+Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
+Compiler: /opt/nordic/ncs/toolchains/322ac893fe/opt/zephyr-sdk/arm-zephyr-eabi/bin/arm-zephyr-eabi-gcc 
+Build flags: 
+Id flags: -c 
+
+The output was:
+0
+
+
+Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "CMakeCCompilerId.o"
+
+The C compiler identification is GNU, found in "/Users/mafaneh/Projects/tools/logscope/build-uart/nrf54l15-uart-demo/CMakeFiles/3.21.0/CompilerIdC/CMakeCCompilerId.o"
+
+Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+Compiler: /opt/nordic/ncs/toolchains/322ac893fe/opt/zephyr-sdk/arm-zephyr-eabi/bin/arm-zephyr-eabi-g++ 
+Build flags: 
+Id flags: -c 
+
+The output was:
+0
+
+
+Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "CMakeCXXCompilerId.o"
+
+The CXX compiler identification is GNU, found in "/Users/mafaneh/Projects/tools/logscope/build-uart/nrf54l15-uart-demo/CMakeFiles/3.21.0/CompilerIdCXX/CMakeCXXCompilerId.o"
+
+Checking whether the ASM compiler is GNU using "--version" matched "(GNU assembler)|(GCC)|(Free Software Foundation)":
+arm-zephyr-eabi-gcc (Zephyr SDK 0.17.0) 12.2.0
+Copyright (C) 2022 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Performing C SOURCE FILE Test check_fmacro_prefix_map__Users_mafaneh_Projects_tools_logscope_samples_nrf54l15_uart_demo_CMAKE_SOURCE_DIR_C__nostartfiles__nostdlib__isystem___opt_nordic_ncs_toolchains_322ac893fe_opt_zephyr_sdk_arm_zephyr_eabi_bin____lib_gcc_arm_zephyr_eabi_12_2_0_include___isystem___opt_nordic_ncs_toolchains_322ac893fe_opt_zephyr_sdk_arm_zephyr_eabi_bin____lib_gcc_arm_zephyr_eabi_12_2_0_include_fixed___Wl___unresolved_symbols_ignore_in_object_files__Wl___entry_0__fuse_ld_bfd succeeded with the following output:
+Change Dir: /Users/mafaneh/Projects/tools/logscope/build-uart/nrf54l15-uart-demo/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/opt/nordic/ncs/toolchains/322ac893fe/bin/ninja cmTC_0c1e7 && [1/2] Building C object CMakeFiles/cmTC_0c1e7.dir/src.c.obj
+[2/2] Linking C executable cmTC_0c1e7
+
+
+Source file was:
+int main(void) { return 0; }

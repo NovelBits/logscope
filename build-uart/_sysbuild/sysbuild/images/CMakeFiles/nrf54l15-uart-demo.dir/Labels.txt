@@ -1,0 +1,13 @@
+# Target labels
+ nrf54l15-uart-demo
+# Source files and their labels
+/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/sysbuild/images/CMakeFiles/nrf54l15-uart-demo
+/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/sysbuild/images/CMakeFiles/nrf54l15-uart-demo.rule
+/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/sysbuild/images/CMakeFiles/nrf54l15-uart-demo-complete.rule
+/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/sysbuild/images/nrf54l15-uart-demo-prefix/src/nrf54l15-uart-demo-stamp/nrf54l15-uart-demo-build.rule
+/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/sysbuild/images/nrf54l15-uart-demo-prefix/src/nrf54l15-uart-demo-stamp/nrf54l15-uart-demo-configure.rule
+/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/sysbuild/images/nrf54l15-uart-demo-prefix/src/nrf54l15-uart-demo-stamp/nrf54l15-uart-demo-download.rule
+/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/sysbuild/images/nrf54l15-uart-demo-prefix/src/nrf54l15-uart-demo-stamp/nrf54l15-uart-demo-install.rule
+/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/sysbuild/images/nrf54l15-uart-demo-prefix/src/nrf54l15-uart-demo-stamp/nrf54l15-uart-demo-mkdir.rule
+/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/sysbuild/images/nrf54l15-uart-demo-prefix/src/nrf54l15-uart-demo-stamp/nrf54l15-uart-demo-patch.rule
+/Users/mafaneh/Projects/tools/logscope/build-uart/_sysbuild/sysbuild/images/nrf54l15-uart-demo-prefix/src/nrf54l15-uart-demo-stamp/nrf54l15-uart-demo-update.rule
