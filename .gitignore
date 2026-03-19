@@ -7,3 +7,4 @@ build/
 .vscode/settings.json
 build-hci/
 .superpowers/
+docs/superpowers/
