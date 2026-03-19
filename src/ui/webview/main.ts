@@ -618,6 +618,10 @@ window.addEventListener("message", (event) => {
 
     case "connected": {
       isConnected = true;
+      // Ensure we have a config for reconnect (auto-connect bypasses the form)
+      if (!lastConnectConfig) {
+        lastConnectConfig = getFormConfig();
+      }
       connectBtn.disabled = false;
       connectBtn.textContent = "Connect";
       connDevice.textContent = msg.address ? "\u00B7 " + msg.address : "";
