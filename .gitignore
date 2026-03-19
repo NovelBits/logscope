@@ -5,3 +5,5 @@ dist/
 .vscode-test/
 build/
 .vscode/settings.json
+build-hci/
+.superpowers/
