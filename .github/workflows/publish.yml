@@ -29,6 +29,6 @@ jobs:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@7b5e644a42c17ee4e3b1101f77d4b1bea6fa1838 # v2
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
         with:
           generate_release_notes: true
