@@ -26,6 +26,14 @@
 
       <div id="connect-form">
         <div class="form-group">
+          <span class="form-label">Transport</span>
+          <div id="transport-selector">
+            <button id="transport-rtt" class="transport-btn active" data-transport="rtt" type="button">J-Link RTT</button>
+            <button id="transport-uart" class="transport-btn" data-transport="uart" type="button">Serial UART</button>
+          </div>
+        </div>
+
+        <div id="rtt-form" class="form-group">
           <span class="form-label">Device</span>
           <div id="device-row">
             <div id="device-picker">
@@ -39,6 +47,31 @@
             <button id="refresh-btn" title="Refresh device list">&#x21bb;</button>
           </div>
           <span class="form-hint">Connects via J-Link RTT</span>
+        </div>
+
+        <div id="uart-form" class="form-group hidden">
+          <span class="form-label">Serial Port</span>
+          <div id="port-row">
+            <div id="port-picker">
+              <button id="port-picker-btn" type="button" title="Select serial port">
+                <span id="port-picker-text">Scanning...</span>
+                <span class="chevron">&#x25BE;</span>
+              </button>
+              <div id="port-picker-list" class="hidden"></div>
+            </div>
+            <input id="cfg-port" type="hidden" value="" />
+            <button id="refresh-ports-btn" title="Refresh port list">&#x21bb;</button>
+          </div>
+          <span class="form-label">Baud Rate</span>
+          <div id="baud-picker">
+            <button id="baud-picker-btn" type="button" title="Select baud rate">
+              <span id="baud-picker-text">115200</span>
+              <span class="chevron">&#x25BE;</span>
+            </button>
+            <div id="baud-picker-list" class="hidden"></div>
+          </div>
+          <input id="cfg-baud" type="hidden" value="115200" />
+          <span class="form-hint">Connects via USB CDC ACM or UART bridge</span>
         </div>
 
         <label id="auto-connect-label">

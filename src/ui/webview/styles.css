@@ -113,6 +113,130 @@ body { display: flex; flex-direction: column; }
 #refresh-btn.spinning { animation: spin 0.8s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
+/* Transport selector */
+#transport-selector { display: flex; gap: 4px; }
+.transport-btn {
+  flex: 1; padding: 6px 12px; font-size: 12px; font-family: inherit;
+  background: var(--vscode-input-background, #3c3c3c);
+  color: var(--vscode-input-foreground, #ccc);
+  border: 1px solid var(--vscode-input-border, #555);
+  border-radius: 4px; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.transport-btn.active {
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #fff);
+  border-color: var(--vscode-button-background, #0e639c);
+}
+.transport-btn:hover:not(.active) {
+  border-color: var(--vscode-focusBorder, #007fd4);
+}
+
+/* Port picker (mirrors device picker) */
+#port-row {
+  display: flex; gap: 6px; align-items: stretch;
+}
+#port-picker { flex: 1; position: relative; }
+#port-picker-btn {
+  width: 100%; padding: 7px 10px; text-align: left; height: 32px;
+  background: var(--vscode-input-background, #3c3c3c);
+  color: var(--vscode-input-foreground, #ccc);
+  border: 1px solid var(--vscode-input-border, #555);
+  border-radius: 4px; font-size: 13px; cursor: pointer;
+  font-family: inherit;
+  display: flex; justify-content: space-between; align-items: center;
+  white-space: nowrap; overflow: hidden;
+  transition: border-color 0.15s;
+}
+#port-picker-btn:hover { border-color: var(--vscode-focusBorder, #007fd4); }
+#port-picker-btn:focus-visible {
+  outline: none; border-color: var(--vscode-focusBorder, #007fd4);
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder, #007fd4);
+}
+#port-picker-btn #port-picker-text { overflow: hidden; text-overflow: ellipsis; }
+#port-picker-btn .chevron { font-size: 10px; opacity: 0.5; margin-left: 8px; flex-shrink: 0; }
+#port-picker-list {
+  position: absolute; top: 100%; left: 0; right: 0; margin-top: 2px; z-index: 100;
+  background: var(--vscode-dropdown-background, #3c3c3c);
+  border: 1px solid var(--vscode-dropdown-border, #555);
+  border-radius: 4px; overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+}
+.port-option {
+  padding: 7px 10px; cursor: pointer; font-size: 13px;
+  font-family: inherit;
+  color: var(--vscode-dropdown-foreground, #ccc);
+  transition: background 0.1s;
+}
+.port-option:hover {
+  background: var(--vscode-list-hoverBackground, rgba(255,255,255,0.04));
+}
+.port-option.selected {
+  background: var(--vscode-list-activeSelectionBackground, #094771);
+  color: var(--vscode-list-activeSelectionForeground, #fff);
+}
+.port-option .port-detail {
+  display: block; font-size: 11px;
+  color: var(--vscode-descriptionForeground, #888);
+}
+
+/* Refresh ports button (mirrors #refresh-btn) */
+#refresh-ports-btn {
+  flex-shrink: 0; width: 32px; height: 32px; padding: 0;
+  background: var(--vscode-button-secondaryBackground, #3a3d41);
+  color: var(--vscode-button-secondaryForeground, #ccc);
+  border: 1px solid var(--vscode-input-border, #555);
+  border-radius: 4px; font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+#refresh-ports-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground, #45494e);
+  border-color: var(--vscode-focusBorder, #007fd4);
+}
+#refresh-ports-btn.spinning { animation: spin 0.8s linear infinite; }
+
+/* Baud picker (mirrors port picker) */
+#baud-picker { position: relative; margin-top: 6px; }
+#baud-picker-btn {
+  width: 100%; padding: 7px 10px; text-align: left; height: 32px;
+  background: var(--vscode-input-background, #3c3c3c);
+  color: var(--vscode-input-foreground, #ccc);
+  border: 1px solid var(--vscode-input-border, #555);
+  border-radius: 4px; font-size: 13px; cursor: pointer;
+  font-family: inherit;
+  display: flex; justify-content: space-between; align-items: center;
+  white-space: nowrap; overflow: hidden;
+  transition: border-color 0.15s;
+}
+#baud-picker-btn:hover { border-color: var(--vscode-focusBorder, #007fd4); }
+#baud-picker-btn:focus-visible {
+  outline: none; border-color: var(--vscode-focusBorder, #007fd4);
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder, #007fd4);
+}
+#baud-picker-btn #baud-picker-text { overflow: hidden; text-overflow: ellipsis; }
+#baud-picker-btn .chevron { font-size: 10px; opacity: 0.5; margin-left: 8px; flex-shrink: 0; }
+#baud-picker-list {
+  position: absolute; top: 100%; left: 0; right: 0; margin-top: 2px; z-index: 100;
+  background: var(--vscode-dropdown-background, #3c3c3c);
+  border: 1px solid var(--vscode-dropdown-border, #555);
+  border-radius: 4px; overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+}
+.baud-option {
+  padding: 7px 10px; cursor: pointer; font-size: 13px;
+  font-family: inherit;
+  color: var(--vscode-dropdown-foreground, #ccc);
+  transition: background 0.1s;
+}
+.baud-option:hover {
+  background: var(--vscode-list-hoverBackground, rgba(255,255,255,0.04));
+}
+.baud-option.selected {
+  background: var(--vscode-list-activeSelectionBackground, #094771);
+  color: var(--vscode-list-activeSelectionForeground, #fff);
+}
+
 /* Auto-connect */
 #auto-connect-label {
   display: flex; align-items: center; gap: 8px;
