@@ -4,7 +4,7 @@
 
 LogScope streams logs directly from your embedded device via SEGGER J-Link RTT — no serial cables, no terminal juggling. See your Zephyr RTOS logs in a modern, filterable viewer with deep Bluetooth LE protocol decoding built in.
 
-![LogScope connected log viewer](docs/images/connected.png)
+![LogScope connected log viewer](media/connected.png)
 
 ## Features
 
