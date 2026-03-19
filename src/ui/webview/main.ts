@@ -62,6 +62,22 @@ let isConnected = false;
 const wrapBtn = document.getElementById("wrap-btn")!;
 const timestampBtn = document.getElementById("timestamp-btn")!;
 
+// ── DOM references: transport selector & UART form ──────────────
+const transportRttBtn = document.getElementById("transport-rtt")!;
+const transportUartBtn = document.getElementById("transport-uart")!;
+const rttForm = document.getElementById("rtt-form")!;
+const uartForm = document.getElementById("uart-form")!;
+const portPickerBtn = document.getElementById("port-picker-btn")!;
+const portPickerText = document.getElementById("port-picker-text")!;
+const portPickerList = document.getElementById("port-picker-list")!;
+const cfgPort = document.getElementById("cfg-port") as HTMLInputElement;
+const refreshPortsBtn = document.getElementById("refresh-ports-btn")!;
+const baudPickerBtn = document.getElementById("baud-picker-btn")!;
+const baudPickerText = document.getElementById("baud-picker-text")!;
+const baudPickerList = document.getElementById("baud-picker-list")!;
+const cfgBaud = document.getElementById("cfg-baud") as HTMLInputElement;
+let selectedTransport: "rtt" | "uart" = "rtt";
+
 // ── State ───────────────────────────────────────────────────────
 let autoScroll = true;
 let timestampsVisible = true;
@@ -396,6 +412,140 @@ refreshBtn.addEventListener("click", () => {
   vscode.postMessage({ type: "refreshDevices" });
 });
 
+// ── Transport selector ───────────────────────────────────────────
+function setTransport(transport: "rtt" | "uart") {
+  selectedTransport = transport;
+  transportRttBtn.classList.toggle("active", transport === "rtt");
+  transportUartBtn.classList.toggle("active", transport === "uart");
+  rttForm.classList.toggle("hidden", transport !== "rtt");
+  uartForm.classList.toggle("hidden", transport !== "uart");
+  connectError.classList.add("hidden");
+}
+
+transportRttBtn.addEventListener("click", () => {
+  setTransport("rtt");
+  refreshBtn.classList.add("spinning");
+  devicePickerText.textContent = "Scanning...";
+  cfgDevice.value = "";
+  connectBtn.disabled = true;
+  vscode.postMessage({ type: "refreshDevices" });
+});
+
+transportUartBtn.addEventListener("click", () => {
+  setTransport("uart");
+  refreshPortsBtn.classList.add("spinning");
+  portPickerText.textContent = "Scanning...";
+  cfgPort.value = "";
+  connectBtn.disabled = true;
+  vscode.postMessage({ type: "refreshPorts" });
+});
+
+// ── Port picker (mirrors device picker) ──────────────────────────
+let pickerPorts: Array<{ path: string; manufacturer?: string }> = [];
+
+portPickerBtn.addEventListener("click", () => {
+  if (pickerPorts.length === 0) return;
+  portPickerList.classList.toggle("hidden");
+});
+
+function selectPort(path: string, label: string) {
+  cfgPort.value = path;
+  portPickerText.textContent = label;
+  portPickerList.classList.add("hidden");
+  connectBtn.disabled = false;
+  const items = portPickerList.querySelectorAll(".port-option");
+  items.forEach(item => {
+    const el = item as HTMLElement;
+    el.classList.toggle("selected", el.dataset.path === path);
+  });
+}
+
+function populatePortList(ports: Array<{ path: string; manufacturer?: string }>) {
+  pickerPorts = ports;
+  refreshPortsBtn.classList.remove("spinning");
+  while (portPickerList.firstChild) portPickerList.removeChild(portPickerList.firstChild);
+
+  if (ports.length === 0) {
+    portPickerText.textContent = "No ports found";
+    cfgPort.value = "";
+    connectBtn.disabled = true;
+    return;
+  }
+
+  for (const port of ports) {
+    const item = document.createElement("div");
+    item.className = "port-option";
+    item.dataset.path = port.path;
+
+    const pathSpan = document.createElement("span");
+    pathSpan.textContent = port.path;
+    item.appendChild(pathSpan);
+
+    if (port.manufacturer) {
+      const detail = document.createElement("span");
+      detail.className = "port-detail";
+      detail.textContent = port.manufacturer;
+      item.appendChild(detail);
+    }
+
+    item.addEventListener("click", () => selectPort(port.path, port.path));
+    portPickerList.appendChild(item);
+  }
+
+  // Auto-select first port
+  const first = ports[0];
+  selectPort(first.path, first.path);
+}
+
+refreshPortsBtn.addEventListener("click", () => {
+  refreshPortsBtn.classList.add("spinning");
+  portPickerText.textContent = "Scanning...";
+  cfgPort.value = "";
+  connectBtn.disabled = true;
+  vscode.postMessage({ type: "refreshPorts" });
+});
+
+// ── Baud rate picker ─────────────────────────────────────────────
+const baudRates = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600, 1000000];
+
+function populateBaudList() {
+  while (baudPickerList.firstChild) baudPickerList.removeChild(baudPickerList.firstChild);
+  for (const rate of baudRates) {
+    const item = document.createElement("div");
+    item.className = "baud-option" + (String(rate) === cfgBaud.value ? " selected" : "");
+    item.dataset.value = String(rate);
+    item.textContent = rate.toLocaleString();
+    item.addEventListener("click", () => {
+      cfgBaud.value = String(rate);
+      baudPickerText.textContent = rate.toLocaleString();
+      baudPickerList.classList.add("hidden");
+      const items = baudPickerList.querySelectorAll(".baud-option");
+      items.forEach(el => {
+        (el as HTMLElement).classList.toggle("selected", (el as HTMLElement).dataset.value === String(rate));
+      });
+    });
+    baudPickerList.appendChild(item);
+  }
+}
+
+baudPickerBtn.addEventListener("click", () => {
+  baudPickerList.classList.toggle("hidden");
+});
+
+// Initialize baud list on load
+populateBaudList();
+
+// ── Close dropdowns on outside click ─────────────────────────────
+document.addEventListener("click", (e) => {
+  const target = e.target as HTMLElement;
+  if (!target.closest("#port-picker")) {
+    portPickerList.classList.add("hidden");
+  }
+  if (!target.closest("#baud-picker")) {
+    baudPickerList.classList.add("hidden");
+  }
+});
+
 // ── Auto-connect checkbox ────────────────────────────────────────
 cfgAutoConnect.addEventListener("change", () => {
   vscode.postMessage({ type: "updateSetting", key: "autoConnect", value: cfgAutoConnect.checked });
@@ -403,6 +553,13 @@ cfgAutoConnect.addEventListener("change", () => {
 
 // ── Connect form ────────────────────────────────────────────────
 function getFormConfig() {
+  if (selectedTransport === "uart") {
+    return {
+      transport: "uart",
+      device: cfgPort.value,
+      baudRate: Number.parseInt(cfgBaud.value, 10) || 115200,
+    };
+  }
   return {
     transport: "rtt",
     device: cfgDevice.value,
@@ -686,7 +843,26 @@ window.addEventListener("message", (event) => {
       connectBtn.textContent = "Connect";
       connDevice.textContent = msg.address ? "\u00B7 " + msg.address : "";
       connStatusDot.className = "dot green";
-      connStatusText.textContent = "Connected via J-Link RTT";
+      const transportLabel = msg.transport || "J-Link RTT";
+      connStatusText.textContent = "Connected via " + transportLabel;
+
+      // Disable HCI button when connected via UART (no HCI decoding support)
+      const hciBtn = document.querySelector(".hci-btn") as HTMLButtonElement | null;
+      if (hciBtn) {
+        const isUart = /uart/i.test(transportLabel);
+        if (isUart) {
+          hciBtn.setAttribute("disabled", "");
+          hciBtn.title = "HCI decoding requires J-Link RTT";
+          hciBtn.classList.remove("active");
+          hciBtn.classList.add("disabled");
+          activeSeverities.delete("hci");
+        } else {
+          hciBtn.removeAttribute("disabled");
+          hciBtn.title = "Bluetooth LE HCI packets";
+          hciBtn.classList.remove("disabled");
+        }
+      }
+
       connectToggleBtn.textContent = "Disconnect";
       connectToggleBtn.className = "conn-btn disconnect";
       (connectToggleBtn as HTMLButtonElement).disabled = false;
@@ -722,6 +898,11 @@ window.addEventListener("message", (event) => {
 
     case "devices": {
       populateDeviceDropdown(msg.devices);
+      break;
+    }
+
+    case "serialPorts": {
+      populatePortList(msg.ports);
       break;
     }
 

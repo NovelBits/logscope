@@ -401,6 +401,11 @@ body { display: flex; flex-direction: column; }
 .severity-btn.active[data-severity="wrn"] { background: rgba(204, 167, 0, 0.15); }
 .severity-btn.active[data-severity="inf"] { background: rgba(55, 148, 255, 0.15); }
 .severity-btn.active[data-severity="dbg"] { background: rgba(136, 136, 136, 0.15); }
+.severity-btn.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 
 /* Fault rows */
 .log-row.fault {
