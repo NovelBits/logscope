@@ -2,6 +2,47 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.2.1] — 2026-03-20
+
+### Fixed
+- Fix panel showing "Disconnected" when closed and reopened during active connection
+
+## [0.2.0] — 2026-03-20
+
+### Added
+- **Serial UART transport** — connect via USB CDC ACM or UART bridge with configurable baud rate
+- **Sidebar connection controls** — transport, device, and baud rate selection via VS Code-native QuickPick flows with back navigation and step indicators
+- **viewsWelcome** first-run experience with "Connect Device" and "Get Started Guide" links
+- **Guided connect flow** — multi-step QuickPick: pick transport → scan devices/ports → select → connect
+- **Reconnect with saved settings** — one-click reconnect from sidebar without re-picking everything
+- **Change Settings** — modify individual connection settings (transport, device, baud rate) without full re-flow
+- **View title toolbar icons** — connect/disconnect, open viewer, export, and settings gear always accessible
+- **Get Started walkthrough** — 3-step onboarding with themed SVG illustrations
+- **UART port labels** — port picker shows "J-Link (Port 1)" style labels with manufacturer, serial number, and port path
+- **HCI packet and error counts** in sidebar session info
+- UART demo firmware sample for nRF54L15 DK
+
+### Changed
+- Connection controls moved from webview welcome screen to VS Code sidebar (TreeView + QuickPick pattern)
+- Webview panel is now a pure log viewer — no more welcome/viewer state toggle
+- Logs stay visible during disconnect/reconnect
+- Filter toggle buttons (Time, Wrap, Auto, Clear) restyled to match severity button aesthetics
+- Switching transport or device while connected: old connection stays active until new selection is confirmed, then seamlessly switches
+- Boot detection assumes device has already booted on connect — first reset is now correctly detected
+
+### Fixed
+- sendConnected race condition with panel initialization delay
+- Concurrent connect guard prevents overlapping connection attempts
+- Boot detection reset on reconnect (no more spurious "Device Reset Detected" separators)
+- Removed vestigial inline settings panel (RTT address input with no handler)
+- Removed dead filterChanged messages (sent from webview but never handled)
+- Error path in connect flow now correctly resets sidebar state
+
+### Removed
+- Welcome screen HTML, CSS, and JavaScript (~1000 lines removed)
+- Device/port/baud pickers from webview (replaced by sidebar QuickPick flows)
+- Novel Bits branding footer from sidebar (branding lives in activity bar icon)
+
 ## [0.1.7] — 2026-03-19
 
 ### Fixed
