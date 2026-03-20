@@ -21,18 +21,39 @@ def run_discover():
         print(json.dumps({"error": "pyserial not installed", "ports": []}))
         return
 
-    ports = []
+    raw_ports = []
     for p in serial.tools.list_ports.comports():
         path = p.device
         # Filter out Bluetooth and debug ports
         lower = path.lower()
         if "bluetooth" in lower or "debug" in lower:
             continue
-        ports.append({
+        raw_ports.append({
             "path": path,
             "manufacturer": p.manufacturer or None,
             "serialNumber": p.serial_number or None,
+            "description": p.description if p.description and p.description != "n/a" else None,
+            "product": p.product or None,
         })
+
+    # Assign port numbers for devices with multiple CDC interfaces (same serial)
+    # Group by serial number, sort by path, assign Port 1, Port 2, etc.
+    from collections import Counter
+    serial_counts = Counter(p["serialNumber"] for p in raw_ports if p["serialNumber"])
+    serial_indices = {}  # serial -> next port number
+
+    # Sort by path so port numbering is deterministic
+    raw_ports.sort(key=lambda p: p["path"])
+
+    ports = []
+    for p in raw_ports:
+        sn = p["serialNumber"]
+        if sn and serial_counts[sn] > 1:
+            idx = serial_indices.get(sn, 1)
+            serial_indices[sn] = idx + 1
+            p["portNumber"] = idx
+        ports.append(p)
+
     print(json.dumps({"ports": ports}))
 
 

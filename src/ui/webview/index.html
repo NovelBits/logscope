@@ -12,112 +12,19 @@
 </head>
 <body>
 
-  <!-- ── State 1: Disconnected (Welcome/Setup) ─────────────── -->
-  <div id="welcome" class="state">
-    <div id="welcome-inner">
-      <div id="welcome-logo">
-        <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="2" y="3" width="20" height="18" rx="2" />
-          <path d="M5 12 Q7 4, 9 12 Q11 20, 13 12 Q15 4, 17 12 L19 12" />
-        </svg>
-      </div>
-      <h1>LogScope<sup class="tm">TM</sup></h1>
-      <p class="subtitle">Real-Time Embedded Log Viewer</p>
-
-      <div id="connect-form">
-        <div class="form-group">
-          <span class="form-label">Transport</span>
-          <div id="transport-selector">
-            <button id="transport-rtt" class="transport-btn active" data-transport="rtt" type="button">J-Link RTT</button>
-            <button id="transport-uart" class="transport-btn" data-transport="uart" type="button">Serial UART</button>
-          </div>
-        </div>
-
-        <div id="rtt-form" class="form-group">
-          <span class="form-label">Device</span>
-          <div id="device-row">
-            <div id="device-picker">
-              <button id="device-picker-btn" type="button" title="Select J-Link device">
-                <span id="device-picker-text">Scanning...</span>
-                <span class="chevron">&#x25BE;</span>
-              </button>
-              <div id="device-picker-list" class="hidden"></div>
-            </div>
-            <input id="cfg-device" type="hidden" value="" />
-            <button id="refresh-btn" title="Refresh device list">&#x21bb;</button>
-          </div>
-          <span class="form-hint">Connects via J-Link RTT</span>
-        </div>
-
-        <div id="uart-form" class="form-group hidden">
-          <span class="form-label">Serial Port</span>
-          <div id="port-row">
-            <div id="port-picker">
-              <button id="port-picker-btn" type="button" title="Select serial port">
-                <span id="port-picker-text">Scanning...</span>
-                <span class="chevron">&#x25BE;</span>
-              </button>
-              <div id="port-picker-list" class="hidden"></div>
-            </div>
-            <input id="cfg-port" type="hidden" value="" />
-            <button id="refresh-ports-btn" title="Refresh port list">&#x21bb;</button>
-          </div>
-          <span class="form-label">Baud Rate</span>
-          <div id="baud-picker">
-            <button id="baud-picker-btn" type="button" title="Select baud rate">
-              <span id="baud-picker-text">115200</span>
-              <span class="chevron">&#x25BE;</span>
-            </button>
-            <div id="baud-picker-list" class="hidden"></div>
-          </div>
-          <input id="cfg-baud" type="hidden" value="115200" />
-          <span class="form-hint">Connects via USB CDC ACM or UART bridge</span>
-        </div>
-
-        <label id="auto-connect-label">
-          <input id="cfg-auto-connect" type="checkbox" />
-          Connect automatically on open
-        </label>
-
-        <button id="connect-btn" title="Connect to selected device">Connect</button>
-
-        <div id="connect-error" class="hidden"></div>
-      </div>
-
-      <div id="welcome-footer">
-        <a id="novelbits-link" href="#">
-          <img src="{{logoUri}}" alt="Novel Bits" height="36" />
-          <span>by Novel Bits</span>
-        </a>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── State 2: Connected (Log Viewer) ───────────────────── -->
-  <div id="viewer" class="state hidden">
+  <!-- ── Log Viewer (always visible) ───────────────────────── -->
+  <div id="viewer">
 
     <!-- Connection bar -->
     <div id="connection-bar">
       <div id="conn-left">
-        <button id="connect-toggle-btn" class="conn-btn disconnect" title="Disconnect">Disconnect</button>
-        <span id="conn-status-dot" class="dot green"></span>
-        <span id="conn-status-text">Connected via J-Link RTT</span>
+        <button id="connect-toggle-btn" class="conn-btn connect" title="Connect">Connect</button>
+        <span id="conn-status-dot" class="dot amber"></span>
+        <span id="conn-status-text">Disconnected</span>
         <span id="conn-device"></span>
       </div>
       <div id="conn-actions">
         <button id="export-btn" class="conn-btn" title="Export logs">Export</button>
-        <button id="settings-btn" class="conn-btn" title="Settings">Settings</button>
-      </div>
-    </div>
-
-    <!-- Inline settings (toggled by gear icon) -->
-    <div id="inline-settings" class="hidden">
-      <div id="inline-settings-inner">
-        <label>
-          RTT Address (override)
-          <input id="cfg-rtt-address-inline" type="text" placeholder="auto" spellcheck="false" />
-        </label>
-        <span class="hint">Leave empty for auto-detect. Changes take effect on next reconnect.</span>
       </div>
     </div>
 
@@ -182,7 +89,7 @@
 
     <!-- Status bar -->
     <div id="status-bar">
-      <span id="status-connection">Connected</span>
+      <span id="status-connection">Disconnected</span>
       <span id="status-count">0 entries</span>
       <span id="status-evicted"></span>
     </div>

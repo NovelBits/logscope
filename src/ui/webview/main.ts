@@ -1,5 +1,6 @@
 // WebView client — runs in the browser context inside VS Code's WebView.
 // Communicates with the extension host via postMessage / onDidReceiveMessage.
+// Connection controls now live in the sidebar; this is a pure log viewer.
 
 import { detectFault } from "../../parser/fault-detector";
 
@@ -22,7 +23,7 @@ interface SerializedEntry {
 // @ts-expect-error — acquireVsCodeApi is injected by the WebView host
 const vscode = acquireVsCodeApi();
 
-// ── DOM references: existing ────────────────────────────────────
+// ── DOM references ──────────────────────────────────────────────
 const timeline = document.getElementById("timeline")!;
 const moduleSelect = document.getElementById("module-select") as HTMLSelectElement;
 const modulePickerBtn = document.getElementById("module-picker-btn")!;
@@ -35,23 +36,12 @@ const statusConnection = document.getElementById("status-connection")!;
 const statusCount = document.getElementById("status-count")!;
 const statusEvicted = document.getElementById("status-evicted")!;
 
-// ── DOM references: new (connection states) ─────────────────────
-const welcomeEl = document.getElementById("welcome")!;
 const viewerEl = document.getElementById("viewer")!;
-const connectBtn = document.getElementById("connect-btn") as HTMLButtonElement;
-const connectError = document.getElementById("connect-error")!;
-const cfgDevice = document.getElementById("cfg-device") as HTMLInputElement;
-const cfgAutoConnect = document.getElementById("cfg-auto-connect") as HTMLInputElement;
-const devicePickerBtn = document.getElementById("device-picker-btn")!;
-const devicePickerText = document.getElementById("device-picker-text")!;
-const devicePickerList = document.getElementById("device-picker-list")!;
 const newDataBar = document.getElementById("new-data-bar")!;
 const endOfLog = document.getElementById("end-of-log")!;
 const connDevice = document.getElementById("conn-device")!;
 const connectionBar = document.getElementById("connection-bar")!;
-const inlineSettings = document.getElementById("inline-settings")!;
 const reconnectBar = document.getElementById("reconnect-bar")!;
-const settingsBtn = document.getElementById("settings-btn")!;
 const connectToggleBtn = document.getElementById("connect-toggle-btn")!;
 const connStatusDot = document.getElementById("conn-status-dot")!;
 const connStatusText = document.getElementById("conn-status-text")!;
@@ -62,22 +52,6 @@ let isConnected = false;
 const wrapBtn = document.getElementById("wrap-btn")!;
 const timestampBtn = document.getElementById("timestamp-btn")!;
 
-// ── DOM references: transport selector & UART form ──────────────
-const transportRttBtn = document.getElementById("transport-rtt")!;
-const transportUartBtn = document.getElementById("transport-uart")!;
-const rttForm = document.getElementById("rtt-form")!;
-const uartForm = document.getElementById("uart-form")!;
-const portPickerBtn = document.getElementById("port-picker-btn")!;
-const portPickerText = document.getElementById("port-picker-text")!;
-const portPickerList = document.getElementById("port-picker-list")!;
-const cfgPort = document.getElementById("cfg-port") as HTMLInputElement;
-const refreshPortsBtn = document.getElementById("refresh-ports-btn")!;
-const baudPickerBtn = document.getElementById("baud-picker-btn")!;
-const baudPickerText = document.getElementById("baud-picker-text")!;
-const baudPickerList = document.getElementById("baud-picker-list")!;
-const cfgBaud = document.getElementById("cfg-baud") as HTMLInputElement;
-let selectedTransport: "rtt" | "uart" = "rtt";
-
 // ── State ───────────────────────────────────────────────────────
 let autoScroll = true;
 let timestampsVisible = true;
@@ -86,13 +60,6 @@ let selectedModule = ""; // "" means all modules
 let searchText = "";
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 let wrapEnabled = false;
-let lastConnectConfig: Record<string, unknown> | null = null;
-
-// ── State management ────────────────────────────────────────────
-function showState(state: "welcome" | "viewer") {
-  welcomeEl.classList.toggle("hidden", state !== "welcome");
-  viewerEl.classList.toggle("hidden", state !== "viewer");
-}
 
 // ── Timestamp formatting ────────────────────────────────────────
 function formatTimestamp(us: number): string {
@@ -326,292 +293,30 @@ function shouldShow(entry: SerializedEntry): boolean {
   return true;
 }
 
-// ── Notify extension of filter changes ──────────────────────────
-function sendFilterChanged(): void {
-  vscode.postMessage({
-    type: "filterChanged",
-    severities: Array.from(activeSeverities),
-    modules: selectedModule ? [selectedModule] : null,
-    searchText,
-  });
-}
-
-// ── Branding link ───────────────────────────────────────
-document.getElementById("novelbits-link")?.addEventListener("click", (e) => {
-  e.preventDefault();
-  vscode.postMessage({ type: "openExternal", url: "https://novelbits.io" });
-});
-
-// ── Custom device picker ────────────────────────────────────────
-const refreshBtn = document.getElementById("refresh-btn")!;
-let pickerDevices: Array<{ serial: number; product: string; core?: string; device?: string }> = [];
-
-devicePickerBtn.addEventListener("click", () => {
-  if (pickerDevices.length === 0) return;
-  devicePickerList.classList.toggle("hidden");
-});
-
-// Close picker when clicking outside
-document.addEventListener("click", (e) => {
-  const target = e.target as HTMLElement;
-  if (!target.closest("#device-picker")) {
-    devicePickerList.classList.add("hidden");
-  }
-});
-
-function selectDevice(serial: string, label: string) {
-  cfgDevice.value = serial;
-  devicePickerText.textContent = label;
-  devicePickerList.classList.add("hidden");
-  connectBtn.disabled = false;
-  // Mark selected
-  const items = devicePickerList.querySelectorAll(".device-option");
-  items.forEach(item => {
-    const el = item as HTMLElement;
-    el.classList.toggle("selected", el.dataset.serial === serial);
-  });
-}
-
-function deviceLabel(dev: { serial: number; core?: string; device?: string; targetName?: string }): string {
-  const name = dev.targetName || "Unknown device";
-  return name + " (SN: " + dev.serial + ")";
-}
-
-function populateDeviceDropdown(devices: Array<{ serial: number; core?: string; device?: string; targetName?: string }>) {
-  pickerDevices = devices;
-  refreshBtn.classList.remove("spinning");
-  while (devicePickerList.firstChild) devicePickerList.removeChild(devicePickerList.firstChild);
-
-  if (devices.length === 0) {
-    devicePickerText.textContent = "No devices found";
-    cfgDevice.value = "";
-    connectBtn.disabled = true;
-    return;
-  }
-
-  for (const dev of devices) {
-    const item = document.createElement("div");
-    item.className = "device-option";
-    item.dataset.serial = String(dev.serial);
-    const label = deviceLabel(dev);
-    item.textContent = label;
-    item.addEventListener("click", () => selectDevice(String(dev.serial), label));
-    devicePickerList.appendChild(item);
-  }
-
-  // Auto-select first device
-  const first = devices[0];
-  selectDevice(String(first.serial), deviceLabel(first));
-}
-
-refreshBtn.addEventListener("click", () => {
-  refreshBtn.classList.add("spinning");
-  devicePickerText.textContent = "Scanning...";
-  cfgDevice.value = "";
-  connectBtn.disabled = true;
-  vscode.postMessage({ type: "refreshDevices" });
-});
-
-// ── Transport selector ───────────────────────────────────────────
-function setTransport(transport: "rtt" | "uart") {
-  selectedTransport = transport;
-  transportRttBtn.classList.toggle("active", transport === "rtt");
-  transportUartBtn.classList.toggle("active", transport === "uart");
-  rttForm.classList.toggle("hidden", transport !== "rtt");
-  uartForm.classList.toggle("hidden", transport !== "uart");
-  connectError.classList.add("hidden");
-  // Re-enable connect button if the target transport already has a selection
-  if (transport === "uart" && cfgPort.value) {
-    connectBtn.disabled = false;
-  } else if (transport === "rtt" && cfgDevice.value) {
-    connectBtn.disabled = false;
-  }
-}
-
-transportRttBtn.addEventListener("click", () => {
-  setTransport("rtt");
-  refreshBtn.classList.add("spinning");
-  devicePickerText.textContent = "Scanning...";
-  cfgDevice.value = "";
-  connectBtn.disabled = true;
-  vscode.postMessage({ type: "refreshDevices" });
-});
-
-transportUartBtn.addEventListener("click", () => {
-  setTransport("uart");
-  refreshPortsBtn.classList.add("spinning");
-  portPickerText.textContent = "Scanning...";
-  cfgPort.value = "";
-  connectBtn.disabled = true;
-  vscode.postMessage({ type: "refreshPorts" });
-});
-
-// ── Port picker (mirrors device picker) ──────────────────────────
-let pickerPorts: Array<{ path: string; manufacturer?: string }> = [];
-
-portPickerBtn.addEventListener("click", () => {
-  if (pickerPorts.length === 0) return;
-  portPickerList.classList.toggle("hidden");
-});
-
-function selectPort(path: string, label: string) {
-  cfgPort.value = path;
-  portPickerText.textContent = label;
-  portPickerList.classList.add("hidden");
-  connectBtn.disabled = false;
-  const items = portPickerList.querySelectorAll(".port-option");
-  items.forEach(item => {
-    const el = item as HTMLElement;
-    el.classList.toggle("selected", el.dataset.path === path);
-  });
-}
-
-function populatePortList(ports: Array<{ path: string; manufacturer?: string }>) {
-  pickerPorts = ports;
-  refreshPortsBtn.classList.remove("spinning");
-  while (portPickerList.firstChild) portPickerList.removeChild(portPickerList.firstChild);
-
-  if (ports.length === 0) {
-    portPickerText.textContent = "No ports found";
-    cfgPort.value = "";
-    connectBtn.disabled = true;
-    return;
-  }
-
-  for (const port of ports) {
-    const item = document.createElement("div");
-    item.className = "port-option";
-    item.dataset.path = port.path;
-
-    const pathSpan = document.createElement("span");
-    pathSpan.textContent = port.path;
-    item.appendChild(pathSpan);
-
-    if (port.manufacturer) {
-      const detail = document.createElement("span");
-      detail.className = "port-detail";
-      detail.textContent = port.manufacturer;
-      item.appendChild(detail);
-    }
-
-    item.addEventListener("click", () => selectPort(port.path, port.path));
-    portPickerList.appendChild(item);
-  }
-
-  // Auto-select first port
-  const first = ports[0];
-  selectPort(first.path, first.path);
-}
-
-refreshPortsBtn.addEventListener("click", () => {
-  refreshPortsBtn.classList.add("spinning");
-  portPickerText.textContent = "Scanning...";
-  cfgPort.value = "";
-  connectBtn.disabled = true;
-  vscode.postMessage({ type: "refreshPorts" });
-});
-
-// ── Baud rate picker ─────────────────────────────────────────────
-const baudRates = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600, 1000000];
-
-function populateBaudList() {
-  while (baudPickerList.firstChild) baudPickerList.removeChild(baudPickerList.firstChild);
-  for (const rate of baudRates) {
-    const item = document.createElement("div");
-    item.className = "baud-option" + (String(rate) === cfgBaud.value ? " selected" : "");
-    item.dataset.value = String(rate);
-    item.textContent = rate.toLocaleString();
-    item.addEventListener("click", () => {
-      cfgBaud.value = String(rate);
-      baudPickerText.textContent = rate.toLocaleString();
-      baudPickerList.classList.add("hidden");
-      const items = baudPickerList.querySelectorAll(".baud-option");
-      items.forEach(el => {
-        (el as HTMLElement).classList.toggle("selected", (el as HTMLElement).dataset.value === String(rate));
-      });
-    });
-    baudPickerList.appendChild(item);
-  }
-}
-
-baudPickerBtn.addEventListener("click", () => {
-  baudPickerList.classList.toggle("hidden");
-});
-
-// Initialize baud list on load
-populateBaudList();
-
-// ── Close dropdowns on outside click ─────────────────────────────
-document.addEventListener("click", (e) => {
-  const target = e.target as HTMLElement;
-  if (!target.closest("#port-picker")) {
-    portPickerList.classList.add("hidden");
-  }
-  if (!target.closest("#baud-picker")) {
-    baudPickerList.classList.add("hidden");
-  }
-});
-
-// ── Auto-connect checkbox ────────────────────────────────────────
-cfgAutoConnect.addEventListener("change", () => {
-  vscode.postMessage({ type: "updateSetting", key: "autoConnect", value: cfgAutoConnect.checked });
-});
-
-// ── Connect form ────────────────────────────────────────────────
-function getFormConfig() {
-  if (selectedTransport === "uart") {
-    return {
-      transport: "uart",
-      device: cfgPort.value,
-      baudRate: Number.parseInt(cfgBaud.value, 10) || 115200,
-    };
-  }
-  return {
-    transport: "rtt",
-    device: cfgDevice.value,
-  };
-}
-
-connectBtn.addEventListener("click", () => {
-  const config = getFormConfig();
-  lastConnectConfig = config;
-  vscode.postMessage({ type: "connect", config });
-});
-
-// ── Connected state buttons ─────────────────────────────────────
+// ── Connection bar buttons ──────────────────────────────────────
 connectToggleBtn.addEventListener("click", () => {
   if (isConnected) {
     vscode.postMessage({ type: "disconnect" });
   } else {
-    if (lastConnectConfig) {
-      vscode.postMessage({ type: "reconnect", config: lastConnectConfig });
-    }
+    // Ask extension to reconnect via sidebar state
+    vscode.postMessage({ type: "triggerConnect" });
   }
 });
 exportBtn.addEventListener("click", () => vscode.postMessage({ type: "export" }));
 
 reconnectBtn.addEventListener("click", () => {
-  if (lastConnectConfig) {
-    vscode.postMessage({ type: "reconnect", config: lastConnectConfig });
-  }
+  vscode.postMessage({ type: "triggerConnect" });
 });
 
 dismissBtn.addEventListener("click", () => {
   reconnectBar.classList.add("hidden");
-  showState("welcome");
-});
-
-settingsBtn.addEventListener("click", () => {
-  const isHidden = inlineSettings.classList.toggle("hidden");
-  settingsBtn.classList.toggle("active", !isHidden);
 });
 
 // ── Timestamp toggle ────────────────────────────────────────────
 timestampBtn.addEventListener("click", () => {
   timestampsVisible = !timestampsVisible;
   timestampBtn.classList.toggle("active", timestampsVisible);
-  // Toggle on #viewer so both column headers and timeline rows are affected
-  document.getElementById("viewer")!.classList.toggle("hide-timestamps", !timestampsVisible);
+  viewerEl.classList.toggle("hide-timestamps", !timestampsVisible);
 });
 
 // ── Auto-disable auto-scroll when user scrolls up ──────────────
@@ -620,7 +325,6 @@ timeline.addEventListener("scroll", () => {
   if (programmaticScroll) return;
   const atBottom = timeline.scrollTop + timeline.clientHeight >= timeline.scrollHeight - 30;
   if (atBottom) {
-    // Scrolled to bottom — hide new-data bar and re-enable auto-scroll
     newDataBar.classList.add("hidden");
     if (!autoScroll) {
       autoScroll = true;
@@ -647,13 +351,12 @@ const allDefaultSeverities = ["hci", "err", "wrn", "inf", "dbg"];
 
 document.getElementById("check-all-btn")!.addEventListener("click", () => {
   for (const sev of allDefaultSeverities) activeSeverities.add(sev);
-  // MON stays off — user must enable it explicitly
   document.querySelectorAll(".severity-btn").forEach((btn) => {
     const sev = (btn as HTMLElement).dataset.severity!;
     btn.classList.toggle("active", activeSeverities.has(sev));
   });
   refilterTimeline();
-  sendFilterChanged();
+
 });
 
 document.getElementById("uncheck-all-btn")!.addEventListener("click", () => {
@@ -662,7 +365,7 @@ document.getElementById("uncheck-all-btn")!.addEventListener("click", () => {
     btn.classList.remove("active");
   });
   refilterTimeline();
-  sendFilterChanged();
+
 });
 
 // Severity toggle buttons
@@ -677,7 +380,7 @@ document.querySelectorAll(".severity-btn").forEach((btn) => {
       btn.classList.add("active");
     }
     refilterTimeline();
-    sendFilterChanged();
+  
   });
 });
 
@@ -685,7 +388,7 @@ document.querySelectorAll(".severity-btn").forEach((btn) => {
 moduleSelect.addEventListener("change", () => {
   selectedModule = moduleSelect.value;
   refilterTimeline();
-  sendFilterChanged();
+
 });
 
 // Module custom picker
@@ -703,7 +406,7 @@ function selectModule(value: string, label: string) {
   modulePickerText.textContent = label;
   modulePickerList.classList.add("hidden");
   refilterTimeline();
-  sendFilterChanged();
+
   const items = modulePickerList.querySelectorAll(".picker-option");
   items.forEach(item => {
     (item as HTMLElement).classList.toggle("selected", (item as HTMLElement).dataset.value === value);
@@ -711,14 +414,12 @@ function selectModule(value: string, label: string) {
 }
 function rebuildModulePicker() {
   while (modulePickerList.firstChild) modulePickerList.removeChild(modulePickerList.firstChild);
-  // "All modules" option
   const allItem = document.createElement("div");
   allItem.className = "picker-option" + (selectedModule === "" ? " selected" : "");
   allItem.dataset.value = "";
   allItem.textContent = "All modules";
   allItem.addEventListener("click", () => selectModule("", "All modules"));
   modulePickerList.appendChild(allItem);
-  // Module options
   for (let i = 1; i < moduleSelect.options.length; i++) {
     const mod = moduleSelect.options[i].value;
     const item = document.createElement("div");
@@ -736,7 +437,7 @@ searchInput.addEventListener("input", () => {
   searchDebounceTimer = setTimeout(() => {
     searchText = searchInput.value;
     refilterTimeline();
-    sendFilterChanged();
+  
   }, 150);
 });
 
@@ -780,7 +481,6 @@ clearBtn.addEventListener("click", () => {
 
 // ── Refilter: hide/show existing rows based on current filters ──
 function refilterTimeline(): void {
-  // Collapse any expanded HCI row before refiltering
   collapseExpandedRow();
   const rows = timeline.querySelectorAll(".log-row");
   rows.forEach((row) => {
@@ -796,7 +496,6 @@ function clearTimeline(): void {
   while (timeline.firstChild) {
     timeline.removeChild(timeline.firstChild);
   }
-  // Re-add end-of-log (hidden until new entries arrive)
   endOfLog.classList.add("hidden");
   timeline.appendChild(endOfLog);
   newDataBar.classList.add("hidden");
@@ -804,20 +503,13 @@ function clearTimeline(): void {
 
 // ── Message handler ─────────────────────────────────────────────
 window.addEventListener("message", (event) => {
-  // VS Code webview messages are delivered via postMessage from the extension host.
-  // Only trusted messages have isTrusted === true (set by the browser, not spoofable).
-  // Verify origin is a VS Code webview URI to prevent cross-origin message injection.
   if (!event.isTrusted || !event.origin.startsWith("vscode-webview://")) return;
 
   const msg = event.data;
 
   switch (msg.type) {
-    // ── New: connection state messages ─────────────────────────
     case "init": {
-      const { config, wrapEnabled: wrap } = msg;
-      if (config) {
-        cfgAutoConnect.checked = config.autoConnect ?? false;
-      }
+      const { wrapEnabled: wrap } = msg;
       wrapEnabled = wrap ?? false;
       wrapBtn.classList.toggle("active", wrapEnabled);
       timeline.classList.toggle("wrap-mode", wrapEnabled);
@@ -825,28 +517,17 @@ window.addEventListener("message", (event) => {
     }
 
     case "connecting": {
-      connectBtn.disabled = true;
-      connectBtn.textContent = "Connecting...";
-      connectError.classList.add("hidden");
-      // Update connection bar if already in viewer state
-      if (connectToggleBtn) {
-        connectToggleBtn.textContent = "Connecting...";
-        connectToggleBtn.className = "conn-btn";
-        connectToggleBtn.disabled = true;
-        connStatusDot.className = "dot amber";
-        connStatusText.textContent = "Connecting...";
-      }
+      // Update connection bar
+      connectToggleBtn.textContent = "Connecting...";
+      connectToggleBtn.className = "conn-btn";
+      (connectToggleBtn as HTMLButtonElement).disabled = true;
+      connStatusDot.className = "dot amber";
+      connStatusText.textContent = "Connecting...";
       break;
     }
 
     case "connected": {
       isConnected = true;
-      // Ensure we have a config for reconnect (auto-connect bypasses the form)
-      if (!lastConnectConfig) {
-        lastConnectConfig = getFormConfig();
-      }
-      connectBtn.disabled = false;
-      connectBtn.textContent = "Connect";
       connDevice.textContent = msg.address ? "\u00B7 " + msg.address : "";
       connStatusDot.className = "dot green";
       const transportLabel = msg.transport || "J-Link RTT";
@@ -874,16 +555,11 @@ window.addEventListener("message", (event) => {
       (connectToggleBtn as HTMLButtonElement).disabled = false;
       connectionBar.classList.remove("hidden");
       reconnectBar.classList.add("hidden");
-      inlineSettings.classList.add("hidden");
-      settingsBtn.classList.remove("active");
-      showState("viewer");
       break;
     }
 
     case "disconnected": {
       isConnected = false;
-      connectBtn.disabled = false;
-      connectBtn.textContent = "Connect";
 
       if (msg.unexpected) {
         // Unexpected disconnect: keep logs visible, show reconnect bar
@@ -894,39 +570,27 @@ window.addEventListener("message", (event) => {
         (connectToggleBtn as HTMLButtonElement).disabled = false;
         reconnectBar.classList.remove("hidden");
       } else {
-        // User-initiated disconnect: return to welcome screen
-        showState("welcome");
-        connectError.classList.add("hidden");
-        // Re-trigger scan for current transport
-        if (selectedTransport === "uart") {
-          vscode.postMessage({ type: "refreshPorts" });
-        } else {
-          vscode.postMessage({ type: "refreshDevices" });
-        }
+        // User-initiated disconnect: keep logs visible, update connection bar
+        connStatusDot.className = "dot amber";
+        connStatusText.textContent = "Disconnected";
+        connDevice.textContent = "";
+        connectToggleBtn.textContent = "Connect";
+        connectToggleBtn.className = "conn-btn connect";
+        (connectToggleBtn as HTMLButtonElement).disabled = false;
       }
       break;
     }
 
     case "connectError": {
-      connectBtn.disabled = false;
-      connectBtn.textContent = "Connect";
-      const errText = (msg.message as string).replace(/^ERROR:\s*/i, "");
-      connectError.textContent = errText;
-      connectError.classList.remove("hidden");
+      connStatusDot.className = "dot amber";
+      connStatusText.textContent = "Connection failed";
+      connectToggleBtn.textContent = "Connect";
+      connectToggleBtn.className = "conn-btn connect";
+      (connectToggleBtn as HTMLButtonElement).disabled = false;
       break;
     }
 
-    case "devices": {
-      populateDeviceDropdown(msg.devices);
-      break;
-    }
-
-    case "serialPorts": {
-      populatePortList(msg.ports);
-      break;
-    }
-
-    // ── Existing: log data messages ───────────────────────────
+    // ── Log data messages ────────────────────────────────────
     case "entries": {
       const entries: SerializedEntry[] = msg.entries;
       const fragment = document.createDocumentFragment();
@@ -969,7 +633,6 @@ window.addEventListener("message", (event) => {
       const modules: string[] = msg.modules;
       const currentValue = moduleSelect.value;
 
-      // Clear all options except "All modules"
       while (moduleSelect.options.length > 1) {
         moduleSelect.remove(1);
       }
@@ -981,7 +644,6 @@ window.addEventListener("message", (event) => {
         moduleSelect.appendChild(option);
       }
 
-      // Restore previous selection if it still exists
       if (currentValue && modules.includes(currentValue)) {
         moduleSelect.value = currentValue;
       }
@@ -995,7 +657,6 @@ window.addEventListener("message", (event) => {
     }
 
     case "reset": {
-      // Insert a reset row styled like a log entry
       const sep = document.createElement("div");
       sep.className = "reset-separator";
       const ts = document.createElement("span");
@@ -1008,7 +669,6 @@ window.addEventListener("message", (event) => {
       label.textContent = "\u26A0 Device Reset Detected";
       sep.appendChild(ts);
       sep.appendChild(label);
-      // Insert before end-of-log so it stays in proper order
       timeline.insertBefore(sep, endOfLog);
       if (autoScroll) {
         programmaticScroll = true;

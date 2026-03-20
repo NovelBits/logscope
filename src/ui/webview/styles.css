@@ -9,279 +9,9 @@ html, body {
 }
 body { display: flex; flex-direction: column; }
 
-/* ── State visibility ───────────────────────────────────── */
-.state { height: 100%; }
+/* ── Layout ────────────────────────────────────────────── */
 .hidden { display: none !important; }
 #viewer { display: flex; flex-direction: column; height: 100%; }
-
-/* ── Welcome state (disconnected) ───────────────────────── */
-#welcome {
-  display: flex; align-items: center; justify-content: center;
-}
-#welcome-inner {
-  max-width: 420px; width: 100%; text-align: center; padding: 24px;
-}
-#welcome-logo {
-  margin-bottom: 16px; opacity: 0.6;
-  color: var(--vscode-editor-foreground);
-}
-#welcome h1 {
-  font-size: 22px; margin-bottom: 2px; font-weight: 600; letter-spacing: -0.3px;
-  color: var(--vscode-editor-foreground);
-}
-.tm {
-  font-size: 8px; font-weight: 400; vertical-align: super;
-  opacity: 0.4; letter-spacing: 0.5px;
-}
-.subtitle {
-  color: var(--vscode-descriptionForeground); margin-bottom: 28px;
-  font-size: 12px; opacity: 0.7;
-}
-
-/* ── Connect form ──────────────────────────────────────── */
-#connect-form { text-align: left; }
-
-.form-group { margin-bottom: 16px; }
-.form-label {
-  display: block; margin-bottom: 6px; font-size: 11px; font-weight: 500;
-  color: var(--vscode-descriptionForeground); text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.form-hint {
-  display: block; font-size: 11px; margin-top: 4px;
-  color: var(--vscode-descriptionForeground); opacity: 0.5;
-}
-
-/* Device picker */
-#device-row {
-  display: flex; gap: 4px; align-items: stretch;
-}
-#device-picker { flex: 1; position: relative; }
-#device-picker-btn {
-  width: 100%; padding: 7px 10px; text-align: left; height: 32px;
-  background: var(--vscode-input-background, #3c3c3c);
-  color: var(--vscode-input-foreground, #ccc);
-  border: 1px solid var(--vscode-input-border, #555);
-  border-radius: 4px; font-size: 13px; cursor: pointer;
-  font-family: inherit;
-  display: flex; justify-content: space-between; align-items: center;
-  white-space: nowrap; overflow: hidden;
-  transition: border-color 0.15s;
-}
-#device-picker-btn:hover { border-color: var(--vscode-focusBorder, #007fd4); }
-#device-picker-btn:focus-visible {
-  outline: none; border-color: var(--vscode-focusBorder, #007fd4);
-  box-shadow: 0 0 0 1px var(--vscode-focusBorder, #007fd4);
-}
-#device-picker-btn #device-picker-text { overflow: hidden; text-overflow: ellipsis; }
-#device-picker-btn .chevron { font-size: 10px; opacity: 0.5; margin-left: 8px; flex-shrink: 0; }
-#device-picker-list {
-  position: absolute; top: 100%; left: 0; right: 0; margin-top: 2px; z-index: 100;
-  background: var(--vscode-dropdown-background, #3c3c3c);
-  border: 1px solid var(--vscode-dropdown-border, #555);
-  border-radius: 4px; overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
-}
-#device-picker-list .device-option {
-  padding: 7px 10px; cursor: pointer; font-size: 13px;
-  font-family: inherit;
-  color: var(--vscode-dropdown-foreground, #ccc);
-  transition: background 0.1s;
-}
-#device-picker-list .device-option:hover {
-  background: var(--vscode-list-hoverBackground, rgba(255,255,255,0.04));
-}
-#device-picker-list .device-option.selected {
-  background: var(--vscode-list-activeSelectionBackground, #094771);
-  color: var(--vscode-list-activeSelectionForeground, #fff);
-}
-
-/* Refresh button */
-#refresh-btn {
-  flex-shrink: 0; width: 32px; height: 32px; padding: 0;
-  background: var(--vscode-button-secondaryBackground, #3a3d41);
-  color: var(--vscode-button-secondaryForeground, #ccc);
-  border: 1px solid var(--vscode-input-border, #555);
-  border-radius: 4px; font-size: 16px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: background 0.15s, border-color 0.15s;
-}
-#refresh-btn:hover {
-  background: var(--vscode-button-secondaryHoverBackground, #45494e);
-  border-color: var(--vscode-focusBorder, #007fd4);
-}
-#refresh-btn.spinning { animation: spin 0.8s linear infinite; }
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-/* Transport selector */
-#transport-selector { display: flex; gap: 4px; }
-.transport-btn {
-  flex: 1; padding: 6px 12px; font-size: 12px; font-family: inherit;
-  background: var(--vscode-input-background, #3c3c3c);
-  color: var(--vscode-input-foreground, #ccc);
-  border: 1px solid var(--vscode-input-border, #555);
-  border-radius: 4px; cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-}
-.transport-btn.active {
-  background: var(--vscode-button-background, #0e639c);
-  color: var(--vscode-button-foreground, #fff);
-  border-color: var(--vscode-button-background, #0e639c);
-}
-.transport-btn:hover:not(.active) {
-  border-color: var(--vscode-focusBorder, #007fd4);
-}
-
-/* Port picker (mirrors device picker) */
-#port-row {
-  display: flex; gap: 6px; align-items: stretch;
-}
-#port-picker { flex: 1; position: relative; }
-#port-picker-btn {
-  width: 100%; padding: 7px 10px; text-align: left; height: 32px;
-  background: var(--vscode-input-background, #3c3c3c);
-  color: var(--vscode-input-foreground, #ccc);
-  border: 1px solid var(--vscode-input-border, #555);
-  border-radius: 4px; font-size: 13px; cursor: pointer;
-  font-family: inherit;
-  display: flex; justify-content: space-between; align-items: center;
-  white-space: nowrap; overflow: hidden;
-  transition: border-color 0.15s;
-}
-#port-picker-btn:hover { border-color: var(--vscode-focusBorder, #007fd4); }
-#port-picker-btn:focus-visible {
-  outline: none; border-color: var(--vscode-focusBorder, #007fd4);
-  box-shadow: 0 0 0 1px var(--vscode-focusBorder, #007fd4);
-}
-#port-picker-btn #port-picker-text { overflow: hidden; text-overflow: ellipsis; }
-#port-picker-btn .chevron { font-size: 10px; opacity: 0.5; margin-left: 8px; flex-shrink: 0; }
-#port-picker-list {
-  position: absolute; top: 100%; left: 0; right: 0; margin-top: 2px; z-index: 100;
-  background: var(--vscode-dropdown-background, #3c3c3c);
-  border: 1px solid var(--vscode-dropdown-border, #555);
-  border-radius: 4px; overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
-}
-.port-option {
-  padding: 7px 10px; cursor: pointer; font-size: 13px;
-  font-family: inherit;
-  color: var(--vscode-dropdown-foreground, #ccc);
-  transition: background 0.1s;
-}
-.port-option:hover {
-  background: var(--vscode-list-hoverBackground, rgba(255,255,255,0.04));
-}
-.port-option.selected {
-  background: var(--vscode-list-activeSelectionBackground, #094771);
-  color: var(--vscode-list-activeSelectionForeground, #fff);
-}
-.port-option .port-detail {
-  display: block; font-size: 11px;
-  color: var(--vscode-descriptionForeground, #888);
-}
-
-/* Refresh ports button (mirrors #refresh-btn) */
-#refresh-ports-btn {
-  flex-shrink: 0; width: 32px; height: 32px; padding: 0;
-  background: var(--vscode-button-secondaryBackground, #3a3d41);
-  color: var(--vscode-button-secondaryForeground, #ccc);
-  border: 1px solid var(--vscode-input-border, #555);
-  border-radius: 4px; font-size: 16px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: background 0.15s, border-color 0.15s;
-}
-#refresh-ports-btn:hover {
-  background: var(--vscode-button-secondaryHoverBackground, #45494e);
-  border-color: var(--vscode-focusBorder, #007fd4);
-}
-#refresh-ports-btn.spinning { animation: spin 0.8s linear infinite; }
-
-/* Baud picker (mirrors port picker) */
-#baud-picker { position: relative; margin-top: 6px; }
-#baud-picker-btn {
-  width: 100%; padding: 7px 10px; text-align: left; height: 32px;
-  background: var(--vscode-input-background, #3c3c3c);
-  color: var(--vscode-input-foreground, #ccc);
-  border: 1px solid var(--vscode-input-border, #555);
-  border-radius: 4px; font-size: 13px; cursor: pointer;
-  font-family: inherit;
-  display: flex; justify-content: space-between; align-items: center;
-  white-space: nowrap; overflow: hidden;
-  transition: border-color 0.15s;
-}
-#baud-picker-btn:hover { border-color: var(--vscode-focusBorder, #007fd4); }
-#baud-picker-btn:focus-visible {
-  outline: none; border-color: var(--vscode-focusBorder, #007fd4);
-  box-shadow: 0 0 0 1px var(--vscode-focusBorder, #007fd4);
-}
-#baud-picker-btn #baud-picker-text { overflow: hidden; text-overflow: ellipsis; }
-#baud-picker-btn .chevron { font-size: 10px; opacity: 0.5; margin-left: 8px; flex-shrink: 0; }
-#baud-picker-list {
-  position: absolute; top: 100%; left: 0; right: 0; margin-top: 2px; z-index: 100;
-  background: var(--vscode-dropdown-background, #3c3c3c);
-  border: 1px solid var(--vscode-dropdown-border, #555);
-  border-radius: 4px; overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
-}
-.baud-option {
-  padding: 7px 10px; cursor: pointer; font-size: 13px;
-  font-family: inherit;
-  color: var(--vscode-dropdown-foreground, #ccc);
-  transition: background 0.1s;
-}
-.baud-option:hover {
-  background: var(--vscode-list-hoverBackground, rgba(255,255,255,0.04));
-}
-.baud-option.selected {
-  background: var(--vscode-list-activeSelectionBackground, #094771);
-  color: var(--vscode-list-activeSelectionForeground, #fff);
-}
-
-/* Auto-connect */
-#auto-connect-label {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 12px; color: var(--vscode-descriptionForeground); cursor: pointer;
-  opacity: 0.8;
-}
-#auto-connect-label:hover { opacity: 1; }
-#auto-connect-label input[type="checkbox"] { cursor: pointer; width: 14px; height: 14px; }
-
-/* Connect button */
-#connect-btn {
-  width: 100%; margin-top: 20px; padding: 9px 16px;
-  background: var(--vscode-button-background, #0e639c);
-  color: var(--vscode-button-foreground, #fff);
-  border: none; border-radius: 4px; font-size: 13px; font-weight: 500;
-  cursor: pointer; transition: background 0.15s;
-}
-#connect-btn:hover { background: var(--vscode-button-hoverBackground, #1177bb); }
-#connect-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* Error message */
-#connect-error {
-  color: var(--vscode-errorForeground, #f44747); font-size: 12px;
-  margin-top: 10px; padding: 8px 10px;
-  border: 1px solid var(--vscode-inputValidation-errorBorder, #f44747);
-  border-radius: 4px;
-  background: var(--vscode-inputValidation-errorBackground, rgba(244, 71, 71, 0.08));
-  text-align: center;
-}
-
-/* Footer branding */
-#welcome-footer {
-  margin-top: 36px; text-align: center; opacity: 0.35;
-  transition: opacity 0.2s;
-}
-#welcome-footer:hover { opacity: 0.7; }
-#welcome-footer a {
-  cursor: pointer; text-decoration: none;
-  display: inline-flex; flex-direction: column; align-items: center; gap: 4px;
-}
-#welcome-footer img { display: inline-block; }
-#welcome-footer span {
-  font-size: 10px; color: var(--vscode-descriptionForeground);
-  text-decoration: underline; text-underline-offset: 2px;
-}
 
 /* ── Connection bar ─────────────────────────────────────── */
 #connection-bar {
@@ -318,30 +48,6 @@ body { display: flex; flex-direction: column; }
 .dot.green { background: #2d9d78; animation: pulse 2s ease-in-out infinite; }
 .dot.amber { background: #cca700; }
 @keyframes pulse { 0%, 100% { opacity: 1; box-shadow: 0 0 4px #2d9d78; } 50% { opacity: 0.5; box-shadow: none; } }
-
-/* ── Inline settings ────────────────────────────────────── */
-#inline-settings {
-  padding: 8px 10px; flex-shrink: 0;
-  background: var(--vscode-sideBar-background, #252526);
-  border-bottom: 1px solid var(--vscode-panel-border, #3c3c3c);
-}
-#inline-settings-inner { max-width: 400px; }
-#inline-settings label {
-  display: block; margin-bottom: 8px; font-size: 12px;
-  color: var(--vscode-descriptionForeground);
-}
-#inline-settings select, #inline-settings input {
-  width: 100%; margin-top: 4px; padding: 4px 6px;
-  background: var(--vscode-input-background, #3c3c3c);
-  color: var(--vscode-input-foreground, #ccc);
-  border: 1px solid var(--vscode-input-border, #555);
-  border-radius: 3px; font-size: 12px;
-}
-#inline-settings select:disabled { opacity: 0.5; }
-.hint {
-  font-size: 11px; color: var(--vscode-descriptionForeground);
-  opacity: 0.7; display: block; margin-bottom: 8px; font-style: italic;
-}
 
 /* ── Reconnect bar ──────────────────────────────────────── */
 #reconnect-bar {
@@ -477,19 +183,20 @@ body { display: flex; flex-direction: column; }
 }
 
 /* Toggle buttons (consistent style for all) */
+/* Toggle buttons — styled like severity buttons for visual consistency */
 .filter-toggle {
   padding: 2px 8px; border: 1px solid var(--vscode-button-border, #555);
   border-radius: 3px; background: transparent;
   color: var(--vscode-editor-foreground); cursor: pointer;
-  font-size: 11px; font-weight: 500; opacity: 0.6;
+  font-size: 11px; font-weight: 600; opacity: 0.4;
   white-space: nowrap; transition: opacity 0.1s, background 0.1s;
 }
 .filter-toggle:hover { opacity: 0.9; }
 .filter-toggle.active {
   opacity: 1;
-  background: var(--vscode-button-background, #0e639c);
-  color: var(--vscode-button-foreground, #fff);
-  border-color: var(--vscode-button-background, #0e639c);
+  color: #3794ff;
+  border-color: #3794ff;
+  background: rgba(55, 148, 255, 0.15);
 }
 
 /* ── Timeline ───────────────────────────────────────────── */

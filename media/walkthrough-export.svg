@@ -1,0 +1,30 @@
+<svg width="400" height="260" viewBox="0 0 400 260" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .card { fill: var(--vscode-sideBar-background, #252526); stroke: var(--vscode-panel-border, #3c3c3c); stroke-width: 1; rx: 6; }
+    .title { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 14px; font-weight: 600; fill: var(--vscode-editor-foreground, #cccccc); }
+    .label { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 11px; fill: var(--vscode-descriptionForeground, #888888); }
+    .format { font-family: Consolas, 'Courier New', monospace; font-size: 12px; font-weight: 600; fill: var(--vscode-textLink-foreground, #3794ff); }
+    .desc { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 11px; fill: var(--vscode-editor-foreground, #cccccc); }
+  </style>
+
+  <!-- Text format card -->
+  <rect x="30" y="30" width="340" height="52" class="card"/>
+  <text x="54" y="54" class="format">.log</text>
+  <text x="100" y="50" class="title">Plain Text</text>
+  <text x="100" y="68" class="label">Human-readable log entries</text>
+
+  <!-- JSON format card -->
+  <rect x="30" y="96" width="340" height="52" class="card"/>
+  <text x="46" y="120" class="format">.jsonl</text>
+  <text x="100" y="116" class="title">JSON Lines</text>
+  <text x="100" y="134" class="label">Structured data for analysis tools</text>
+
+  <!-- Wireshark format card -->
+  <rect x="30" y="162" width="340" height="52" class="card"/>
+  <text x="38" y="186" class="format">.btsnoop</text>
+  <text x="108" y="182" class="title">Wireshark</text>
+  <text x="108" y="200" class="label">HCI packets for protocol analysis</text>
+
+  <!-- Hint -->
+  <text x="90" y="244" class="label">Export logs from the sidebar or viewer toolbar</text>
+</svg>

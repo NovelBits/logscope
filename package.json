@@ -33,7 +33,8 @@
     "uart"
   ],
   "activationEvents": [
-    "onView:logscope.sidebar"
+    "onView:logscope.sidebar",
+    "onWalkthrough:logscope.getStarted"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -54,24 +55,123 @@
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "logscope.sidebar",
+        "contents": "Connect a device to start viewing real-time logs.\n\n[$(plug) Connect Device](command:logscope.connect)\n\n[$(open-preview) Open Log Viewer](command:logscope.open)\n\n[$(book) Get Started Guide](command:logscope.openWalkthrough)\n\nSupports J-Link RTT and Serial UART transports.",
+        "when": "!logscope.connected && !logscope.hasLastSession && !logscope.connecting"
+      }
+    ],
     "commands": [
       {
         "command": "logscope.open",
-        "title": "LogScope: Open Log Viewer"
+        "title": "LogScope: Open Log Viewer",
+        "icon": "$(open-preview)"
       },
       {
         "command": "logscope.connect",
-        "title": "LogScope: Connect"
+        "title": "LogScope: Connect Device",
+        "icon": "$(plug)"
+      },
+      {
+        "command": "logscope.reconnect",
+        "title": "LogScope: Reconnect",
+        "icon": "$(debug-start)"
       },
       {
         "command": "logscope.disconnect",
-        "title": "LogScope: Disconnect"
+        "title": "LogScope: Disconnect",
+        "icon": "$(debug-disconnect)"
       },
       {
         "command": "logscope.export",
-        "title": "LogScope: Export"
+        "title": "LogScope: Export",
+        "icon": "$(desktop-download)"
+      },
+      {
+        "command": "logscope.changeSettings",
+        "title": "LogScope: Change Connection Settings",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "logscope.openWalkthrough",
+        "title": "LogScope: Get Started Guide"
       }
     ],
+    "walkthroughs": [
+      {
+        "id": "logscope.getStarted",
+        "title": "Get Started with LogScope",
+        "description": "Connect to your embedded device and start viewing real-time logs in 3 steps.",
+        "steps": [
+          {
+            "id": "logscope.walkthrough.connect",
+            "title": "Connect Your Device",
+            "description": "LogScope supports **J-Link RTT** (debug probe) and **Serial UART** (USB serial).\n\nClick below to pick your transport, select a device, and connect.\n\n[Connect Device](command:logscope.connect)",
+            "media": {
+              "image": "media/walkthrough-connect.svg",
+              "altText": "Transport selection showing J-Link RTT and Serial UART options"
+            },
+            "completionEvents": [
+              "onContext:logscope.connected"
+            ]
+          },
+          {
+            "id": "logscope.walkthrough.viewLogs",
+            "title": "View Real-Time Logs",
+            "description": "Once connected, the log viewer opens automatically.\n\nUse the **filter bar** to toggle severity levels (ERR, WRN, INF, DBG), filter by module, or search.\n\n**HCI decoding** shows Bluetooth LE packets with expandable details when using J-Link RTT.\n\n[Open Log Viewer](command:logscope.open)",
+            "media": {
+              "image": "media/walkthrough-logs.svg",
+              "altText": "Log viewer showing color-coded Zephyr logs and HCI packets"
+            },
+            "completionEvents": [
+              "onCommand:logscope.open"
+            ]
+          },
+          {
+            "id": "logscope.walkthrough.export",
+            "title": "Export & Analyze",
+            "description": "Export your captured logs in three formats:\n\n- **Text** (.log) — human-readable\n- **JSON Lines** (.jsonl) — structured data\n- **btsnoop** (.btsnoop) — HCI packets for Wireshark\n\n[Export Logs](command:logscope.export)",
+            "media": {
+              "image": "media/walkthrough-export.svg",
+              "altText": "Export format options: Text, JSON Lines, and Wireshark btsnoop"
+            },
+            "completionEvents": [
+              "onCommand:logscope.export"
+            ]
+          }
+        ]
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "logscope.connect",
+          "when": "view == logscope.sidebar && !logscope.connected && !logscope.connecting",
+          "group": "navigation@1"
+        },
+        {
+          "command": "logscope.disconnect",
+          "when": "view == logscope.sidebar && logscope.connected",
+          "group": "navigation@1"
+        },
+        {
+          "command": "logscope.open",
+          "when": "view == logscope.sidebar",
+          "group": "navigation@2"
+        },
+        {
+          "command": "logscope.export",
+          "when": "view == logscope.sidebar && logscope.connected",
+          "group": "navigation@3"
+        },
+        {
+          "command": "logscope.changeSettings",
+          "when": "view == logscope.sidebar && !logscope.connecting",
+          "group": "navigation@4"
+        }
+      ]
+    },
     "configuration": {
       "title": "LogScope",
       "properties": {

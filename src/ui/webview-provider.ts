@@ -36,13 +36,11 @@ export class LogScopePanel {
     this.onMessage = handler;
   }
 
-  /** Show or reveal the panel. Sends init message to bootstrap config. */
-  show(initConfig?: Record<string, unknown>, wrapEnabled = false): void {
+  /** Show or reveal the panel. Always opens in viewer mode. */
+  show(wrapEnabled = false): void {
     if (this.panel) {
       this.panel.reveal(vscode.ViewColumn.Two);
-      if (initConfig) {
-        this.sendInit(initConfig, wrapEnabled);
-      }
+      this.sendInit(wrapEnabled);
       return;
     }
 
@@ -77,9 +75,7 @@ export class LogScopePanel {
     });
 
     // Send init after a short delay to ensure the WebView script has loaded
-    if (initConfig) {
-      setTimeout(() => this.sendInit(initConfig, wrapEnabled), 100);
-    }
+    setTimeout(() => this.sendInit(wrapEnabled), 100);
   }
 
   /** Queue entries for batched delivery to the WebView */
@@ -92,7 +88,6 @@ export class LogScopePanel {
         message: e.message,
         source: e.source,
       };
-      // Include raw bytes + decoded fields for HCI entries (for expandable rows)
       if (e.source === "hci") {
         if (e.raw) serialized.raw = Array.from(e.raw);
         if (e.metadata?.decoded) serialized.decoded = e.metadata.decoded;
@@ -146,9 +141,9 @@ export class LogScopePanel {
 
   // ── Connection state messages ─────────────────────────────────
 
-  /** Bootstrap the WebView with current config and state */
-  sendInit(config: Record<string, unknown>, wrapEnabled: boolean): void {
-    this.panel?.webview.postMessage({ type: "init", config, wrapEnabled });
+  /** Bootstrap the WebView with wrap setting */
+  sendInit(wrapEnabled: boolean): void {
+    this.panel?.webview.postMessage({ type: "init", wrapEnabled });
   }
 
   /** Notify WebView that connection attempt started */
@@ -176,16 +171,6 @@ export class LogScopePanel {
     this.panel?.webview.postMessage({ type: "reset" });
   }
 
-  /** Send discovered devices to the WebView */
-  sendDevices(devices: Array<{ serial: number; product: string; core?: string; device?: string }>): void {
-    this.panel?.webview.postMessage({ type: "devices", devices });
-  }
-
-  /** Send discovered serial ports to the WebView */
-  sendSerialPorts(ports: Array<{ path: string; manufacturer?: string }>): void {
-    this.panel?.webview.postMessage({ type: "serialPorts", ports });
-  }
-
   // ── HTML generation ───────────────────────────────────────────
 
   private getHtml(webview: vscode.Webview): string {
@@ -193,9 +178,6 @@ export class LogScopePanel {
 
     const stylesUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, "out", "webview", "styles.css")
-    );
-    const logoUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, "assets", "novelbits-logo.png")
     );
     const scriptUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, "out", "webview", "main.js")
@@ -213,7 +195,6 @@ export class LogScopePanel {
       .replaceAll("{{nonce}}", nonce)
       .replaceAll("{{cspSource}}", webview.cspSource)
       .replaceAll("{{stylesUri}}", stylesUri.toString())
-      .replaceAll("{{logoUri}}", logoUri.toString())
       .replaceAll("{{scriptUri}}", scriptUri.toString());
 
     return html;

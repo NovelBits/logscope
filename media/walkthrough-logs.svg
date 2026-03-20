@@ -1,0 +1,50 @@
+<svg width="400" height="260" viewBox="0 0 400 260" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .bg { fill: var(--vscode-editor-background, #1e1e1e); }
+    .bar { fill: var(--vscode-sideBar-background, #252526); }
+    .border { stroke: var(--vscode-panel-border, #3c3c3c); stroke-width: 1; fill: none; }
+    .text { font-family: Consolas, 'Courier New', monospace; font-size: 11px; }
+    .ts { fill: var(--vscode-descriptionForeground, #888888); }
+    .inf { fill: #3794ff; }
+    .wrn { fill: #cca700; }
+    .err { fill: #f44747; }
+    .hci { fill: #c586c0; }
+    .msg { fill: var(--vscode-editor-foreground, #cccccc); }
+    .mod { fill: var(--vscode-textLink-foreground, #3794ff); }
+    .label { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 10px; fill: var(--vscode-descriptionForeground, #888888); }
+    .status { fill: var(--vscode-statusBar-background, #007acc); }
+    .status-text { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 10px; fill: var(--vscode-statusBar-foreground, #ffffff); }
+    .dot-green { fill: #2d9d78; }
+  </style>
+
+  <!-- Background -->
+  <rect width="400" height="260" class="bg" rx="6"/>
+
+  <!-- Connection bar -->
+  <rect x="0" y="0" width="400" height="24" class="bar" rx="6"/>
+  <rect x="0" y="12" width="400" height="12" class="bar"/>
+  <circle cx="16" cy="12" r="4" class="dot-green"/>
+  <text x="26" y="15" class="label" fill="var(--vscode-editor-foreground, #cccccc)">Connected via J-Link RTT</text>
+
+  <!-- Filter bar -->
+  <rect x="0" y="24" width="400" height="20" class="bar"/>
+  <rect x="0" y="24" width="400" height="1" style="fill: var(--vscode-panel-border, #3c3c3c)"/>
+  <text x="10" y="38" class="label">HCI ERR WRN INF DBG</text>
+
+  <!-- Log rows -->
+  <text x="10" y="62" class="text"><tspan class="ts">00:01:23.456</tspan>  <tspan class="inf">INF</tspan>  <tspan class="mod">bt_hci </tspan>  <tspan class="msg">HCI core initialized</tspan></text>
+  <text x="10" y="78" class="text"><tspan class="ts">00:01:23.789</tspan>  <tspan class="hci">HCI</tspan>  <tspan class="hci">HCI   </tspan>  <tspan class="msg">LE Set Adv Parameters (0x2006)</tspan></text>
+  <text x="10" y="94" class="text"><tspan class="ts">00:01:24.012</tspan>  <tspan class="inf">INF</tspan>  <tspan class="mod">bt_hci </tspan>  <tspan class="msg">Advertising started</tspan></text>
+  <text x="10" y="110" class="text"><tspan class="ts">00:01:30.456</tspan>  <tspan class="hci">HCI</tspan>  <tspan class="hci">HCI   </tspan>  <tspan class="msg">LE Connection Complete (0x3E)</tspan></text>
+  <text x="10" y="126" class="text"><tspan class="ts">00:01:30.789</tspan>  <tspan class="inf">INF</tspan>  <tspan class="mod">bt_conn</tspan>  <tspan class="msg">Connected: FA:KE:AD:DR:ES:01</tspan></text>
+  <text x="10" y="142" class="text"><tspan class="ts">00:01:31.234</tspan>  <tspan class="wrn">WRN</tspan>  <tspan class="mod">bt_gatt</tspan>  <tspan class="msg">MTU exchange pending</tspan></text>
+  <text x="10" y="158" class="text"><tspan class="ts">00:01:31.567</tspan>  <tspan class="hci">HCI</tspan>  <tspan class="hci">HCI   </tspan>  <tspan class="msg">LE Read Remote Features (0x2016)</tspan></text>
+  <text x="10" y="174" class="text"><tspan class="ts">00:01:32.890</tspan>  <tspan class="inf">INF</tspan>  <tspan class="mod">bt_gatt</tspan>  <tspan class="msg">MTU updated: 247</tspan></text>
+  <text x="10" y="190" class="text"><tspan class="ts">00:01:33.123</tspan>  <tspan class="inf">INF</tspan>  <tspan class="mod">app    </tspan>  <tspan class="msg">Service discovery complete</tspan></text>
+  <text x="10" y="206" class="text"><tspan class="ts">00:01:34.456</tspan>  <tspan class="err">ERR</tspan>  <tspan class="mod">bt_att </tspan>  <tspan class="msg">ATT error: Insufficient Authen</tspan></text>
+
+  <!-- Status bar -->
+  <rect x="0" y="236" width="400" height="24" class="status" rx="0"/>
+  <rect x="0" y="248" width="400" height="12" class="status" rx="6"/>
+  <text x="10" y="252" class="status-text">Connected  1,234 entries</text>
+</svg>

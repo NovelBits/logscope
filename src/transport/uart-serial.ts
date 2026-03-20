@@ -19,6 +19,9 @@ export interface DiscoveredSerialPort {
   path: string;
   manufacturer?: string;
   serialNumber?: string;
+  description?: string;
+  product?: string;
+  portNumber?: number;
 }
 
 /**
