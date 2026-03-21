@@ -35,7 +35,11 @@ export function deserializeSession(ndjson: string): LogEntry[] {
     .trim()
     .split("\n")
     .filter((line) => line.length > 0)
-    .map((line) => JSON.parse(line) as LogEntry);
+    .map((line) => {
+      const entry = JSON.parse(line) as LogEntry;
+      if (entry.receivedAt === undefined) entry.receivedAt = 0;
+      return entry;
+    });
 }
 
 function formatTimestamp(us: number): string {
@@ -51,9 +55,12 @@ function formatTimestamp(us: number): string {
 export function exportAsText(entries: LogEntry[]): string {
   return entries
     .map((e) => {
+      const wallClock = e.receivedAt
+        ? `[${new Date(e.receivedAt).toISOString()}] `
+        : "";
       const ts = formatTimestamp(e.timestamp);
       const level = e.severity.toUpperCase();
-      return `[${ts}] [${level}] [${e.module}] ${e.message}`;
+      return `${wallClock}[${ts}] [${level}] [${e.module}] ${e.message}`;
     })
     .join("\n");
 }
@@ -62,6 +69,7 @@ export function exportAsJsonLines(entries: LogEntry[]): string {
   return entries
     .map((e) => JSON.stringify({
       timestamp: e.timestamp,
+      receivedAt: e.receivedAt ?? 0,
       severity: e.severity,
       module: e.module,
       message: e.message,

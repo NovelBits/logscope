@@ -71,10 +71,10 @@ describe("exportAsJsonLines", () => {
     const lines = result.trim().split("\n");
     expect(lines).toHaveLength(2);
     expect(JSON.parse(lines[0])).toEqual({
-      timestamp: 1002056, severity: "inf", module: "sensor_drv", message: "Temperature: 23.17 C"
+      timestamp: 1002056, receivedAt: 0, severity: "inf", module: "sensor_drv", message: "Temperature: 23.17 C"
     });
     expect(JSON.parse(lines[1])).toEqual({
-      timestamp: 2003112, severity: "dbg", module: "ble_conn", message: "Advertising: 110 ms"
+      timestamp: 2003112, receivedAt: 0, severity: "dbg", module: "ble_conn", message: "Advertising: 110 ms"
     });
   });
 });

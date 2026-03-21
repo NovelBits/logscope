@@ -5,6 +5,7 @@ export type Source = "log" | "rtos" | "hci";
 
 export interface LogEntry {
   timestamp: number; // microseconds since session start
+  receivedAt?: number; // epoch ms when host received this line
   source: Source;
   severity: Severity;
   module: string;
