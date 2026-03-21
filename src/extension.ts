@@ -3,6 +3,9 @@ import { NrfutilRttTransport, discoverDevices } from "./transport/nrfutil-rtt";
 import type { DiscoveredDevice } from "./transport/nrfutil-rtt";
 import { UartTransport, discoverSerialPorts } from "./transport/uart-serial";
 import { ZephyrLogParser } from "./parser/zephyr-log";
+import { Nrf5LogParser } from "./parser/nrf5-log";
+import { RawLogParser } from "./parser/raw-log";
+import type { Parser } from "./parser/types";
 import { HciParser } from "./parser/hci-parser";
 import { RingBuffer } from "./model/ring-buffer";
 import { Session, exportAsText, exportAsJsonLines } from "./model/session";
@@ -17,7 +20,7 @@ import type { Transport } from "./transport/types";
 let transport: Transport | null = null;
 let session: Session | null = null;
 let ringBuffer: RingBuffer | null = null;
-const parser = new ZephyrLogParser();
+let activeParser: Parser = new ZephyrLogParser();
 const hciParser = new HciParser();
 let panel: LogScopePanel | null = null;
 let statusBar: StatusBar | null = null;
@@ -62,9 +65,11 @@ function handleChunk(chunk: Buffer): void {
     bootDetected = true;
   }
 
-  const entries = parser.parse(completeText);
+  const now = Date.now();
+  const entries = activeParser.parse(completeText);
 
   for (const entry of entries) {
+    entry.receivedAt = now;
     ringBuffer.push(entry);
     session.addEntry(entry);
     if (entry.severity === "err") errorCount++;
@@ -82,8 +87,10 @@ function wireTransportEvents(t: Transport): void {
 
   t.on("hci", (chunk: Buffer) => {
     if (!ringBuffer || !session) return;
+    const now = Date.now();
     const entries = hciParser.parse(chunk);
     for (const entry of entries) {
+      entry.receivedAt = now;
       ringBuffer.push(entry);
       session.addEntry(entry);
       hciPacketCount++;
@@ -194,6 +201,19 @@ async function doConnect(): Promise<void> {
 
   connectInFlight = true;
   try {
+    const parserMode = vscode.workspace.getConfiguration("logscope").get<string>("parser", "zephyr");
+    switch (parserMode) {
+      case "nrf5":
+        activeParser = new Nrf5LogParser();
+        break;
+      case "raw":
+        activeParser = new RawLogParser();
+        break;
+      default:
+        activeParser = new ZephyrLogParser();
+        break;
+    }
+
     // Disconnect existing connection before switching
     if (transport?.connected) {
       userDisconnecting = true;
