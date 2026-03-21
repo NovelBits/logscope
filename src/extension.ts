@@ -808,6 +808,21 @@ export function activate(context: vscode.ExtensionContext) {
     );
   });
 
+  const cycleParserCmd = vscode.commands.registerCommand("logscope.cycleParser", async () => {
+    const modes = ["zephyr", "nrf5", "raw"] as const;
+    const labels: Record<string, string> = { zephyr: "Zephyr", nrf5: "nRF5 SDK", raw: "Raw" };
+    const cfg = vscode.workspace.getConfiguration("logscope");
+    const current = cfg.get<string>("parser", "zephyr");
+    const pick = await vscode.window.showQuickPick(
+      modes.map(m => ({ label: labels[m], value: m, description: m === current ? "(current)" : "" })),
+      { placeHolder: "Select log parser" },
+    );
+    if (!pick) return;
+    const selected = (pick as { value: string }).value;
+    await cfg.update("parser", selected, vscode.ConfigurationTarget.Workspace);
+    sidebarProvider.updateState({ parser: selected as "zephyr" | "nrf5" | "raw" });
+  });
+
   // ── Auto-connect on activation ────────────────────────────
 
   const devCfg = vscode.workspace.getConfiguration("logscope");
@@ -830,7 +845,7 @@ export function activate(context: vscode.ExtensionContext) {
   }
 
   context.subscriptions.push(
-    openCmd, connectCmd, reconnectCmd, disconnectCmd, exportCmd, changeSettingsCmd, openWalkthroughCmd,
+    openCmd, connectCmd, reconnectCmd, disconnectCmd, exportCmd, changeSettingsCmd, openWalkthroughCmd, cycleParserCmd,
   );
 }
 

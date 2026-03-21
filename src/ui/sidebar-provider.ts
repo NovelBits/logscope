@@ -8,6 +8,7 @@ export interface SidebarState {
   selectedDeviceLabel: string;   // human-readable
   baudRate: number;
   autoConnect: boolean;
+  parser: "zephyr" | "nrf5" | "raw";
   connectedTransport: string;    // "J-Link RTT" or "Serial UART"
   connectedAddress: string;
   entryCount: number;
@@ -28,6 +29,7 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     selectedDeviceLabel: "",
     baudRate: 115200,
     autoConnect: false,
+    parser: "zephyr" as const,
     connectedTransport: "",
     connectedAddress: "",
     entryCount: 0,
@@ -44,6 +46,8 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     this.state.transport = cfg.get<string>("transport", "rtt") === "uart" ? "uart" : "rtt";
     this.state.baudRate = cfg.get<number>("uart.baudRate", 115200);
     this.state.autoConnect = cfg.get<boolean>("autoConnect", false);
+    const parserVal = cfg.get<string>("parser", "zephyr");
+    this.state.parser = (parserVal === "nrf5" || parserVal === "raw") ? parserVal : "zephyr";
 
     // Restore last device
     if (this.state.transport === "uart") {
@@ -173,6 +177,9 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
       items.push(SidebarItem.info("Device", "device-desktop", this.state.connectedAddress));
     }
 
+    const parserLabels: Record<string, string> = { zephyr: "Zephyr", nrf5: "nRF5 SDK", raw: "Raw" };
+    items.push(SidebarItem.info("Parser", "file-code", parserLabels[this.state.parser] || "Zephyr"));
+
     if (this.connectStartTime) {
       const elapsed = Math.floor((Date.now() - this.connectStartTime) / 1000);
       const h = Math.floor(elapsed / 3600);
@@ -212,6 +219,11 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     if (this.state.transport === "uart") {
       items.push(SidebarItem.info("Baud Rate", "dashboard", String(this.state.baudRate)));
     }
+
+    const parserLabels: Record<string, string> = { zephyr: "Zephyr", nrf5: "nRF5 SDK", raw: "Raw" };
+    const parserItem = SidebarItem.action("Parser", "file-code", "logscope.cycleParser");
+    parserItem.description = parserLabels[this.state.parser] || "Zephyr";
+    items.push(parserItem);
 
     items.push(SidebarItem.separator());
 
