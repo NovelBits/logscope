@@ -552,20 +552,22 @@ window.addEventListener("message", (event) => {
       const transportLabel = msg.transport || "J-Link RTT";
       connStatusText.textContent = "Connected via " + transportLabel;
 
-      // Disable HCI button when connected via UART (no HCI decoding support)
+      // Hide HCI and MON buttons when connected via UART (RTT-only features)
       const hciBtn = document.querySelector(".hci-btn") as HTMLButtonElement | null;
+      const monBtn = document.querySelector(".mon-btn") as HTMLButtonElement | null;
+      const isUart = /uart/i.test(transportLabel);
       if (hciBtn) {
-        const isUart = /uart/i.test(transportLabel);
+        hciBtn.style.display = isUart ? "none" : "";
         if (isUart) {
-          hciBtn.setAttribute("disabled", "");
-          hciBtn.title = "HCI decoding requires J-Link RTT";
           hciBtn.classList.remove("active");
-          hciBtn.classList.add("disabled");
           activeSeverities.delete("hci");
-        } else {
-          hciBtn.removeAttribute("disabled");
-          hciBtn.title = "Bluetooth LE HCI packets";
-          hciBtn.classList.remove("disabled");
+        }
+      }
+      if (monBtn) {
+        monBtn.style.display = isUart ? "none" : "";
+        if (isUart) {
+          monBtn.classList.remove("active");
+          activeSeverities.delete("mon");
         }
       }
 
