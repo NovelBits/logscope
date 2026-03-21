@@ -106,6 +106,35 @@ LogScope automatically detects common Zephyr RTOS crash patterns:
 
 When a fault is detected, the row is highlighted in red and auto-scroll pauses immediately so you don't miss it.
 
+## Parser & Transport Compatibility
+
+Not all features are available in every combination. This matrix shows what's available:
+
+| Feature | Zephyr | nRF5 SDK | Raw |
+|---------|--------|----------|-----|
+| Severity filtering | Yes | Yes | — |
+| Module filtering | Yes | Yes | — |
+| Device timestamps | Yes | — | — |
+| Host timestamps (wall-clock) | Yes | Yes | Yes |
+| Crash/fault detection | Yes | Yes | Yes |
+| Search | Yes | Yes | Yes |
+
+| Feature | J-Link RTT | Serial UART |
+|---------|------------|-------------|
+| HCI packet decoding | Yes | — |
+| BT Monitor (MON) | Yes | — |
+| Severity/module filtering | Yes | Yes |
+| Wireshark btsnoop export | Yes | — |
+| Text/JSONL export | Yes | Yes |
+| Auto-connect | Yes | Yes |
+
+**Parser modes:**
+- **Zephyr** (default) — parses `[HH:MM:SS.mmm,uuu] <level> module: message` format with color-coded severity, module names, and device timestamps
+- **nRF5 SDK** — parses `<severity> module: message` format (nRF5 SDK's `NRF_LOG` output) with severity mapping and optional tick timestamps
+- **Raw** — displays lines as-is with no parsing. Use for bare `printf`, ESP-IDF, or any firmware output. Only the Time column (host clock) and search are shown
+
+Change the parser via **Change Settings → Parser** in the sidebar, or `Ctrl+Shift+P` → **LogScope: Select Parser**.
+
 ## Settings
 
 | Setting | Default | Description |
