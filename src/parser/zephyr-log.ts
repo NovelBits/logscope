@@ -1,12 +1,9 @@
 import type { LogEntry, Parser, Severity } from "./types";
+import { ANSI_RE } from "./utils";
 
 // Matches: [HH:MM:SS.mmm,uuu] <level> module: message
 const ZEPHYR_LOG_RE =
   /^\[(\d{2}):(\d{2}):(\d{2})\.(\d{3}),(\d{3})\]\s+<(err|wrn|inf|dbg)>\s+([\w.]+):\s?(.*)/;
-
-// Strip ANSI escape codes (color codes from Zephyr's CONFIG_LOG_BACKEND_RTT)
-// eslint-disable-next-line no-control-regex
-const ANSI_RE = /\x1b\[[0-9;]*m/g;
 
 export class ZephyrLogParser implements Parser {
   parse(data: string | Uint8Array): LogEntry[] {
