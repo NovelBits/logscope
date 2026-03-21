@@ -2,6 +2,12 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.2.3] — 2026-03-21
+
+### Changed
+- New icon: magnifying glass over colored log lines (replaces oscilloscope waveform)
+- Activity bar icon updated to match new branding (monochrome magnifier + log lines)
+
 ## [0.2.2] — 2026-03-20
 
 ### Fixed
