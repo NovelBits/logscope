@@ -79,4 +79,15 @@ describe("ZephyrLogParser", () => {
     // 1h30m = 5400s = 5,400,000,000 us
     expect(entries[0].timestamp).toBe(5_400_000_000);
   });
+
+  test("does not set receivedAt (handleChunk responsibility)", () => {
+    const entries = parser.parse("[00:00:00.000,000] <inf> mod: msg\n");
+    expect(entries[0].receivedAt).toBeUndefined();
+  });
+
+  test("strips ANSI escape codes after utils.ts extraction", () => {
+    const entries = parser.parse("\x1b[32m[00:00:01.000,000] <inf> mod: colored\x1b[0m\n");
+    expect(entries[0].module).toBe("mod");
+    expect(entries[0].message).toBe("colored");
+  });
 });
