@@ -32,9 +32,22 @@ const ACTION_RECONNECT: ErrorAction = { label: "Reconnect", command: "reconnect"
 const ACTION_DOWNLOAD_PYTHON: ErrorAction = { label: "Download Python", command: "downloadPython" };
 
 function makeResetDeviceAction(serialNumber?: string): ErrorAction {
-  return serialNumber
-    ? { label: "Reset Device", command: "resetDevice", args: [serialNumber] }
+  const validSerial = serialNumber && /^\d+$/.test(serialNumber) ? serialNumber : undefined;
+  return validSerial
+    ? { label: "Reset Device", command: "resetDevice", args: [validSerial] }
     : { label: "Reset Device", command: "resetDevice" };
+}
+
+function sanitizeErrorDetail(message: string): string {
+  let sanitized = message.replace(/\/Users\/\S+/g, "<path>");
+  sanitized = sanitized.replace(/\/Applications\/\S+/g, "<path>");
+  sanitized = sanitized.replace(/[A-Z]:\\[\w\\]+/g, "<path>");
+  sanitized = sanitized.replace(/\/home\/\S+/g, "<path>");
+  sanitized = sanitized.replace(/\/tmp\/\S+/g, "<path>");
+  if (sanitized.length > 250) {
+    sanitized = sanitized.substring(0, 250) + "...";
+  }
+  return sanitized;
 }
 
 export function classifyError(
@@ -198,7 +211,7 @@ export function classifyError(
   return {
     code: "GENERIC",
     headline: "Connection error",
-    detail: message,
+    detail: sanitizeErrorDetail(message),
     actions: [ACTION_RETRY],
     severity: "warning",
   };
