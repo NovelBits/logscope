@@ -327,6 +327,16 @@
     "publish:patch": "npx @vscode/vsce publish patch",
     "publish:minor": "npx @vscode/vsce publish minor"
   },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "restrictedConfigurations": [
+        "logscope.nrfutil.path",
+        "logscope.jlink.path"
+      ],
+      "description": "LogScope restricts executable path settings in untrusted workspaces."
+    }
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/NovelBits/logscope.git"
