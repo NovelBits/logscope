@@ -78,3 +78,65 @@ describe("exportAsJsonLines", () => {
     });
   });
 });
+
+describe("exportAsText with receivedAt", () => {
+  test("includes ISO timestamp prefix when receivedAt is set", () => {
+    const entries: LogEntry[] = [
+      { ...makeEntry(1_000_000, "Connected"), receivedAt: 1711882800000 },
+    ];
+    const text = exportAsText(entries);
+    expect(text).toContain("[2024-03-31T");
+    expect(text).toContain("[INF]");
+    expect(text).toContain("Connected");
+  });
+
+  test("omits ISO timestamp prefix when receivedAt is 0", () => {
+    const entries: LogEntry[] = [
+      { ...makeEntry(1_000_000, "Connected"), receivedAt: 0 },
+    ];
+    const text = exportAsText(entries);
+    expect(text).not.toMatch(/^\[.*T.*Z\]/);
+    expect(text).toContain("[INF]");
+  });
+
+  test("omits ISO timestamp prefix when receivedAt is undefined", () => {
+    const entries: LogEntry[] = [makeEntry(1_000_000, "Connected")];
+    const text = exportAsText(entries);
+    expect(text).not.toMatch(/^\[.*T.*Z\]/);
+    expect(text).toContain("[INF]");
+  });
+});
+
+describe("exportAsJsonLines with receivedAt and edge cases", () => {
+  test("includes receivedAt field in output", () => {
+    const entries: LogEntry[] = [
+      { ...makeEntry(1_000_000, "Connected"), receivedAt: 1711882800000 },
+    ];
+    const result = exportAsJsonLines(entries);
+    const parsed = JSON.parse(result.trim());
+    expect(parsed.receivedAt).toBe(1711882800000);
+  });
+
+  test("defaults receivedAt to 0 when undefined", () => {
+    const entries: LogEntry[] = [makeEntry(1_000_000, "Connected")];
+    const result = exportAsJsonLines(entries);
+    const parsed = JSON.parse(result.trim());
+    expect(parsed.receivedAt).toBe(0);
+  });
+
+  test("preserves unicode in messages", () => {
+    const entries: LogEntry[] = [
+      makeEntry(1_000_000, "Temperature: 22.1°C"),
+    ];
+    const result = exportAsJsonLines(entries);
+    const parsed = JSON.parse(result.trim());
+    expect(parsed.message).toBe("Temperature: 22.1°C");
+  });
+
+  test("handles empty message correctly", () => {
+    const entries: LogEntry[] = [makeEntry(1_000_000, "")];
+    const result = exportAsJsonLines(entries);
+    const parsed = JSON.parse(result.trim());
+    expect(parsed.message).toBe("");
+  });
+});
