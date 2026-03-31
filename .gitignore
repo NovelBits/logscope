@@ -8,4 +8,5 @@ build/
 build-hci/
 build-uart/
 .superpowers/
+.worktrees/
 docs/
