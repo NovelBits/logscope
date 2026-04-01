@@ -1,0 +1,86 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nickvdyck/vscode-telemetry-extractor/main/src/telemetry-schema.json",
+  "events": [
+    {
+      "name": "activation",
+      "description": "Extension was activated in VS Code",
+      "properties": {
+        "installId": "Anonymous random ID generated on first install",
+        "extensionVersion": "Extension version string",
+        "platform": "OS platform (darwin, linux, win32)",
+        "arch": "CPU architecture (x64, arm64)",
+        "vscodeVersion": "VS Code version string"
+      }
+    },
+    {
+      "name": "session_start",
+      "description": "User connected to a device",
+      "properties": {
+        "installId": "Anonymous install ID",
+        "transport": "Transport type: rtt or uart",
+        "parserMode": "Parser mode: zephyr, nrf5, or raw"
+      }
+    },
+    {
+      "name": "session_end",
+      "description": "User disconnected from a device",
+      "properties": {
+        "installId": "Anonymous install ID",
+        "transport": "Transport type",
+        "parserMode": "Parser mode"
+      },
+      "measurements": {
+        "durationMs": "Session duration in milliseconds",
+        "entryCount": "Number of log entries captured",
+        "hciPacketCount": "Number of HCI packets decoded",
+        "errorCount": "Number of error-severity entries",
+        "evictedCount": "Number of entries evicted from ring buffer"
+      }
+    },
+    {
+      "name": "connect_failed",
+      "description": "Connection attempt failed",
+      "properties": {
+        "installId": "Anonymous install ID",
+        "errorCode": "Classified error code (NO_PROBE, TIMEOUT, etc.)",
+        "transport": "Transport type attempted"
+      }
+    },
+    {
+      "name": "connect_flow_abandoned",
+      "description": "User cancelled the guided connect flow",
+      "properties": {
+        "installId": "Anonymous install ID",
+        "step": "Which step was abandoned (transport, device, baudRate, parser)"
+      }
+    },
+    {
+      "name": "export",
+      "description": "User exported log data",
+      "properties": {
+        "installId": "Anonymous install ID",
+        "format": "Export format: text, jsonl, or btsnoop"
+      },
+      "measurements": {
+        "entryCount": "Number of entries exported"
+      }
+    },
+    {
+      "name": "parser_change",
+      "description": "User changed the active parser",
+      "properties": {
+        "installId": "Anonymous install ID",
+        "from": "Previous parser mode",
+        "to": "New parser mode"
+      }
+    },
+    {
+      "name": "command",
+      "description": "User executed a LogScope command",
+      "properties": {
+        "installId": "Anonymous install ID",
+        "commandId": "VS Code command ID executed"
+      }
+    }
+  ]
+}

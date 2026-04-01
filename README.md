@@ -222,6 +222,30 @@ A: Select the matching generic Cortex-M core (M0+, M4, M7, or M33). If you know 
 **Q: I'm getting DLL errors on connect.**
 A: Make sure no other tool is using the J-Link probe (nRF Connect, Ozone, J-Link Commander). Only one application can hold the J-Link connection at a time.
 
+## Telemetry
+
+LogScope collects anonymous usage data to improve the extension. **No personal data is ever collected.**
+
+### What we collect:
+- Extension activation (tells us daily/monthly active users)
+- Connection type used (RTT or UART, no device identifiers)
+- Parser mode selected (Zephyr, nRF5, Raw)
+- Session duration and log entry count
+- Export format used
+- Error codes (never error messages or file paths)
+
+### What we never collect:
+- Log content, file paths, or code
+- Device serial numbers or addresses
+- Personal information of any kind
+- Anything when telemetry is disabled
+
+### How to opt out:
+LogScope respects VS Code's telemetry settings. To disable:
+1. Open VS Code Settings
+2. Search for "telemetry"
+3. Set "Telemetry: Telemetry Level" to "off"
+
 ## License
 
 MIT

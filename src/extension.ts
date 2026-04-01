@@ -17,6 +17,7 @@ import { LogScopeSidebarProvider } from "./ui/sidebar-provider";
 import type { Transport } from "./transport/types";
 import { TransportError, classifyError } from "./errors";
 import type { LogScopeError, ErrorAction } from "./errors";
+import { telemetry } from "./telemetry";
 
 // ── Module-level state ──────────────────────────────────────────
 let transport: Transport | null = null;
@@ -169,6 +170,17 @@ function stopStatusUpdates(): void {
 }
 
 function disconnectAll(): void {
+  if (transport?.connected && session) {
+    const parserMode = vscode.workspace.getConfiguration("logscope").get<string>("parser", "zephyr");
+    telemetry.trackSessionEnd({
+      transport: sidebarProvider.currentTransport,
+      parserMode: parserMode ?? "zephyr",
+      entryCount: ringBuffer?.size ?? 0,
+      hciPacketCount,
+      errorCount,
+      evictedCount: ringBuffer?.evictedCount ?? 0,
+    });
+  }
   if (transport?.connected) {
     transport.disconnect();
   }
@@ -348,6 +360,10 @@ async function doConnect(): Promise<void> {
     }
     // Connection succeeded — reset disconnect flag and clear any error state
     userDisconnecting = false;
+    telemetry.trackSessionStart(
+      sidebarProvider.currentTransport as "rtt" | "uart",
+      parserMode,
+    );
   } catch (err) {
     // Clean up failed connection
     userDisconnecting = false;
@@ -358,6 +374,7 @@ async function doConnect(): Promise<void> {
     const exitCode = err instanceof TransportError ? err.exitCode : undefined;
     const serialNumber = sidebarProvider.currentDevice;
     const error = classifyError(message, exitCode, serialNumber);
+    telemetry.trackConnectFailed(error.code, sidebarProvider.currentTransport);
 
     // Webview error card
     panel?.sendConnectError(error);
@@ -441,7 +458,7 @@ async function guidedConnect(): Promise<void> {
             ] as (vscode.QuickPickItem & { value: "rtt" | "uart" })[],
             { placeholder: "Select transport", step: 1, totalSteps: transportValue === "uart" ? 4 : 3, title: "Connect Device" },
           );
-          if (!pick) return;
+          if (!pick) { telemetry.trackConnectFlowAbandoned("transport"); return; }
           transportValue = (pick as { value: "rtt" | "uart" }).value;
           step = 2;
           break;
@@ -458,7 +475,7 @@ async function guidedConnect(): Promise<void> {
             ] as (vscode.QuickPickItem & { value: "zephyr" | "nrf5" | "raw" })[],
             { placeholder: "Select log format", step: 2, totalSteps, showBack: true, title: "Connect Device" },
           );
-          if (!pick) return;
+          if (!pick) { telemetry.trackConnectFlowAbandoned("parser"); return; }
           parserValue = (pick as { value: "zephyr" | "nrf5" | "raw" }).value;
           await saveSetting("parser", parserValue);
           sidebarProvider.updateState({ parser: parserValue });
@@ -471,12 +488,12 @@ async function guidedConnect(): Promise<void> {
           const totalSteps = transportValue === "uart" ? 4 : 3;
           if (transportValue === "uart") {
             const result = await pickSerialPort(true);
-            if (!result) return;
+            if (!result) { telemetry.trackConnectFlowAbandoned("device"); return; }
             port = result;
             step = 4; // go to baud rate
           } else {
             const device = await pickJlinkDevice(true);
-            if (!device) return;
+            if (!device) { telemetry.trackConnectFlowAbandoned("device"); return; }
             sidebarProvider.updateState({
               transport: "rtt",
               selectedDevice: String(device.serial),
@@ -491,7 +508,7 @@ async function guidedConnect(): Promise<void> {
         case 4: {
           // Pick baud rate (UART only)
           const baudRate = await pickBaudRate(true);
-          if (!baudRate) return;
+          if (!baudRate) { telemetry.trackConnectFlowAbandoned("baudRate"); return; }
           sidebarProvider.updateState({
             transport: "uart",
             selectedDevice: port!.path,
@@ -767,6 +784,7 @@ async function changeParser(currentParser: string): Promise<void> {
   if (!parserPick) return;
   const selected = (parserPick as { value: string }).value;
   if (selected === currentParser) return;
+  telemetry.trackParserChange(currentParser, selected);
   await saveSetting("parser", selected);
   sidebarProvider.updateState({ parser: selected as "zephyr" | "nrf5" | "raw" });
 
@@ -875,6 +893,7 @@ async function doExport(): Promise<void> {
     const startTime = session?.startTime ?? new Date();
     const btsnoopData = exportAsBtsnoop(entries, startTime);
     await vscode.workspace.fs.writeFile(uri, btsnoopData);
+    telemetry.trackExport("btsnoop", hciCount);
     vscode.window.showInformationMessage(`LogScope: Exported ${hciCount} HCI packets to ${uri.fsPath} — open with Wireshark`);
   } else {
     const ext = formatValue === "jsonl" ? "jsonl" : "log";
@@ -885,6 +904,7 @@ async function doExport(): Promise<void> {
     if (!uri) return;
     const content = formatValue === "jsonl" ? exportAsJsonLines(entries) : exportAsText(entries);
     await vscode.workspace.fs.writeFile(uri, Buffer.from(content, "utf-8"));
+    telemetry.trackExport(formatValue as "text" | "jsonl", entries.length);
     vscode.window.showInformationMessage(`LogScope: Exported ${entries.length} entries to ${uri.fsPath}`);
   }
 }
@@ -902,6 +922,10 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Initialize sidebar state from settings (sets context keys)
   sidebarProvider.initFromSettings();
+
+  // Initialize telemetry
+  telemetry.init(context);
+  telemetry.trackActivation(context.extension.packageJSON.version);
 
   // Check for Python on activation (non-blocking)
   const PYTHON_WARNING_DISMISSED = "logscope.pythonWarningDismissed";
@@ -1068,6 +1092,7 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
+  telemetry.dispose();
   disconnectAll();
   statusBar?.dispose();
   statusBar = null;
