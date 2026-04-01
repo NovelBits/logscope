@@ -11,6 +11,7 @@ docs/superpowers/**
 .superpowers/**
 .git/**
 .worktrees/**
+.mapscope/**
 .gitignore
 tsconfig.json
 esbuild.config.mjs
