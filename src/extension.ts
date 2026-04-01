@@ -44,6 +44,7 @@ function getConfig() {
     jlinkDevice: cfg.get<string>("jlink.device", "Cortex-M33"),
     nrfutilPath: cfg.get<string>("nrfutil.path", "nrfutil"),
     rttPollInterval: cfg.get<number>("rtt.pollInterval", 50),
+    rttSearchRanges: cfg.get<string>("jlink.rttSearchRanges", "0x20000000 0x80000"),
     logWrap: cfg.get<boolean>("logWrap", false),
     timeFormat: cfg.get<string>("timeFormat", "24h"),
   };
@@ -243,6 +244,7 @@ async function connectRtt(device: string, pollInterval: number, serialNumber?: s
       serialNumber,
       pollIntervalMs: pollInterval,
       nrfutilPath: cfg.nrfutilPath,
+      rttSearchRanges: cfg.rttSearchRanges,
     });
     transport = rttTransport;
     wireTransportEvents(rttTransport);
@@ -254,6 +256,11 @@ async function connectRtt(device: string, pollInterval: number, serialNumber?: s
     } catch (err) {
       lastErr = err instanceof Error ? err : new Error(String(err));
       rttTransport.disconnect();
+      // Don't retry for NO_RTT (exit code 2) — firmware doesn't have RTT,
+      // retrying won't help
+      if (lastErr instanceof TransportError && lastErr.exitCode === 2) {
+        break;
+      }
     }
   }
 
@@ -293,14 +300,17 @@ async function connectAndShowUart(device: string, baudRate: number, parserMode: 
 }
 
 async function connectAndShowRtt(device: string, parserMode: string): Promise<void> {
-  const pollInterval = getConfig().rttPollInterval;
-  await connectRtt("auto", pollInterval, device);
+  const cfg = getConfig();
+  const pollInterval = cfg.rttPollInterval;
+  // Use the user's jlink.device setting if they changed it from the default.
+  // Otherwise, use "auto" to let the helper auto-detect the target chip.
+  const jlinkDevice = cfg.jlinkDevice !== "Cortex-M33" ? cfg.jlinkDevice : "auto";
+  await connectRtt(jlinkDevice, pollInterval, device);
   const rttTransport = transport as NrfutilRttTransport;
   const displayName = rttTransport.detectedDevice || "Connected";
   await saveSetting("lastDevice", device);
   await saveSetting("transport", "rtt");
 
-  const cfg = getConfig();
   panel?.show(cfg.logWrap, cfg.timeFormat);
   setTimeout(() => panel?.sendConnected("J-Link RTT", displayName, parserMode), 150);
   sidebarProvider.updateState({
@@ -350,6 +360,9 @@ async function doConnect(): Promise<void> {
     errorCount = 0;
     panel?.clear(); // Clear previous session's logs from the webview
 
+    // Always show the panel when connecting — it shows connecting state and error cards
+    const cfgConnect = getConfig();
+    panel?.show(cfgConnect.logWrap, cfgConnect.timeFormat);
     sidebarProvider.updateState({ connecting: true });
     panel?.sendConnecting();
 
@@ -376,14 +389,14 @@ async function doConnect(): Promise<void> {
     const error = classifyError(message, exitCode, serialNumber);
     telemetry.trackConnectFailed(error.code, sidebarProvider.currentTransport);
 
-    // Webview error card
+    // Webview error card (panel is already visible from the connect attempt)
     panel?.sendConnectError(error);
 
     // Reset before awaiting toast so Retry/Reconnect can call doConnect() again
     connectInFlight = false;
 
-    // Toast notification — skip for disconnect-type errors (card is sufficient)
-    const skipToast = error.code === "UART_DISCONNECTED" || error.code === "PROBE_UNPLUGGED";
+    // Toast notification — skip for errors where the webview card is sufficient
+    const skipToast = error.code === "UART_DISCONNECTED" || error.code === "PROBE_UNPLUGGED" || error.code === "NO_RTT";
     if (!skipToast) {
       const picked = await vscode.window.showErrorMessage(
         `LogScope: ${error.headline}`,

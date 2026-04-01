@@ -131,7 +131,14 @@ def run_pylink(device_or_addr, poll_ms, serial_no=None):
         jlink.restart()
         print("Resumed CPU", file=sys.stderr)
 
-    # Start RTT — J-Link handles control block detection automatically
+    # Set RTT search range — critical for generic core names (Cortex-M33 etc.)
+    # where J-Link doesn't know the RAM layout automatically.
+    # Default: 0x20000000 0x80000 (512KB, covers most ARM Cortex-M devices)
+    rtt_ranges = os.environ.get("LOGSCOPE_RTT_SEARCH_RANGES", "0x20000000 0x80000")
+    jlink.exec_command(f"SetRTTSearchRanges {rtt_ranges}")
+    print(f"RTT search range: {rtt_ranges}", file=sys.stderr)
+
+    # Start RTT
     jlink.rtt_start()
     print("RTT started, waiting for control block...", file=sys.stderr)
     sys.stderr.flush()
@@ -139,7 +146,7 @@ def run_pylink(device_or_addr, poll_ms, serial_no=None):
     # Wait for RTT to find the control block (up to 5 seconds)
     num_up = _wait_for_rtt_control_block(jlink)
     if num_up == 0:
-        print("ERROR: Could not connect to device. Make sure firmware with RTT logging is flashed and the device is powered on.", file=sys.stderr)
+        print("ERROR: No RTT control block found. The J-Link connected to the target but the firmware does not appear to have SEGGER RTT enabled.", file=sys.stderr)
         jlink.rtt_stop()
         jlink.close()
         sys.exit(2)
@@ -537,24 +544,50 @@ def _get_candidate_devices(jlink):
     Scans the J-Link SDK's built-in device list for known target chips.
     Trying these before generic cores (Cortex-M33 etc.) lets the J-Link know
     the exact RAM layout, which is required for RTT auto-detection on newer chips.
+
+    Includes Nordic, STM32, Silicon Labs, TI, Infineon, and NXP devices.
     """
     candidates = []
     try:
-        # Prioritize common Nordic chips with M33 core suffix
-        priority_patterns = ["nRF54L15", "nRF54L10", "nRF54L05", "nRF54H20",
-                             "nRF5340", "nRF9161", "nRF9160", "nRF9151",
-                             "nRF52840", "nRF52833", "nRF52832"]
+        # Priority patterns: Nordic first, then other common embedded chips.
+        # Order matters: first match wins, so put most likely targets first.
+        priority_patterns = [
+            # Nordic (Cortex-M33 and Cortex-M4)
+            "nRF54L15", "nRF54L10", "nRF54L05", "nRF54H20",
+            "nRF5340", "nRF9161", "nRF9160", "nRF9151",
+            "nRF52840", "nRF52833", "nRF52832",
+            # STM32 (Cortex-M7, M4, M33, M0+)
+            "STM32H7", "STM32F4", "STM32L4", "STM32U5",
+            "STM32WB", "STM32WL", "STM32G4", "STM32F7",
+            "STM32L5", "STM32H5", "STM32G0", "STM32L0",
+            "STM32C0", "STM32F3", "STM32F1", "STM32F0",
+            # Silicon Labs (Cortex-M33)
+            "EFR32BG", "EFR32MG", "EFR32FG", "EFM32",
+            # TI (Cortex-M4, M33)
+            "CC2652", "CC2340", "CC1352", "CC2642",
+            # Infineon / Cypress (Cortex-M4, M0+, M33)
+            "CY8C6", "PSoC6", "CYW208", "CYW435",
+            "XMC4", "XMC1",
+            # NXP (Cortex-M33, M4, M7)
+            "LPC55", "MIMXRT", "LPC54", "MK",
+            # Renesas / Dialog
+            "DA145", "DA146", "R7FA",
+        ]
+        # Valid suffixes for main application cores
+        valid_suffixes = ("_M33", "_M4", "_M7", "_M0+",
+                          "_XXAA", "_XXAB",
+                          "VG", "VE", "VI", "ZE", "ZI", "RE", "RI")
         found = set()
         for i in range(jlink.num_supported_devices()):
             info = jlink.supported_device(i)
             name = info.name
-            # Only include M33 and xxAA/xxAB variants (main application cores).
-            # The SDK uses mixed case (e.g. "nRF52840_xxAA"), so compare lowercase.
             name_upper = name.upper()
-            if not (name_upper.endswith("_M33") or name_upper.endswith("_XXAA") or name_upper.endswith("_XXAB")):
+            # Check if it has a recognizable core suffix
+            has_valid_suffix = any(name_upper.endswith(s) for s in valid_suffixes)
+            if not has_valid_suffix:
                 continue
             for pattern in priority_patterns:
-                if name.startswith(pattern) and name not in found:
+                if name.upper().startswith(pattern.upper()) and name not in found:
                     candidates.append(name)
                     found.add(name)
                     break
@@ -646,25 +679,29 @@ def main():
             sys.stderr.flush()
             device_or_addr = jlink_name
         else:
-            # nrfutil not available — try identifying the target by connecting
-            # with specific device names from the J-Link database. This is
-            # critical because generic "Cortex-M33" doesn't give the J-Link
-            # the RAM layout needed for RTT auto-detection on newer chips.
+            # nrfutil didn't identify the device (not a Nordic chip, or nrfutil
+            # not installed). Use generic core names which are safe for any target.
+            # Do NOT try specific device names (e.g. nRF52832_XXAA) because
+            # jlink.connect() doesn't validate the chip identity and will
+            # happily connect with a wrong device name, causing target resets
+            # and other issues on non-matching hardware.
             try:
                 import pylink
                 probe = _create_jlink()
                 _open_jlink(probe, serial_no=serial_no)
-                for dev in _get_candidate_devices(probe):
+                detected_core = None
+                for core in ["Cortex-M33", "Cortex-M4", "Cortex-M7", "Cortex-M0+"]:
                     try:
-                        probe.connect(dev)
-                        friendly = dev.rsplit("_", 1)[0]
-                        print(f"DEVICE_DETECTED {friendly}", file=sys.stderr)
+                        probe.connect(core)
+                        detected_core = core
+                        print(f"DEVICE_DETECTED {core}", file=sys.stderr)
                         sys.stderr.flush()
-                        device_or_addr = dev
                         probe.close()
                         break
                     except Exception:
                         continue
+                if detected_core:
+                    device_or_addr = detected_core
                 else:
                     probe.close()
                     print("Could not auto-detect device, using Cortex-M33", file=sys.stderr)

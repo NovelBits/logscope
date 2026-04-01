@@ -201,6 +201,8 @@ export interface RttTransportConfig {
   pollIntervalMs?: number;
   /** Path to nrfutil binary for fallback (default: "nrfutil") */
   nrfutilPath?: string;
+  /** RTT search ranges (e.g., "0x20000000 0x80000") passed to J-Link SetRTTSearchRanges */
+  rttSearchRanges?: string;
 }
 
 export class NrfutilRttTransport extends EventEmitter implements Transport {
@@ -215,6 +217,7 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
   private readonly serialNumber: string;
   private readonly pollIntervalMs: number;
   private readonly nrfutilPath: string;
+  private readonly rttSearchRanges: string;
 
   constructor(config: RttTransportConfig) {
     super();
@@ -222,6 +225,7 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
     this.serialNumber = config.serialNumber ?? "";
     this.pollIntervalMs = config.pollIntervalMs ?? 50;
     this.nrfutilPath = config.nrfutilPath ?? "nrfutil";
+    this.rttSearchRanges = config.rttSearchRanges ?? "0x20000000 0x80000";
   }
 
   get connected(): boolean {
@@ -246,6 +250,7 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
       }
       const proc = spawn(pythonPath, args, {
         stdio: ["pipe", "pipe", "pipe"],
+        env: { ...process.env, LOGSCOPE_RTT_SEARCH_RANGES: this.rttSearchRanges },
       });
 
       this.helper = proc;
@@ -287,7 +292,11 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
           resolved = true;
           const errLine = stderrBuf.split("\n").find(l => l.includes("ERROR:")) ?? "Unknown error";
           this.lastErrorLine = errLine;
-          reject(new TransportError(errLine));
+          // Infer exit code from error message so callers can distinguish error types
+          const inferredExitCode = errLine.includes("No RTT control block") ? 2
+            : errLine.includes("No J-Link probes") ? 3
+            : undefined;
+          reject(new TransportError(errLine, inferredExitCode));
         }
       });
 

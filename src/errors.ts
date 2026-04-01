@@ -187,9 +187,9 @@ export function classifyError(
   if (exitCode === 2) {
     return {
       code: "NO_RTT",
-      headline: "RTT not available on this device",
+      headline: "No RTT control block found",
       detail:
-        "The J-Link connected but no RTT control block was found. This usually means the firmware doesn't have RTT logging enabled, or the board needs a reset.",
+        "The J-Link probe connected to the target successfully, but no RTT control block was found in memory. This means the firmware on the device does not include SEGGER RTT logging, or the RTT search range does not cover the control block address. If your firmware has RTT enabled, try resetting the device or adjusting the RTT search range in settings (logscope.jlink.rttSearchRanges).",
       actions: [makeResetDeviceAction(serialNumber), ACTION_RESCAN],
       severity: "warning",
     };
