@@ -4,7 +4,28 @@
 
 LogScope streams logs directly from your embedded device via J-Link RTT or Serial UART. View Zephyr RTOS, nRF5 SDK, or any firmware logs in a modern, filterable viewer with deep Bluetooth LE protocol decoding built in.
 
+**Extends nRF Connect for VS Code** with the log intelligence that nRF Terminal doesn't provide.
+
 ![LogScope connected log viewer](media/connected.png)
+
+## Why LogScope?
+
+If you use nRF Connect for VS Code, you already have nRF Terminal for viewing serial and RTT output. LogScope adds the analysis layer on top:
+
+| Capability | nRF Terminal | LogScope |
+|-----------|-------------|----------|
+| Filter by severity (ERR/WRN/INF/DBG) | No | Yes |
+| Filter by module | No | Yes |
+| Regex search across logs | No | Yes |
+| Severity color coding | No | Yes |
+| Bluetooth LE HCI packet decoding | No | Yes |
+| Multi-probe device switching | No | Yes |
+| Auto-reconnect after flashing | No | Yes |
+| Crash/fault auto-detection | No | Yes |
+| btsnoop export (Wireshark) | No | Yes |
+| JSON Lines structured export | No | Yes |
+
+LogScope complements nRF Terminal. Use nRF Terminal for quick serial output; use LogScope when you need to filter, search, decode Bluetooth LE traffic, or export structured data.
 
 ## Features
 
@@ -190,8 +211,11 @@ A: Yes. LogScope supports three parser modes: Zephyr (default), nRF5 SDK (for `N
 **Q: Does it work with non-Bluetooth LE projects?**
 A: Yes. LogScope works with any embedded firmware. The HCI decoding is a bonus for Bluetooth LE developers, but filtering, search, and export work for all projects.
 
+**Q: How is this different from nRF Terminal?**
+A: nRF Terminal is a plain text serial/RTT terminal. LogScope adds structured log parsing, severity filtering, module filtering, regex search, Bluetooth LE HCI decoding, crash detection, and multi-format export. See the comparison table above.
+
 **Q: How is this different from SEGGER RTT Viewer?**
-A: RTT Viewer shows you the raw byte stream. LogScope parses it into structured log entries, color-codes by module, decodes Bluetooth LE HCI packets, and lets you filter and search — all inside VS Code.
+A: RTT Viewer shows you the raw byte stream. LogScope parses it into structured log entries, color-codes by module, decodes Bluetooth LE HCI packets, and lets you filter and search, all inside VS Code.
 
 **Q: Can I use this without a J-Link?**
 A: Yes. LogScope supports Serial UART transport — connect via USB CDC ACM or any UART bridge. HCI decoding is only available via J-Link RTT.

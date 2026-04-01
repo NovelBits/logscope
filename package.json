@@ -2,7 +2,7 @@
   "name": "novelbits-logscope",
   "displayName": "LogScope — Embedded Log Viewer",
   "description": "Real-time embedded log viewer — Zephyr, nRF5 SDK, and raw mode with Bluetooth LE HCI decoding, filtering, search, fault detection, and Wireshark export",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "novelbits",
   "author": {
     "name": "Novel Bits"
@@ -20,7 +20,6 @@
     "embedded",
     "zephyr",
     "bluetooth",
-    "ble",
     "hci",
     "rtt",
     "jlink",
@@ -28,6 +27,12 @@
     "logging",
     "nordic",
     "nrf",
+    "nrf-connect",
+    "nrf52",
+    "nrf54",
+    "serial",
+    "log-viewer",
+    "debug",
     "wireshark",
     "cortex-m",
     "uart"
@@ -261,7 +266,10 @@
         "logscope.timeFormat": {
           "type": "string",
           "default": "24h",
-          "enum": ["24h", "12h"],
+          "enum": [
+            "24h",
+            "12h"
+          ],
           "enumDescriptions": [
             "24-hour format (e.g., 19:46:40.106)",
             "12-hour format with AM/PM (e.g., 7:46:40.106 PM)"
@@ -305,7 +313,11 @@
         "logscope.parser": {
           "type": "string",
           "default": "zephyr",
-          "enum": ["zephyr", "nrf5", "raw"],
+          "enum": [
+            "zephyr",
+            "nrf5",
+            "raw"
+          ],
           "enumDescriptions": [
             "Zephyr RTOS log format ([HH:MM:SS.mmm,uuu] <level> module: message)",
             "nRF5 SDK NRF_LOG format (<severity> module: message)",

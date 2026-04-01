@@ -2,6 +2,20 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.3.1] — 2026-03-31
+
+### Added
+- "Why LogScope?" comparison table in README showing LogScope vs nRF Terminal capabilities
+- "Extends nRF Connect for VS Code" positioning in README
+- FAQ entry for "How is this different from nRF Terminal?"
+- Marketplace keywords: nrf-connect, nrf52, nrf54, serial, log-viewer, debug
+- 263 unit tests across 18 test suites (HCI parser framing, btsnoop export, session export, RTT transport, connection tracker, security)
+
+### Security
+- Workspace trust restrictions for executable path settings (jlink.path, nrfutil.path)
+- Error path sanitization to prevent internal filesystem path leakage
+- Serial number input validation
+
 ## [0.3.0] — 2026-03-21
 
 ### Added
