@@ -10,3 +10,4 @@ build-uart/
 .superpowers/
 .worktrees/
 docs/
+__pycache__/
