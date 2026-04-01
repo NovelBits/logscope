@@ -2,6 +2,11 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.4.2] — 2026-04-01
+
+### Changed
+- Reduced extension package size by cleaning up bundled assets
+
 ## [0.4.1] — 2026-04-01
 
 ### Fixed
