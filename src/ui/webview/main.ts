@@ -85,6 +85,7 @@ let use12HourTime = false;
 
 function formatWallClock(epochMs: number): string {
   const d = new Date(epochMs);
+  const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const mins = String(d.getMinutes()).padStart(2, "0");
   const secs = String(d.getSeconds()).padStart(2, "0");
   const ms = String(d.getMilliseconds()).padStart(3, "0");
@@ -93,9 +94,9 @@ function formatWallClock(epochMs: number): string {
     let hours = d.getHours();
     const ampm = hours >= 12 ? "PM" : "AM";
     hours = hours % 12 || 12;
-    return `${hours}:${mins}:${secs}.${ms} ${ampm}`;
+    return `${date} ${hours}:${mins}:${secs}.${ms} ${ampm}`;
   }
-  return `${String(d.getHours()).padStart(2, "0")}:${mins}:${secs}.${ms}`;
+  return `${date} ${String(d.getHours()).padStart(2, "0")}:${mins}:${secs}.${ms}`;
 }
 
 // ── Row creation (XSS-safe: uses textContent, never innerHTML) ──
@@ -753,8 +754,9 @@ function handleResetMessage(): void {
   const ts = document.createElement("span");
   ts.className = "reset-ts";
   const now = new Date();
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const tz = now.toLocaleTimeString("en-US", { timeZoneName: "short" }).split(" ").pop();
-  ts.textContent = now.toTimeString().slice(0, 8) + " " + tz;
+  ts.textContent = dateStr + " " + now.toTimeString().slice(0, 8) + " " + tz;
   const label = document.createElement("span");
   label.className = "reset-label";
   label.textContent = "\u26A0 Device Reset Detected";

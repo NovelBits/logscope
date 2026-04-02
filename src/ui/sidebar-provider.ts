@@ -39,6 +39,14 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
   };
 
   private connectStartTime: number | null = null;
+  private durationInterval: ReturnType<typeof setInterval> | null = null;
+  private lastDurationString = "";
+
+  // Cached items for in-place updates (avoids full tree rebuild)
+  private cachedEntries: SidebarItem | null = null;
+  private cachedHci: SidebarItem | null = null;
+  private cachedErrors: SidebarItem | null = null;
+  private cachedDuration: SidebarItem | null = null;
 
   /** Initialize state from VS Code settings and set context keys */
   initFromSettings(): void {
@@ -110,14 +118,17 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
   // ── State updates ────────────────────────────────────────────
 
   updateState(partial: Partial<SidebarState>): void {
-    const wasConnected = this.state.connected;
+    const prev = { ...this.state };
     Object.assign(this.state, partial);
 
     // Track connection start time
-    if (!wasConnected && this.state.connected) {
+    if (!prev.connected && this.state.connected) {
       this.connectStartTime = Date.now();
-    } else if (wasConnected && !this.state.connected) {
+      this.startDurationTimer();
+    } else if (prev.connected && !this.state.connected) {
       this.connectStartTime = null;
+      this.stopDurationTimer();
+      this.clearCachedItems();
     }
 
     // Update hasLastSession when device is set
@@ -126,7 +137,95 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     }
 
     this.updateContextKeys();
-    this._onDidChangeTreeData.fire(undefined);
+
+    // Structural changes require a full tree rebuild
+    const structuralChange =
+      prev.connected !== this.state.connected ||
+      prev.connecting !== this.state.connecting ||
+      prev.connectedTransport !== this.state.connectedTransport ||
+      prev.connectedAddress !== this.state.connectedAddress ||
+      prev.parser !== this.state.parser ||
+      prev.transport !== this.state.transport ||
+      prev.selectedDevice !== this.state.selectedDevice ||
+      prev.selectedDeviceLabel !== this.state.selectedDeviceLabel ||
+      prev.hasLastSession !== this.state.hasLastSession;
+
+    if (structuralChange) {
+      this.clearCachedItems();
+      this._onDidChangeTreeData.fire(undefined);
+      return;
+    }
+
+    // Counter-only changes: update cached items in place (no tree rebuild)
+    if (this.state.connected) {
+      this.updateCachedCounters();
+    }
+  }
+
+  /** Update cached item descriptions in place and fire targeted refreshes */
+  private updateCachedCounters(): void {
+    if (this.cachedEntries) {
+      const newDesc = this.state.entryCount.toLocaleString();
+      if (this.cachedEntries.description !== newDesc) {
+        this.cachedEntries.description = newDesc;
+        this._onDidChangeTreeData.fire(this.cachedEntries);
+      }
+    }
+
+    if (this.cachedHci) {
+      const newDesc = this.state.hciPacketCount.toLocaleString();
+      if (this.cachedHci.description !== newDesc) {
+        this.cachedHci.description = newDesc;
+        this._onDidChangeTreeData.fire(this.cachedHci);
+      }
+    }
+
+    if (this.cachedErrors && this.state.errorCount > 0) {
+      const newDesc = this.state.errorCount.toLocaleString();
+      if (this.cachedErrors.description !== newDesc) {
+        this.cachedErrors.description = newDesc;
+        this._onDidChangeTreeData.fire(this.cachedErrors);
+      }
+    }
+
+    // If HCI or errors just appeared (were 0, now > 0), need full rebuild to add the item
+    if ((!this.cachedHci && this.state.hciPacketCount > 0) ||
+        (!this.cachedErrors && this.state.errorCount > 0)) {
+      this.clearCachedItems();
+      this._onDidChangeTreeData.fire(undefined);
+    }
+  }
+
+  private clearCachedItems(): void {
+    this.cachedEntries = null;
+    this.cachedHci = null;
+    this.cachedErrors = null;
+    this.cachedDuration = null;
+  }
+
+  private startDurationTimer(): void {
+    this.stopDurationTimer();
+    this.durationInterval = setInterval(() => {
+      if (!this.connectStartTime || !this.cachedDuration) return;
+      const elapsed = Math.floor((Date.now() - this.connectStartTime) / 1000);
+      const h = Math.floor(elapsed / 3600);
+      const m = Math.floor((elapsed % 3600) / 60);
+      const s = elapsed % 60;
+      const str = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+      if (str !== this.lastDurationString) {
+        this.lastDurationString = str;
+        this.cachedDuration.description = str;
+        this._onDidChangeTreeData.fire(this.cachedDuration);
+      }
+    }, 1000);
+  }
+
+  private stopDurationTimer(): void {
+    if (this.durationInterval) {
+      clearInterval(this.durationInterval);
+      this.durationInterval = null;
+    }
+    this.lastDurationString = "";
   }
 
   private updateContextKeys(): void {
@@ -167,9 +266,9 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     const items: SidebarItem[] = [];
     const transportLabel = this.state.connectedTransport || (this.state.transport === "rtt" ? "J-Link RTT" : "Serial UART");
 
-    items.push(
-      SidebarItem.info(`Connected via ${transportLabel}`, "plug", ""),
-    );
+    const connItem = SidebarItem.info("Connected", "plug", transportLabel);
+    connItem.id = "info::connection-status";
+    items.push(connItem);
 
     if (this.state.connectedAddress) {
       items.push(SidebarItem.info("Device", "device-desktop", this.state.connectedAddress));
@@ -184,19 +283,22 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
       const m = Math.floor((elapsed % 3600) / 60);
       const s = elapsed % 60;
       const duration = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-      items.push(SidebarItem.info("Duration", "clock", duration));
+      this.cachedDuration = SidebarItem.info("Duration", "clock", duration);
+      this.lastDurationString = duration;
+      items.push(this.cachedDuration);
     }
 
-    items.push(
-      SidebarItem.info("Entries", "list-ordered", this.state.entryCount.toLocaleString()),
-    );
+    this.cachedEntries = SidebarItem.info("Entries", "list-ordered", this.state.entryCount.toLocaleString());
+    items.push(this.cachedEntries);
 
     if (this.state.hciPacketCount > 0) {
-      items.push(SidebarItem.info("HCI Packets", "radio-tower", this.state.hciPacketCount.toLocaleString()));
+      this.cachedHci = SidebarItem.info("HCI Packets", "radio-tower", this.state.hciPacketCount.toLocaleString());
+      items.push(this.cachedHci);
     }
 
     if (this.state.errorCount > 0) {
-      items.push(SidebarItem.info("Errors", "warning", this.state.errorCount.toLocaleString()));
+      this.cachedErrors = SidebarItem.info("Errors", "warning", this.state.errorCount.toLocaleString());
+      items.push(this.cachedErrors);
     }
 
     return items;
@@ -217,13 +319,13 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     const parserLabels: Record<string, string> = { zephyr: "Zephyr", nrf5: "nRF5 SDK", raw: "Raw" };
     items.push(SidebarItem.info("Parser", "file-code", parserLabels[this.state.parser] || "Zephyr"));
 
-    items.push(SidebarItem.separator());
+    items.push(SidebarItem.separator(0));
 
     items.push(SidebarItem.action("Reconnect", "debug-start", "logscope.reconnect"));
     items.push(SidebarItem.action("Change Settings", "settings-gear", "logscope.changeSettings"));
     items.push(SidebarItem.action("Connect New Device", "plug", "logscope.connect"));
 
-    items.push(SidebarItem.separator());
+    items.push(SidebarItem.separator(1));
     items.push(SidebarItem.action("Get Started Guide", "book", "logscope.openWalkthrough"));
     const docsItem = SidebarItem.link("Documentation", "globe", "https://novelbits.io/logscope");
     docsItem.description = "by Novel Bits";
@@ -239,9 +341,11 @@ class SidebarItem extends vscode.TreeItem {
     label: string,
     icon: string,
     description: string,
-    isSeparator = false
+    isSeparator = false,
+    stableId?: string,
   ) {
     super(label, vscode.TreeItemCollapsibleState.None);
+    this.id = stableId ?? `${label}::${icon}`;
     if (icon) {
       this.iconPath = new vscode.ThemeIcon(icon);
     }
@@ -254,18 +358,20 @@ class SidebarItem extends vscode.TreeItem {
 
   /** Read-only info item (no command) */
   static info(label: string, icon: string, description: string): SidebarItem {
-    return new SidebarItem(label, icon, description);
+    const item = new SidebarItem(label, icon, description, false, `info::${label}`);
+    item.tooltip = `${label}: ${description}`;
+    return item;
   }
 
   /** Clickable action item */
   static action(label: string, icon: string, command: string): SidebarItem {
-    const item = new SidebarItem(label, icon, "");
+    const item = new SidebarItem(label, icon, "", false, `action::${command}`);
     item.command = { command, title: label };
     return item;
   }
 
   static link(label: string, icon: string, url: string): SidebarItem {
-    const item = new SidebarItem(label, icon, "");
+    const item = new SidebarItem(label, icon, "", false, `link::${url}`);
     item.command = {
       command: "vscode.open",
       title: label,
@@ -274,7 +380,7 @@ class SidebarItem extends vscode.TreeItem {
     return item;
   }
 
-  static separator(): SidebarItem {
-    return new SidebarItem("", "", "", true);
+  static separator(index = 0): SidebarItem {
+    return new SidebarItem("", "", "", true, `sep::${index}`);
   }
 }

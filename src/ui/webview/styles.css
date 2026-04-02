@@ -219,8 +219,8 @@ body { display: flex; flex-direction: column; }
   color: var(--vscode-descriptionForeground); opacity: 0.6;
   white-space: nowrap;
 }
-#column-headers .col-time { min-width: 80px; margin-right: 10px; padding-right: 10px; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
-#viewer.time-12h #column-headers .col-time { min-width: 110px; }
+#column-headers .col-time { min-width: 160px; margin-right: 10px; padding-right: 10px; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
+#viewer.time-12h #column-headers .col-time { min-width: 195px; }
 #column-headers .col-ts { min-width: 100px; margin-right: 10px; padding-right: 10px; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
 #column-headers .col-sev { min-width: 32px; margin-right: 8px; padding-right: 8px; text-align: center; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
 #column-headers .col-mod { min-width: 90px; margin-right: 10px; padding-right: 10px; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
@@ -270,8 +270,8 @@ body { display: flex; flex-direction: column; }
 
 .log-row { display: flex; padding: 1px 10px; line-height: 1.4; white-space: nowrap; }
 .log-row:hover { background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.04)); }
-.log-row .time { color: var(--vscode-descriptionForeground, #888); opacity: 0.6; margin-right: 10px; flex-shrink: 0; min-width: 80px; }
-#viewer.time-12h .log-row .time { min-width: 110px; }
+.log-row .time { color: var(--vscode-descriptionForeground, #888); opacity: 0.6; margin-right: 10px; flex-shrink: 0; min-width: 160px; }
+#viewer.time-12h .log-row .time { min-width: 195px; }
 .log-row .ts { color: var(--vscode-descriptionForeground, #888); margin-right: 10px; flex-shrink: 0; min-width: 100px; }
 .log-row .sev { font-weight: 700; margin-right: 8px; flex-shrink: 0; min-width: 32px; text-align: center; }
 .log-row .mod { color: var(--vscode-textLink-foreground, #3794ff); margin-right: 10px; flex-shrink: 0; min-width: 90px; overflow: hidden; text-overflow: ellipsis; }
