@@ -39,8 +39,8 @@
     <!-- Filter bar -->
     <div id="filter-bar">
       <div id="filter-left">
+        <button id="date-btn" class="filter-toggle" title="Show/hide date in Local Time column">Date</button>
         <button id="timestamp-btn" class="filter-toggle active" title="Show/hide device timestamps">Timestamp</button>
-        <button id="time-format-btn" class="filter-toggle" title="Toggle 12h/24h time format">12h</button>
         <div id="severity-toggles">
           <button id="check-all-btn" class="severity-meta-btn" title="Enable all (except MON)">&#10003;</button>
           <button id="uncheck-all-btn" class="severity-meta-btn" title="Disable all">&#10007;</button>
@@ -74,7 +74,7 @@
 
     <!-- Column headers -->
     <div id="column-headers">
-      <span class="col-time">Time</span>
+      <span class="col-time">Local Time</span>
       <span class="col-ts">Timestamp</span>
       <span class="col-sev">Level</span>
       <span class="col-mod">Module</span>

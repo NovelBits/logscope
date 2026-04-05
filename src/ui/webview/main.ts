@@ -53,11 +53,12 @@ const dismissBtn = document.getElementById("dismiss-btn")!;
 let isConnected = false;
 const wrapBtn = document.getElementById("wrap-btn")!;
 const timestampBtn = document.getElementById("timestamp-btn")!;
-const timeFormatBtn = document.getElementById("time-format-btn")!;
+const dateBtn = document.getElementById("date-btn")!;
 
 // ── State ───────────────────────────────────────────────────────
 let autoScroll = true;
 let timestampsVisible = true;
+let dateVisible = false;
 const activeSeverities = new Set(["hci", "err", "wrn", "inf", "dbg"]);
 let selectedModule = ""; // "" means all modules
 let searchText = "";
@@ -86,7 +87,9 @@ let use12HourTime = false;
 
 function formatWallClock(epochMs: number): string {
   const d = new Date(epochMs);
-  const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const dateStr = dateVisible
+    ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} `
+    : "";
   const mins = String(d.getMinutes()).padStart(2, "0");
   const secs = String(d.getSeconds()).padStart(2, "0");
   const ms = String(d.getMilliseconds()).padStart(3, "0");
@@ -95,9 +98,9 @@ function formatWallClock(epochMs: number): string {
     let hours = d.getHours();
     const ampm = hours >= 12 ? "PM" : "AM";
     hours = hours % 12 || 12;
-    return `${date} ${hours}:${mins}:${secs}.${ms} ${ampm}`;
+    return `${dateStr}${hours}:${mins}:${secs}.${ms} ${ampm}`;
   }
-  return `${date} ${String(d.getHours()).padStart(2, "0")}:${mins}:${secs}.${ms}`;
+  return `${dateStr}${String(d.getHours()).padStart(2, "0")}:${mins}:${secs}.${ms}`;
 }
 
 // ── Row creation (XSS-safe: uses textContent, never innerHTML) ──
@@ -387,12 +390,10 @@ wrapBtn.addEventListener("click", () => {
   vscode.postMessage({ type: "updateSetting", key: "logscope.logWrap", value: wrapEnabled });
 });
 
-timeFormatBtn.addEventListener("click", () => {
-  use12HourTime = !use12HourTime;
-  timeFormatBtn.classList.toggle("active", use12HourTime);
-  timeFormatBtn.textContent = use12HourTime ? "24h" : "12h";
-  viewerEl.classList.toggle("time-12h", use12HourTime);
-  vscode.postMessage({ type: "updateSetting", key: "logscope.timeFormat", value: use12HourTime ? "12h" : "24h" });
+dateBtn.addEventListener("click", () => {
+  dateVisible = !dateVisible;
+  dateBtn.classList.toggle("active", dateVisible);
+  viewerEl.classList.toggle("show-date", dateVisible);
   // Re-render existing time cells
   const timeCells = document.querySelectorAll(".log-row .time");
   for (const cell of timeCells) {
@@ -564,8 +565,6 @@ function handleInitMessage(msg: { wrapEnabled?: boolean; timeFormat?: string }):
   wrapBtn.classList.toggle("active", wrapEnabled);
   timeline.classList.toggle("wrap-mode", wrapEnabled);
   use12HourTime = msg.timeFormat === "12h";
-  timeFormatBtn.classList.toggle("active", use12HourTime);
-  timeFormatBtn.textContent = use12HourTime ? "24h" : "12h";
   viewerEl.classList.toggle("time-12h", use12HourTime);
 }
 
