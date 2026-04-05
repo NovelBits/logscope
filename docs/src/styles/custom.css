@@ -7,3 +7,24 @@
   --sl-color-gray-1: #eeeeee;
   --sl-color-gray-5: #1a1a2e;
 }
+
+/* Tighten hero spacing on splash page */
+[data-has-hero] .hero {
+  padding-block: 3rem 2rem;
+}
+[data-has-hero] .hero h1 {
+  font-size: 2.5rem;
+  line-height: 1.1;
+}
+[data-has-hero] .hero .tagline {
+  font-size: 1rem;
+}
+[data-has-hero] .content-panel + .content-panel {
+  padding-block-start: 0;
+}
+
+/* Reduce card grid gap */
+.card-grid {
+  gap: 1rem !important;
+  margin-top: 0 !important;
+}

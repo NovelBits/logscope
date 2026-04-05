@@ -389,7 +389,7 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     items.push(SidebarItem.separator(1));
     items.push(SidebarItem.action("Get Started Guide", "book", "logscope.openWalkthrough"));
     const docsItem = SidebarItem.link("Documentation", "globe", "https://novelbits.io/logscope");
-    docsItem.description = "by Novel Bits";
+    docsItem.description = "from Novel Bits";
     items.push(docsItem);
     items.push(SidebarItem.link("Report Issue", "github", "https://github.com/NovelBits/logscope/issues"));
 
