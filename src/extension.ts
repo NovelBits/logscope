@@ -145,7 +145,7 @@ function wireTransportEvents(t: Transport): void {
       watchMatcher.match(entry);
       ringBuffer.push(entry);
       session.addEntry(entry);
-      hciPacketCount++;
+      if (entry.module !== "MON") hciPacketCount++;
     }
     if (entries.length > 0 && panel) {
       panel.addEntries(entries);
