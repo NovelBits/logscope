@@ -317,12 +317,13 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
       items.push(this.cachedErrors);
     }
 
-    // Watch pattern counters
+    // Watch patterns section (always shown when connected)
+    items.push(SidebarItem.separator());
+
     if (this.state.watchCounters.length > 0) {
       const watchLabel = this.state.licenseTier === "Free"
         ? SidebarItem.info("Watch Patterns", "eye", `${Math.min(this.state.watchCounters.length, 3)}/3 free`)
         : SidebarItem.info("Watch Patterns", "eye", "");
-      items.push(SidebarItem.separator());
       items.push(watchLabel);
       for (const wc of this.state.watchCounters) {
         if (wc.count > 0) {
@@ -341,6 +342,9 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
         }
       }
     }
+
+    const addPatternItem = SidebarItem.action("Add Watch Pattern", "add", "logscope.addWatchPattern");
+    items.push(addPatternItem);
 
     // License action (persistent, always at bottom)
     items.push(...this.buildLicenseItems());
