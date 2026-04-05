@@ -342,6 +342,9 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
       }
     }
 
+    // License action (persistent, always at bottom)
+    items.push(...this.buildLicenseItems());
+
     return items;
   }
 
@@ -380,6 +383,24 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     items.push(docsItem);
     items.push(SidebarItem.link("Report Issue", "github", "https://github.com/NovelBits/logscope/issues"));
 
+    // License action (persistent, always at bottom)
+    items.push(...this.buildLicenseItems());
+
+    return items;
+  }
+
+  private buildLicenseItems(): SidebarItem[] {
+    const items: SidebarItem[] = [];
+    items.push(SidebarItem.separator(2));
+    if (this.state.licenseTier === "Free") {
+      const item = SidebarItem.action("Enter License Key", "key", "logscope.enterLicenseKey");
+      item.description = "Upgrade to Pro";
+      items.push(item);
+    } else {
+      const item = SidebarItem.action("License", "verified", "logscope.viewLicenseInfo");
+      item.description = this.state.licenseTier;
+      items.push(item);
+    }
     return items;
   }
 }
