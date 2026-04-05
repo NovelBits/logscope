@@ -18,6 +18,8 @@ import type { Transport } from "./transport/types";
 import { TransportError, classifyError } from "./errors";
 import type { LogScopeError, ErrorAction } from "./errors";
 import { telemetry } from "./telemetry";
+import { WatchMatcher } from "./watch-matcher";
+import type { WatchPatternConfig } from "./watch-matcher";
 
 // ── Module-level state ──────────────────────────────────────────
 let transport: Transport | null = null;
@@ -25,6 +27,7 @@ let session: Session | null = null;
 let ringBuffer: RingBuffer | null = null;
 let activeParser: Parser = new ZephyrLogParser();
 const hciParser = new HciParser();
+const watchMatcher = new WatchMatcher();
 let panel: LogScopePanel | null = null;
 let statusBar: StatusBar | null = null;
 let statusInterval: ReturnType<typeof setInterval> | null = null;
@@ -59,6 +62,11 @@ async function saveSetting(key: string, value: unknown): Promise<void> {
   await cfg.update(key, value, target);
 }
 
+function loadWatchPatterns(): void {
+  const cfg = vscode.workspace.getConfiguration("logscope");
+  const patterns = cfg.get<WatchPatternConfig[]>("watchPatterns", []);
+  watchMatcher.loadPatterns(patterns);
+}
 
 let bootDetected = false;
 
@@ -89,6 +97,7 @@ function handleChunk(chunk: Buffer): void {
 
   for (const entry of entries) {
     entry.receivedAt = now;
+    watchMatcher.match(entry);
     ringBuffer.push(entry);
     session.addEntry(entry);
     if (entry.severity === "err") errorCount++;
@@ -110,6 +119,7 @@ function wireTransportEvents(t: Transport): void {
     const entries = hciParser.parse(chunk);
     for (const entry of entries) {
       entry.receivedAt = now;
+      watchMatcher.match(entry);
       ringBuffer.push(entry);
       session.addEntry(entry);
       hciPacketCount++;
@@ -159,7 +169,7 @@ function startStatusUpdates(): void {
 
     panel?.updateStatus(connected, count, evicted);
     statusBar?.update(connected, count, evicted);
-    sidebarProvider.updateState({ entryCount: count, hciPacketCount, errorCount });
+    sidebarProvider.updateState({ entryCount: count, hciPacketCount, errorCount, watchCounters: watchMatcher.getCounters() });
   }, 500);
 }
 
@@ -358,6 +368,7 @@ async function doConnect(): Promise<void> {
     bootDetected = true; // Assume device has already booted — any boot banner seen is a reset
     hciPacketCount = 0;
     errorCount = 0;
+    watchMatcher.resetCounters();
     panel?.clear(); // Clear previous session's logs from the webview
 
     // Always show the panel when connecting — it shows connecting state and error cards
@@ -936,6 +947,17 @@ export function activate(context: vscode.ExtensionContext) {
   // Initialize sidebar state from settings (sets context keys)
   sidebarProvider.initFromSettings();
 
+  loadWatchPatterns();
+
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration(e => {
+      if (e.affectsConfiguration("logscope.watchPatterns")) {
+        loadWatchPatterns();
+        sidebarProvider.updateState({ watchCounters: watchMatcher.getCounters() });
+      }
+    }),
+  );
+
   // Initialize telemetry
   telemetry.init(context);
   telemetry.trackActivation(context.extension.packageJSON.version);
@@ -990,6 +1012,7 @@ export function activate(context: vscode.ExtensionContext) {
 
       case "clear": {
         ringBuffer?.clear();
+        watchMatcher.resetCounters();
         panel?.clear();
         break;
       }
@@ -1071,6 +1094,69 @@ export function activate(context: vscode.ExtensionContext) {
     await changeParser(current);
   });
 
+  const addWatchPatternCmd = vscode.commands.registerCommand("logscope.addWatchPattern", async () => {
+    const name = await vscode.window.showInputBox({
+      prompt: "Pattern name",
+      placeHolder: "e.g., Retransmission",
+    });
+    if (!name) return;
+
+    const pattern = await vscode.window.showInputBox({
+      prompt: "Text to match",
+      placeHolder: "e.g., retransmit",
+    });
+    if (!pattern) return;
+
+    const regexPick = await vscode.window.showQuickPick(
+      ["Substring match (default)", "Regular expression"],
+      { placeHolder: "Match type" },
+    );
+    if (!regexPick) return;
+    const isRegex = regexPick.startsWith("Regular");
+
+    let module: string | undefined;
+    if (session) {
+      const moduleItems = ["All modules", ...Array.from(session.modules)];
+      const modulePick = await vscode.window.showQuickPick(moduleItems, {
+        placeHolder: "Scope to module (optional)",
+      });
+      if (!modulePick) return;
+      if (modulePick !== "All modules") module = modulePick;
+    }
+
+    const newPattern: WatchPatternConfig = { name, pattern };
+    if (isRegex) newPattern.regex = true;
+    if (module) newPattern.module = module;
+
+    const cfg = vscode.workspace.getConfiguration("logscope");
+    const existing = cfg.get<WatchPatternConfig[]>("watchPatterns", []);
+    await saveSetting("watchPatterns", [...existing, newPattern]);
+  });
+
+  const removeWatchPatternCmd = vscode.commands.registerCommand("logscope.removeWatchPattern", async () => {
+    const cfg = vscode.workspace.getConfiguration("logscope");
+    const patterns = cfg.get<WatchPatternConfig[]>("watchPatterns", []);
+    if (patterns.length === 0) {
+      vscode.window.showInformationMessage("LogScope: No watch patterns configured.");
+      return;
+    }
+
+    const pick = await vscode.window.showQuickPick(
+      patterns.map(p => ({ label: p.name, description: p.pattern })),
+      { placeHolder: "Select pattern to remove" },
+    );
+    if (!pick) return;
+
+    const updated = patterns.filter(p => p.name !== pick.label);
+    await saveSetting("watchPatterns", updated);
+  });
+
+  const scrollToWatchCmd = vscode.commands.registerCommand("logscope.scrollToWatchMatch", (patternName: string) => {
+    const cfg = getConfig();
+    panel?.show(cfg.logWrap, cfg.timeFormat);
+    // TODO: panel?.postMessage() will be added in Task 5
+  });
+
   // ── Auto-connect on activation ────────────────────────────
 
   const devCfg = vscode.workspace.getConfiguration("logscope");
@@ -1100,7 +1186,9 @@ export function activate(context: vscode.ExtensionContext) {
   }
 
   context.subscriptions.push(
-    openCmd, connectCmd, reconnectCmd, disconnectCmd, exportCmd, changeSettingsCmd, openWalkthroughCmd, cycleParserCmd,
+    openCmd, connectCmd, reconnectCmd, disconnectCmd, exportCmd,
+    changeSettingsCmd, openWalkthroughCmd, cycleParserCmd,
+    addWatchPatternCmd, removeWatchPatternCmd, scrollToWatchCmd,
   );
 }
 
