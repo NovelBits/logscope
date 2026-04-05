@@ -1,1 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><path fill-rule="evenodd" d="M81 36 64 0 47 36l-1 2-9-10a6 6 0 0 0-9 9l10 10h-2L0 64l36 17h2L28 91a6 6 0 1 0 9 9l9-10 1 2 17 36 17-36v-2l9 10a6 6 0 1 0 9-9l-9-9 2-1 36-17-36-17-2-1 9-9a6 6 0 1 0-9-9l-9 10v-2Zm-17 2-2 5c-4 8-11 15-19 19l-5 2 5 2c8 4 15 11 19 19l2 5 2-5c4-8 11-15 19-19l5-2-5-2c-8-4-15-11-19-19l-2-5Z" clip-rule="evenodd"/><path d="M118 19a6 6 0 0 0-9-9l-3 3a6 6 0 1 0 9 9l3-3Zm-96 4c-2 2-6 2-9 0l-3-3a6 6 0 1 1 9-9l3 3c3 2 3 6 0 9Zm0 82c-2-2-6-2-9 0l-3 3a6 6 0 1 0 9 9l3-3c3-2 3-6 0-9Zm96 4a6 6 0 0 1-9 9l-3-3a6 6 0 1 1 9-9l3 3Z"/><style>path{fill:#000}@media (prefers-color-scheme:dark){path{fill:#fff}}</style></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 3 rows × 3 columns: two short dashes then a long line -->
+  <!-- Col 1: x=1-3 | gap | Col 2: x=6-8 | big gap | Col 3: x=12+ -->
+
+  <!-- Row 1 -->
+  <line x1="1" y1="6" x2="3" y2="6"/>
+  <line x1="6" y1="6" x2="8" y2="6"/>
+  <line x1="12" y1="6" x2="23" y2="6" opacity="0.5"/>
+
+  <!-- Row 2 -->
+  <line x1="1" y1="12" x2="3" y2="12"/>
+  <line x1="6" y1="12" x2="8" y2="12"/>
+  <line x1="12" y1="12" x2="18" y2="12" opacity="0.5"/>
+
+  <!-- Row 3 -->
+  <line x1="1" y1="18" x2="3" y2="18"/>
+  <line x1="6" y1="18" x2="8" y2="18"/>
+  <line x1="12" y1="18" x2="21" y2="18" opacity="0.5"/>
+</svg>
