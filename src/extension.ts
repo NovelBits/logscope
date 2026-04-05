@@ -20,6 +20,8 @@ import type { LogScopeError, ErrorAction } from "./errors";
 import { telemetry } from "./telemetry";
 import { WatchMatcher } from "./watch-matcher";
 import type { WatchPatternConfig } from "./watch-matcher";
+import { LicenseManager } from "./license/license-manager";
+import { registerLicenseCommands, guardProFeature } from "./license/license-ui";
 
 // ── Module-level state ──────────────────────────────────────────
 let transport: Transport | null = null;
@@ -37,6 +39,7 @@ let userDisconnecting = false;
 let lastDiscoveredDevices: DiscoveredDevice[] = [];
 let hciPacketCount = 0;
 let errorCount = 0;
+let licenseManager: LicenseManager;
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -62,10 +65,30 @@ async function saveSetting(key: string, value: unknown): Promise<void> {
   await cfg.update(key, value, target);
 }
 
+let freePatternNotificationShown = false;
+
 function loadWatchPatterns(): void {
   const cfg = vscode.workspace.getConfiguration("logscope");
   const patterns = cfg.get<WatchPatternConfig[]>("watchPatterns", []);
-  watchMatcher.loadPatterns(patterns);
+
+  // License gate: truncate to 3 for free users
+  const isPro = licenseManager?.isProFeatureAvailable() ?? false;
+  const maxPatterns = isPro ? Infinity : 3;
+  const effective = patterns.slice(0, maxPatterns);
+
+  if (patterns.length > maxPatterns && !freePatternNotificationShown) {
+    freePatternNotificationShown = true;
+    vscode.window.showInformationMessage(
+      "LogScope Free supports up to 3 watch patterns. Upgrade to Pro for unlimited.",
+      "Enter License Key",
+    ).then(choice => {
+      if (choice === "Enter License Key") {
+        licenseManager.enterLicenseKey();
+      }
+    });
+  }
+
+  watchMatcher.loadPatterns(effective);
 }
 
 let bootDetected = false;
@@ -962,6 +985,13 @@ export function activate(context: vscode.ExtensionContext) {
   telemetry.init(context);
   telemetry.trackActivation(context.extension.packageJSON.version);
 
+  // Initialize license manager (non-blocking, never blocks startup)
+  licenseManager = new LicenseManager(context, "logscope");
+  licenseManager.initialize();
+
+  // Register license commands
+  registerLicenseCommands(context, licenseManager, "logscope");
+
   // Check for Python on activation (non-blocking)
   const PYTHON_WARNING_DISMISSED = "logscope.pythonWarningDismissed";
   if (!context.globalState.get<boolean>(PYTHON_WARNING_DISMISSED)) {
@@ -1095,6 +1125,14 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   const addWatchPatternCmd = vscode.commands.registerCommand("logscope.addWatchPattern", async () => {
+    // License gate: free users limited to 3 patterns
+    const gateCfg = vscode.workspace.getConfiguration("logscope");
+    const existingPatterns = gateCfg.get<WatchPatternConfig[]>("watchPatterns", []);
+    if (existingPatterns.length >= 3 && !licenseManager.isProFeatureAvailable()) {
+      await guardProFeature(licenseManager, "More than 3 watch patterns", "watch-patterns");
+      return;
+    }
+
     const name = await vscode.window.showInputBox({
       prompt: "Pattern name",
       placeHolder: "e.g., Retransmission",
