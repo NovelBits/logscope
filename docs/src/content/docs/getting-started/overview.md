@@ -3,7 +3,7 @@ title: Overview
 description: What LogScope does and who it's for
 ---
 
-LogScope is a VS Code extension for viewing real-time firmware logs from embedded devices. It connects to your device over **J-Link RTT** (Real-Time Transfer) or **Serial UART**, parses structured log output, and displays it in a filterable, searchable log viewer.
+LogScope is a VS Code extension from Novel Bits for viewing real-time firmware logs from embedded devices. It connects to your device over **J-Link RTT** (Real-Time Transfer) or **Serial UART**, parses structured log output, and displays it in a filterable, searchable log viewer.
 
 ## Key Features
 
