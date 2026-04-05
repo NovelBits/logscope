@@ -14,6 +14,7 @@ export interface SidebarState {
   entryCount: number;
   hciPacketCount: number;
   errorCount: number;
+  watchCounters: { name: string; count: number; color: string }[];
   hasLastSession: boolean;       // true if we have saved transport+device
 }
 
@@ -35,6 +36,7 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     entryCount: 0,
     hciPacketCount: 0,
     errorCount: 0,
+    watchCounters: [],
     hasLastSession: false,
   };
 
@@ -148,7 +150,8 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
       prev.transport !== this.state.transport ||
       prev.selectedDevice !== this.state.selectedDevice ||
       prev.selectedDeviceLabel !== this.state.selectedDeviceLabel ||
-      prev.hasLastSession !== this.state.hasLastSession;
+      prev.hasLastSession !== this.state.hasLastSession ||
+      prev.watchCounters.length !== this.state.watchCounters.length;
 
     if (structuralChange) {
       this.clearCachedItems();
@@ -191,6 +194,13 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     // If HCI or errors just appeared (were 0, now > 0), need full rebuild to add the item
     if ((!this.cachedHci && this.state.hciPacketCount > 0) ||
         (!this.cachedErrors && this.state.errorCount > 0)) {
+      this.clearCachedItems();
+      this._onDidChangeTreeData.fire(undefined);
+      return;
+    }
+
+    // Watch counters change frequently — rebuild to update
+    if (this.state.watchCounters.length > 0) {
       this.clearCachedItems();
       this._onDidChangeTreeData.fire(undefined);
     }
@@ -299,6 +309,27 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     if (this.state.errorCount > 0) {
       this.cachedErrors = SidebarItem.info("Errors", "warning", this.state.errorCount.toLocaleString());
       items.push(this.cachedErrors);
+    }
+
+    // Watch pattern counters
+    if (this.state.watchCounters.length > 0) {
+      items.push(SidebarItem.separator());
+      for (const wc of this.state.watchCounters) {
+        if (wc.count > 0) {
+          const item = SidebarItem.action(
+            wc.name,
+            "eye",
+            "logscope.scrollToWatchMatch",
+          );
+          item.command = {
+            command: "logscope.scrollToWatchMatch",
+            title: wc.name,
+            arguments: [wc.name],
+          };
+          item.description = wc.count.toLocaleString();
+          items.push(item);
+        }
+      }
     }
 
     return items;
