@@ -154,6 +154,52 @@ void ble_mgr_send_notification(uint32_t value)
 	}
 }
 
+static bool adv_active = true;
+
+/* Advertising data for restart (matches main.c) */
+static const uint8_t svc_uuid_adv[] = {
+	BT_UUID_128_ENCODE(0x12345678, 0x1234, 0x5678, 0x1234, 0x56789abcdef0)
+};
+
+static const struct bt_data restart_ad[] = {
+	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
+	BT_DATA(BT_DATA_UUID128_ALL, svc_uuid_adv, sizeof(svc_uuid_adv)),
+};
+
+static const struct bt_data restart_sd[] = {
+	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME,
+		sizeof(CONFIG_BT_DEVICE_NAME) - 1),
+};
+
+void ble_mgr_toggle_advertising(void)
+{
+	if (adv_active) {
+		bt_le_adv_stop();
+		adv_active = false;
+		LOG_INF("Advertising stopped by user");
+	} else {
+		int err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1,
+					  restart_ad, ARRAY_SIZE(restart_ad),
+					  restart_sd, ARRAY_SIZE(restart_sd));
+		if (err) {
+			LOG_ERR("Advertising restart failed (err %d)", err);
+		} else {
+			adv_active = true;
+			LOG_INF("Advertising restarted by user");
+		}
+	}
+}
+
+void ble_mgr_force_disconnect(void)
+{
+	if (!current_conn) {
+		LOG_WRN("No active connection to disconnect");
+		return;
+	}
+	LOG_INF("User-initiated disconnect");
+	bt_conn_disconnect(current_conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
+}
+
 void ble_mgr_tick(int cycle)
 {
 	if (cycle % 10 == 0 && current_conn) {

@@ -30,3 +30,13 @@ void flash_mgr_tick(int cycle)
 		LOG_DBG("Write 256B to 0x%08x (queue depth: %d)", addr, cycle % 8);
 	}
 }
+
+/* Button 2: Flash corruption and recovery sequence */
+void flash_mgr_corruption(void)
+{
+	LOG_ERR("CRC mismatch at sector 0x00080000 (expected: 0xA3F1, got: 0x0000)");
+	LOG_WRN("Wear level critical on sector 0x00080000 (writes: 99847)");
+	LOG_ERR("Flash write failed at 0x00080000 (ECC error)");
+	LOG_INF("Sector 0x00080000 marked bad, remapping to 0x000A0000");
+	LOG_INF("Flash recovery complete, 1 sector remapped");
+}
