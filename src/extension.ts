@@ -192,7 +192,13 @@ function startStatusUpdates(): void {
 
     panel?.updateStatus(connected, count, evicted);
     statusBar?.update(connected, count, evicted);
-    sidebarProvider.updateState({ entryCount: count, hciPacketCount, errorCount, watchCounters: watchMatcher.getCounters() });
+    sidebarProvider.updateState({
+      entryCount: count,
+      hciPacketCount,
+      errorCount,
+      watchCounters: watchMatcher.getCounters(),
+      licenseTier: licenseManager?.getTierName() ?? "Free",
+    });
   }, 500);
 }
 

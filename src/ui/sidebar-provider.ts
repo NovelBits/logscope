@@ -15,6 +15,7 @@ export interface SidebarState {
   hciPacketCount: number;
   errorCount: number;
   watchCounters: { name: string; count: number; color: string }[];
+  licenseTier: string;
   hasLastSession: boolean;       // true if we have saved transport+device
 }
 
@@ -37,6 +38,7 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     hciPacketCount: 0,
     errorCount: 0,
     watchCounters: [],
+    licenseTier: "Free",
     hasLastSession: false,
   };
 
@@ -287,6 +289,10 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     const parserLabels: Record<string, string> = { zephyr: "Zephyr", nrf5: "nRF5 SDK", raw: "Raw" };
     items.push(SidebarItem.info("Parser", "file-code", parserLabels[this.state.parser] || "Zephyr"));
 
+    if (this.state.licenseTier !== "Free") {
+      items.push(SidebarItem.info("License", "verified", this.state.licenseTier));
+    }
+
     if (this.connectStartTime) {
       const elapsed = Math.floor((Date.now() - this.connectStartTime) / 1000);
       const h = Math.floor(elapsed / 3600);
@@ -313,7 +319,11 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
 
     // Watch pattern counters
     if (this.state.watchCounters.length > 0) {
+      const watchLabel = this.state.licenseTier === "Free"
+        ? SidebarItem.info("Watch Patterns", "eye", `${Math.min(this.state.watchCounters.length, 3)}/3 free`)
+        : SidebarItem.info("Watch Patterns", "eye", "");
       items.push(SidebarItem.separator());
+      items.push(watchLabel);
       for (const wc of this.state.watchCounters) {
         if (wc.count > 0) {
           const item = SidebarItem.action(
@@ -349,6 +359,13 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
 
     const parserLabels: Record<string, string> = { zephyr: "Zephyr", nrf5: "nRF5 SDK", raw: "Raw" };
     items.push(SidebarItem.info("Parser", "file-code", parserLabels[this.state.parser] || "Zephyr"));
+
+    // Show watch pattern limit for free users even when disconnected
+    const cfg = vscode.workspace.getConfiguration("logscope");
+    const patternCount = cfg.get<unknown[]>("watchPatterns", []).length;
+    if (patternCount > 0 && this.state.licenseTier === "Free") {
+      items.push(SidebarItem.info("Watch Patterns", "eye", `${Math.min(patternCount, 3)}/3 free`));
+    }
 
     items.push(SidebarItem.separator(0));
 
