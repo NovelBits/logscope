@@ -14,6 +14,7 @@ interface SerializedEntry {
   source: string;
   raw?: number[];
   decoded?: unknown;
+  watchHits?: { name: string; color: string }[];
 }
 
 /** Callback when the WebView sends a message back */
@@ -95,6 +96,9 @@ export class LogScopePanel {
         if (e.raw) serialized.raw = Array.from(e.raw);
         if (e.metadata?.decoded) serialized.decoded = e.metadata.decoded;
       }
+      if (e.metadata?.watchHits) {
+        serialized.watchHits = e.metadata.watchHits as { name: string; color: string }[];
+      }
       this.pendingEntries.push(serialized);
     }
 
@@ -136,6 +140,10 @@ export class LogScopePanel {
   clear(): void {
     this.pendingEntries = [];
     this.panel?.webview.postMessage({ type: "clear" });
+  }
+
+  postMessage(message: unknown): void {
+    this.panel?.webview.postMessage(message);
   }
 
   get visible(): boolean {

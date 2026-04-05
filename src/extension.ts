@@ -1154,7 +1154,7 @@ export function activate(context: vscode.ExtensionContext) {
   const scrollToWatchCmd = vscode.commands.registerCommand("logscope.scrollToWatchMatch", (patternName: string) => {
     const cfg = getConfig();
     panel?.show(cfg.logWrap, cfg.timeFormat);
-    // TODO: panel?.postMessage() will be added in Task 5
+    panel?.postMessage({ type: "scrollToWatch", patternName });
   });
 
   // ── Auto-connect on activation ────────────────────────────
