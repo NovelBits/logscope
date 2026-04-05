@@ -4,7 +4,6 @@ import starlight from '@astrojs/starlight';
 
 // https://astro.build/config
 export default defineConfig({
-	base: '/logscope',
 	integrations: [
 		starlight({
 			title: 'LogScope Docs',
