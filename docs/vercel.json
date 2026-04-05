@@ -1,5 +1,8 @@
 {
   "buildCommand": "npx astro build",
   "outputDirectory": "dist",
-  "framework": "astro"
+  "framework": "astro",
+  "redirects": [
+    { "source": "/", "destination": "/logscope", "permanent": false }
+  ]
 }
