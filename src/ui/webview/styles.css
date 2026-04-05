@@ -409,3 +409,26 @@ body { display: flex; flex-direction: column; }
 .error-card-btn:hover {
   background: var(--vscode-button-secondaryHoverBackground);
 }
+
+/* ── Watch pattern markers ─────────────────────────────── */
+.watch-markers {
+  display: inline-flex;
+  gap: 2px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  align-items: center;
+}
+.watch-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  cursor: default;
+}
+.watch-highlight {
+  animation: watch-flash 1.5s ease-out;
+}
+@keyframes watch-flash {
+  0% { background-color: rgba(255, 255, 255, 0.15); }
+  100% { background-color: transparent; }
+}

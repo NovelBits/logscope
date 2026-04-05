@@ -18,6 +18,7 @@ interface SerializedEntry {
   source: string;
   decoded?: DecodedPacket;
   raw?: number[];
+  watchHits?: { name: string; color: string }[];
 }
 
 // ── VS Code API handle ──────────────────────────────────────────
@@ -152,6 +153,20 @@ function createRow(entry: SerializedEntry): HTMLDivElement {
       autoScrollBtn.classList.remove("active");
       showFaultNotification();
     }
+  }
+
+  // Watch pattern markers
+  if (entry.watchHits && entry.watchHits.length > 0) {
+    const markers = document.createElement("span");
+    markers.className = "watch-markers";
+    for (const hit of entry.watchHits) {
+      const dot = document.createElement("span");
+      dot.className = "watch-dot";
+      dot.style.backgroundColor = hit.color;
+      dot.title = hit.name;
+      markers.appendChild(dot);
+    }
+    row.appendChild(markers);
   }
 
   row.appendChild(time);
@@ -789,5 +804,25 @@ window.addEventListener("message", (event) => {
     case "modules":      handleModulesMessage(msg); break;
     case "clear":        clearTimeline(); break;
     case "reset":        handleResetMessage(); break;
+    case "scrollToWatch": {
+      const patternName = msg.patternName as string;
+      const rows = document.querySelectorAll(".log-row");
+      let lastMatch: Element | null = null;
+      for (const row of rows) {
+        const dots = row.querySelectorAll(".watch-dot");
+        for (const dot of dots) {
+          if (dot.getAttribute("title") === patternName) {
+            lastMatch = row;
+            break;
+          }
+        }
+      }
+      if (lastMatch) {
+        lastMatch.scrollIntoView({ behavior: "smooth", block: "center" });
+        lastMatch.classList.add("watch-highlight");
+        setTimeout(() => lastMatch!.classList.remove("watch-highlight"), 1500);
+      }
+      break;
+    }
   }
 });
