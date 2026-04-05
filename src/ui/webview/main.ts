@@ -85,11 +85,13 @@ function formatTimestamp(us: number): string {
 
 let use12HourTime = false;
 
-function formatWallClock(epochMs: number): string {
+function formatDate(epochMs: number): string {
   const d = new Date(epochMs);
-  const dateStr = dateVisible
-    ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} `
-    : "";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function formatClock(epochMs: number): string {
+  const d = new Date(epochMs);
   const mins = String(d.getMinutes()).padStart(2, "0");
   const secs = String(d.getSeconds()).padStart(2, "0");
   const ms = String(d.getMilliseconds()).padStart(3, "0");
@@ -98,9 +100,9 @@ function formatWallClock(epochMs: number): string {
     let hours = d.getHours();
     const ampm = hours >= 12 ? "PM" : "AM";
     hours = hours % 12 || 12;
-    return `${dateStr}${hours}:${mins}:${secs}.${ms} ${ampm}`;
+    return `${hours}:${mins}:${secs}.${ms} ${ampm}`;
   }
-  return `${dateStr}${String(d.getHours()).padStart(2, "0")}:${mins}:${secs}.${ms}`;
+  return `${String(d.getHours()).padStart(2, "0")}:${mins}:${secs}.${ms}`;
 }
 
 // ── Row creation (XSS-safe: uses textContent, never innerHTML) ──
@@ -111,8 +113,17 @@ function createRow(entry: SerializedEntry): HTMLDivElement {
 
   const time = document.createElement("span");
   time.className = "time";
-  time.textContent = entry.receivedAt ? formatWallClock(entry.receivedAt) : "";
-  if (entry.receivedAt) time.dataset.epoch = String(entry.receivedAt);
+  if (entry.receivedAt) {
+    time.dataset.epoch = String(entry.receivedAt);
+    const dateSpan = document.createElement("span");
+    dateSpan.className = "time-date";
+    dateSpan.textContent = formatDate(entry.receivedAt);
+    const clockSpan = document.createElement("span");
+    clockSpan.className = "time-clock";
+    clockSpan.textContent = formatClock(entry.receivedAt);
+    time.appendChild(dateSpan);
+    time.appendChild(clockSpan);
+  }
 
   const ts = document.createElement("span");
   ts.className = "ts";
@@ -411,12 +422,6 @@ dateBtn.addEventListener("click", () => {
   dateVisible = !dateVisible;
   dateBtn.classList.toggle("active", dateVisible);
   viewerEl.classList.toggle("show-date", dateVisible);
-  // Re-render existing time cells
-  const timeCells = document.querySelectorAll(".log-row .time");
-  for (const cell of timeCells) {
-    const epochMs = Number((cell as HTMLElement).dataset.epoch);
-    if (epochMs) (cell as HTMLElement).textContent = formatWallClock(epochMs);
-  }
 });
 
 // ── Filter controls ─────────────────────────────────────────────
