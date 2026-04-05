@@ -275,7 +275,7 @@ body { display: flex; flex-direction: column; }
 .log-row .ts { color: var(--vscode-descriptionForeground, #888); margin-right: 10px; flex-shrink: 0; min-width: 100px; }
 .log-row .sev { font-weight: 700; margin-right: 8px; flex-shrink: 0; min-width: 32px; text-align: center; }
 .log-row .mod { color: var(--vscode-textLink-foreground, #3794ff); margin-right: 10px; flex-shrink: 0; min-width: 90px; overflow: hidden; text-overflow: ellipsis; }
-.log-row .msg { font-family: var(--vscode-editor-font-family); flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.log-row .msg { font-family: var(--vscode-editor-font-family); flex: 0 0 auto; white-space: nowrap; }
 
 .log-row.hci .sev { color: #c586c0; }
 .log-row.hci { border-left: 3px solid #c586c0; }
