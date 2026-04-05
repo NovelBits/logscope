@@ -14,6 +14,9 @@ export default defineConfig({
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/NovelBits/logscope' },
 			],
 			customCss: ['./src/styles/custom.css'],
+			head: [
+				{ tag: 'script', content: "if(!localStorage.getItem('starlight-theme')){localStorage.setItem('starlight-theme','dark')}" },
+			],
 			sidebar: [
 				{
 					label: 'Getting Started',
