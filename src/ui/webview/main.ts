@@ -221,9 +221,25 @@ function formatHexDump(raw: number[]): string {
 }
 
 // ── Build detail div for expanded HCI rows ──────────────────────
-function buildDetailDiv(decoded: DecodedPacket, raw?: number[]): HTMLDivElement {
+function buildDetailDiv(decoded: DecodedPacket, raw?: number[], row?: HTMLElement): HTMLDivElement {
   const detail = document.createElement("div");
   detail.className = "hci-detail";
+
+  // Spacer to align content with the message column
+  const spacer = document.createElement("div");
+  spacer.className = "hci-detail-spacer";
+  // Measure the offset of the .msg element in the parent row
+  if (row) {
+    const msgEl = row.querySelector(".msg") as HTMLElement | null;
+    if (msgEl) {
+      spacer.style.width = msgEl.offsetLeft - 10 + "px"; // 10px = row padding
+    }
+  }
+  detail.appendChild(spacer);
+
+  // Content wrapper
+  const content = document.createElement("div");
+  content.className = "hci-detail-content";
 
   // Fields table
   const table = document.createElement("table");
@@ -243,7 +259,7 @@ function buildDetailDiv(decoded: DecodedPacket, raw?: number[]): HTMLDivElement 
     tr.appendChild(tdValue);
     table.appendChild(tr);
   }
-  detail.appendChild(table);
+  content.appendChild(table);
 
   // Hex dump toggle + content
   if (raw && raw.length > 0) {
@@ -261,10 +277,11 @@ function buildDetailDiv(decoded: DecodedPacket, raw?: number[]): HTMLDivElement 
       toggle.textContent = (isHidden ? "\u25B6 Show" : "\u25BC Hide") + " raw hex (" + raw.length + " bytes)";
     });
 
-    detail.appendChild(toggle);
-    detail.appendChild(pre);
+    content.appendChild(toggle);
+    content.appendChild(pre);
   }
 
+  detail.appendChild(content);
   return detail;
 }
 
@@ -297,7 +314,7 @@ timeline.addEventListener("click", (e: Event) => {
     // Expand this row
     target.classList.add("expanded");
     if (target._decoded) {
-      const detail = buildDetailDiv(target._decoded, target._raw);
+      const detail = buildDetailDiv(target._decoded, target._raw, target);
       target.after(detail);
     }
   }

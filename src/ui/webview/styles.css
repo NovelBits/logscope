@@ -312,14 +312,20 @@ body { display: flex; flex-direction: column; }
 }
 .hci-expandable.expanded { background: rgba(197, 134, 192, 0.06); }
 
-/* Detail panel */
+/* Detail panel — rendered as a flex row matching log-row column layout */
 .hci-detail {
+  display: flex;
   padding: 6px 10px 8px;
-  /* Align with message column: 10px row padding + 110px(ts) + 40px(sev) + 100px(mod) = 260px */
-  padding-left: 260px;
   border-left: 3px solid #c586c0;
   background: rgba(197, 134, 192, 0.04);
   font-size: 12px;
+}
+.hci-detail-spacer {
+  flex-shrink: 0;
+}
+.hci-detail-content {
+  flex: 1;
+  min-width: 0;
 }
 .hci-fields { border-collapse: collapse; }
 .hci-fields td { padding: 1px 0; }
