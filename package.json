@@ -117,6 +117,22 @@
       {
         "command": "logscope.scrollToWatchMatch",
         "title": "LogScope: Scroll to Watch Match"
+      },
+      {
+        "command": "logscope.enterLicenseKey",
+        "title": "LogScope: Enter License Key"
+      },
+      {
+        "command": "logscope.removeLicenseKey",
+        "title": "LogScope: Remove License Key"
+      },
+      {
+        "command": "logscope.viewLicenseInfo",
+        "title": "LogScope: View License Info"
+      },
+      {
+        "command": "logscope.refreshLicense",
+        "title": "LogScope: Refresh License"
       }
     ],
     "walkthroughs": [
