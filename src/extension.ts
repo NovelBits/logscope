@@ -221,7 +221,7 @@ function handleErrorAction(action: ErrorAction): void {
 }
 
 async function resetAndReconnect(serialNumber?: string): Promise<void> {
-  if (!serialNumber) return;
+  if (!serialNumber || !/^\d+$/.test(serialNumber)) return;
   execFile("nrfutil", ["device", "reset", "--serial-number", serialNumber], (err) => {
     if (err) {
       vscode.window.showWarningMessage(`LogScope: Could not reset device \u2014 ${err.message}`);
