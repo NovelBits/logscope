@@ -344,6 +344,12 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     }
 
     const addPatternItem = SidebarItem.action("Add Watch Pattern", "add", "logscope.addWatchPattern");
+    const patternCount = this.state.watchCounters.length;
+    if (this.state.licenseTier === "Free") {
+      addPatternItem.description = `${patternCount}/3 used`;
+    } else if (patternCount > 0) {
+      addPatternItem.description = `${patternCount} active`;
+    }
     items.push(addPatternItem);
 
     // License action (persistent, always at bottom)
