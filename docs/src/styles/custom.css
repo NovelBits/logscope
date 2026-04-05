@@ -1,0 +1,9 @@
+/* LogScope brand colors */
+:root {
+  --sl-color-accent-low: #1a3a2a;
+  --sl-color-accent: #2d9d78;
+  --sl-color-accent-high: #4cceac;
+  --sl-color-white: #ffffff;
+  --sl-color-gray-1: #eeeeee;
+  --sl-color-gray-5: #1a1a2e;
+}
