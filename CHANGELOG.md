@@ -2,6 +2,23 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.4.3] — 2026-04-04
+
+### Fixed
+- **Sidebar flicker** — eliminated the blinking/flashing under the LOGSCOPE sidebar title during active sessions. Counter updates (Entries, HCI Packets, Errors, Duration) now update in place instead of rebuilding the entire tree
+- **Security: error path sanitization** — generic error messages no longer expose file system paths (e.g., `/Users/...`, `/Applications/...`)
+- **Security: serial number validation** — serial numbers are validated as digits-only before being passed to device reset commands
+
+### Added
+- **Date in wall-clock timestamps** — Time column now shows full date prefix in ISO 8601 format (e.g., `2026-04-04 08:57:28.568`)
+- **Sidebar tooltips** — hover over any sidebar item to see the full value (useful for long UART port paths)
+- **Windsurf and Kiro IDE support** — lowered VS Code engine requirement to `^1.107.0` for compatibility with Windsurf, Kiro, and Cursor editors (thanks @dhruvkakadiya, fixes #4)
+- **Workspace trust restrictions** — `logscope.nrfutil.path` and `logscope.jlink.path` settings are restricted in untrusted workspaces
+- **73 new tests** — expanded test coverage from 190 to 263 tests (HCI parser, btsnoop export, session export, security, transport, connection tracker)
+
+### Changed
+- Duration timer updates at 1Hz (was 2Hz) with change detection
+
 ## [0.4.2] — 2026-04-01
 
 ### Changed
