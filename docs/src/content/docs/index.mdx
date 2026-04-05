@@ -1,0 +1,32 @@
+---
+title: LogScope Documentation
+description: Real-time embedded firmware log viewer for VS Code
+template: splash
+hero:
+  tagline: from Novel Bits — Real-time log viewer for embedded firmware. Connect via J-Link RTT or Serial UART, filter by severity and module, decode Bluetooth LE HCI packets, and set up watch patterns to catch what matters.
+  actions:
+    - text: Get Started
+      link: /getting-started/overview/
+      icon: right-arrow
+    - text: Install from Marketplace
+      link: https://marketplace.visualstudio.com/items?itemName=novelbits.novelbits-logscope
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<CardGrid>
+  <Card title="Connect in seconds" icon="laptop">
+    Pick your transport (J-Link RTT or Serial UART), select a device, and start viewing logs. No configuration files needed.
+  </Card>
+  <Card title="Watch Patterns" icon="magnifier">
+    Define patterns that match incoming log lines in real-time. Colored markers and live sidebar counters give you instant visibility into errors, retransmissions, and state changes.
+  </Card>
+  <Card title="HCI Packet Decoding" icon="approve-check">
+    Decode Bluetooth LE HCI packets inline with expandable detail views showing fields, values, and raw hex dumps.
+  </Card>
+  <Card title="Multi-format Export" icon="document">
+    Export captured logs as text, JSON Lines, or Wireshark-compatible btsnoop files.
+  </Card>
+</CardGrid>

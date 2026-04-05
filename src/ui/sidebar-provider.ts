@@ -14,6 +14,8 @@ export interface SidebarState {
   entryCount: number;
   hciPacketCount: number;
   errorCount: number;
+  watchCounters: { name: string; count: number; color: string }[];
+  licenseTier: string;
   hasLastSession: boolean;       // true if we have saved transport+device
 }
 
@@ -35,6 +37,8 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     entryCount: 0,
     hciPacketCount: 0,
     errorCount: 0,
+    watchCounters: [],
+    licenseTier: "Free",
     hasLastSession: false,
   };
 
@@ -148,7 +152,8 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
       prev.transport !== this.state.transport ||
       prev.selectedDevice !== this.state.selectedDevice ||
       prev.selectedDeviceLabel !== this.state.selectedDeviceLabel ||
-      prev.hasLastSession !== this.state.hasLastSession;
+      prev.hasLastSession !== this.state.hasLastSession ||
+      prev.watchCounters.length !== this.state.watchCounters.length;
 
     if (structuralChange) {
       this.clearCachedItems();
@@ -191,6 +196,13 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     // If HCI or errors just appeared (were 0, now > 0), need full rebuild to add the item
     if ((!this.cachedHci && this.state.hciPacketCount > 0) ||
         (!this.cachedErrors && this.state.errorCount > 0)) {
+      this.clearCachedItems();
+      this._onDidChangeTreeData.fire(undefined);
+      return;
+    }
+
+    // Watch counters change frequently — rebuild to update
+    if (this.state.watchCounters.length > 0) {
       this.clearCachedItems();
       this._onDidChangeTreeData.fire(undefined);
     }
@@ -277,6 +289,10 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     const parserLabels: Record<string, string> = { zephyr: "Zephyr", nrf5: "nRF5 SDK", raw: "Raw" };
     items.push(SidebarItem.info("Parser", "file-code", parserLabels[this.state.parser] || "Zephyr"));
 
+    if (this.state.licenseTier !== "Free") {
+      items.push(SidebarItem.info("License", "verified", this.state.licenseTier));
+    }
+
     if (this.connectStartTime) {
       const elapsed = Math.floor((Date.now() - this.connectStartTime) / 1000);
       const h = Math.floor(elapsed / 3600);
@@ -301,6 +317,44 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
       items.push(this.cachedErrors);
     }
 
+    // Watch patterns section (always shown when connected)
+    items.push(SidebarItem.separator());
+
+    if (this.state.watchCounters.length > 0) {
+      const watchLabel = this.state.licenseTier === "Free"
+        ? SidebarItem.info("Watch Patterns", "eye", `${Math.min(this.state.watchCounters.length, 3)}/3 free`)
+        : SidebarItem.info("Watch Patterns", "eye", "");
+      items.push(watchLabel);
+      for (const wc of this.state.watchCounters) {
+        if (wc.count > 0) {
+          const item = SidebarItem.action(
+            wc.name,
+            "eye",
+            "logscope.scrollToWatchMatch",
+          );
+          item.command = {
+            command: "logscope.scrollToWatchMatch",
+            title: wc.name,
+            arguments: [wc.name],
+          };
+          item.description = wc.count.toLocaleString();
+          items.push(item);
+        }
+      }
+    }
+
+    const addPatternItem = SidebarItem.action("Add Watch Pattern", "add", "logscope.addWatchPattern");
+    const patternCount = this.state.watchCounters.length;
+    if (this.state.licenseTier === "Free") {
+      addPatternItem.description = `${patternCount}/3 used`;
+    } else if (patternCount > 0) {
+      addPatternItem.description = `${patternCount} active`;
+    }
+    items.push(addPatternItem);
+
+    // License action (persistent, always at bottom)
+    items.push(...this.buildLicenseItems());
+
     return items;
   }
 
@@ -319,6 +373,13 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     const parserLabels: Record<string, string> = { zephyr: "Zephyr", nrf5: "nRF5 SDK", raw: "Raw" };
     items.push(SidebarItem.info("Parser", "file-code", parserLabels[this.state.parser] || "Zephyr"));
 
+    // Show watch pattern limit for free users even when disconnected
+    const cfg = vscode.workspace.getConfiguration("logscope");
+    const patternCount = cfg.get<unknown[]>("watchPatterns", []).length;
+    if (patternCount > 0 && this.state.licenseTier === "Free") {
+      items.push(SidebarItem.info("Watch Patterns", "eye", `${Math.min(patternCount, 3)}/3 free`));
+    }
+
     items.push(SidebarItem.separator(0));
 
     items.push(SidebarItem.action("Reconnect", "debug-start", "logscope.reconnect"));
@@ -328,10 +389,28 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     items.push(SidebarItem.separator(1));
     items.push(SidebarItem.action("Get Started Guide", "book", "logscope.openWalkthrough"));
     const docsItem = SidebarItem.link("Documentation", "globe", "https://novelbits.io/logscope");
-    docsItem.description = "by Novel Bits";
+    docsItem.description = "from Novel Bits";
     items.push(docsItem);
     items.push(SidebarItem.link("Report Issue", "github", "https://github.com/NovelBits/logscope/issues"));
 
+    // License action (persistent, always at bottom)
+    items.push(...this.buildLicenseItems());
+
+    return items;
+  }
+
+  private buildLicenseItems(): SidebarItem[] {
+    const items: SidebarItem[] = [];
+    items.push(SidebarItem.separator(2));
+    if (this.state.licenseTier === "Free") {
+      const item = SidebarItem.action("Enter License Key", "key", "logscope.enterLicenseKey");
+      item.description = "Upgrade to Pro";
+      items.push(item);
+    } else {
+      const item = SidebarItem.action("License", "verified", "logscope.viewLicenseInfo");
+      item.description = this.state.licenseTier;
+      items.push(item);
+    }
     return items;
   }
 }

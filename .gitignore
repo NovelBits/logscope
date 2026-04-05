@@ -9,5 +9,7 @@ build-hci/
 build-uart/
 .superpowers/
 .worktrees/
-docs/
+docs/node_modules/
+docs/dist/
+docs/.astro/
 __pycache__/

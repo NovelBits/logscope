@@ -219,8 +219,11 @@ body { display: flex; flex-direction: column; }
   color: var(--vscode-descriptionForeground); opacity: 0.6;
   white-space: nowrap;
 }
-#column-headers .col-time { min-width: 160px; margin-right: 10px; padding-right: 10px; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
-#viewer.time-12h #column-headers .col-time { min-width: 195px; }
+/* Default: time only (no date) */
+#column-headers .col-time { min-width: 100px; margin-right: 10px; padding-right: 10px; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
+/* With date visible */
+#viewer.show-date #column-headers .col-time { min-width: 185px; }
+#viewer.show-date.time-12h #column-headers .col-time { min-width: 220px; }
 #column-headers .col-ts { min-width: 100px; margin-right: 10px; padding-right: 10px; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
 #column-headers .col-sev { min-width: 32px; margin-right: 8px; padding-right: 8px; text-align: center; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
 #column-headers .col-mod { min-width: 90px; margin-right: 10px; padding-right: 10px; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
@@ -270,12 +273,18 @@ body { display: flex; flex-direction: column; }
 
 .log-row { display: flex; padding: 1px 10px; line-height: 1.4; white-space: nowrap; }
 .log-row:hover { background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.04)); }
-.log-row .time { color: var(--vscode-descriptionForeground, #888); opacity: 0.6; margin-right: 10px; flex-shrink: 0; min-width: 160px; }
-#viewer.time-12h .log-row .time { min-width: 195px; }
+/* Default: time only (no date) */
+.log-row .time { color: var(--vscode-descriptionForeground, #888); opacity: 0.6; margin-right: 10px; flex-shrink: 0; min-width: 100px; }
+.log-row .time .time-date { display: none; }
+.log-row .time .time-clock { }
+/* With date visible */
+#viewer.show-date .log-row .time { min-width: 185px; }
+#viewer.show-date .log-row .time .time-date { display: inline; opacity: 0.6; margin-right: 8px; font-size: 0.9em; }
+#viewer.show-date.time-12h .log-row .time { min-width: 220px; }
 .log-row .ts { color: var(--vscode-descriptionForeground, #888); margin-right: 10px; flex-shrink: 0; min-width: 100px; }
 .log-row .sev { font-weight: 700; margin-right: 8px; flex-shrink: 0; min-width: 32px; text-align: center; }
 .log-row .mod { color: var(--vscode-textLink-foreground, #3794ff); margin-right: 10px; flex-shrink: 0; min-width: 90px; overflow: hidden; text-overflow: ellipsis; }
-.log-row .msg { font-family: var(--vscode-editor-font-family); flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.log-row .msg { font-family: var(--vscode-editor-font-family); flex: 0 0 auto; white-space: nowrap; }
 
 .log-row.hci .sev { color: #c586c0; }
 .log-row.hci { border-left: 3px solid #c586c0; }
@@ -306,14 +315,20 @@ body { display: flex; flex-direction: column; }
 }
 .hci-expandable.expanded { background: rgba(197, 134, 192, 0.06); }
 
-/* Detail panel */
+/* Detail panel — rendered as a flex row matching log-row column layout */
 .hci-detail {
+  display: flex;
   padding: 6px 10px 8px;
-  /* Align with message column: 10px row padding + 110px(ts) + 40px(sev) + 100px(mod) = 260px */
-  padding-left: 260px;
   border-left: 3px solid #c586c0;
   background: rgba(197, 134, 192, 0.04);
   font-size: 12px;
+}
+.hci-detail-spacer {
+  flex-shrink: 0;
+}
+.hci-detail-content {
+  flex: 1;
+  min-width: 0;
 }
 .hci-fields { border-collapse: collapse; }
 .hci-fields td { padding: 1px 0; }
@@ -408,4 +423,27 @@ body { display: flex; flex-direction: column; }
 }
 .error-card-btn:hover {
   background: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* ── Watch pattern markers ─────────────────────────────── */
+.watch-markers {
+  display: inline-flex;
+  gap: 2px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  align-items: center;
+}
+.watch-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  cursor: default;
+}
+.watch-highlight {
+  animation: watch-flash 1.5s ease-out;
+}
+@keyframes watch-flash {
+  0% { background-color: rgba(255, 255, 255, 0.15); }
+  100% { background-color: transparent; }
 }

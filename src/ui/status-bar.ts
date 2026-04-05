@@ -10,7 +10,7 @@ export class StatusBar {
       100
     );
     this.connectionItem.command = "logscope.open";
-    this.connectionItem.tooltip = "LogScope by Novel Bits — Click to open";
+    this.connectionItem.tooltip = "LogScope from Novel Bits — Click to open";
 
     this.countItem = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Left,
@@ -28,11 +28,11 @@ export class StatusBar {
     if (connected) {
       this.connectionItem.text = "$(plug) LogScope: Connected";
       this.connectionItem.command = "logscope.disconnect";
-      this.connectionItem.tooltip = "LogScope by Novel Bits — Click to disconnect";
+      this.connectionItem.tooltip = "LogScope from Novel Bits — Click to disconnect";
     } else {
       this.connectionItem.text = "$(debug-disconnect) LogScope: Disconnected";
       this.connectionItem.command = "logscope.open";
-      this.connectionItem.tooltip = "LogScope by Novel Bits — Click to open";
+      this.connectionItem.tooltip = "LogScope from Novel Bits — Click to open";
     }
 
     let countText = `$(list-ordered) ${entryCount.toLocaleString()}`;

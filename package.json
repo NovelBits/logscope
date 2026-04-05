@@ -105,6 +105,34 @@
       {
         "command": "logscope.cycleParser",
         "title": "LogScope: Select Parser"
+      },
+      {
+        "command": "logscope.addWatchPattern",
+        "title": "LogScope: Add Watch Pattern"
+      },
+      {
+        "command": "logscope.removeWatchPattern",
+        "title": "LogScope: Remove Watch Pattern"
+      },
+      {
+        "command": "logscope.scrollToWatchMatch",
+        "title": "LogScope: Scroll to Watch Match"
+      },
+      {
+        "command": "logscope.enterLicenseKey",
+        "title": "LogScope: Enter License Key"
+      },
+      {
+        "command": "logscope.removeLicenseKey",
+        "title": "LogScope: Remove License Key"
+      },
+      {
+        "command": "logscope.viewLicenseInfo",
+        "title": "LogScope: View License Info"
+      },
+      {
+        "command": "logscope.refreshLicense",
+        "title": "LogScope: Refresh License"
       }
     ],
     "walkthroughs": [
@@ -324,6 +352,38 @@
             "Raw mode — display lines as-is with no parsing"
           ],
           "description": "Log format parser. Select the format that matches your firmware's logging output."
+        },
+        "logscope.watchPatterns": {
+          "type": "array",
+          "default": [],
+          "description": "Watch patterns to match against incoming log lines. Each pattern shows an inline marker and a live hit counter in the sidebar.",
+          "items": {
+            "type": "object",
+            "required": ["name", "pattern"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Display name for this pattern (shown in sidebar and marker tooltip)"
+              },
+              "pattern": {
+                "type": "string",
+                "description": "Text to match (substring by default, or regex if 'regex' is true)"
+              },
+              "regex": {
+                "type": "boolean",
+                "default": false,
+                "description": "Treat pattern as a regular expression"
+              },
+              "module": {
+                "type": "string",
+                "description": "Only match log entries from this module (case-insensitive). Omit to match all modules."
+              },
+              "color": {
+                "type": "string",
+                "description": "Hex color for the inline marker (e.g., '#ff9800'). Auto-assigned if omitted."
+              }
+            }
+          }
         }
       }
     }

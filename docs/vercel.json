@@ -1,0 +1,5 @@
+{
+  "buildCommand": "npx astro build",
+  "outputDirectory": "dist",
+  "framework": "astro"
+}

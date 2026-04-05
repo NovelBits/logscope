@@ -18,6 +18,10 @@ import type { Transport } from "./transport/types";
 import { TransportError, classifyError } from "./errors";
 import type { LogScopeError, ErrorAction } from "./errors";
 import { telemetry } from "./telemetry";
+import { WatchMatcher } from "./watch-matcher";
+import type { WatchPatternConfig } from "./watch-matcher";
+import { LicenseManager } from "./license/license-manager";
+import { registerLicenseCommands, guardProFeature } from "./license/license-ui";
 
 // ── Module-level state ──────────────────────────────────────────
 let transport: Transport | null = null;
@@ -25,6 +29,7 @@ let session: Session | null = null;
 let ringBuffer: RingBuffer | null = null;
 let activeParser: Parser = new ZephyrLogParser();
 const hciParser = new HciParser();
+const watchMatcher = new WatchMatcher();
 let panel: LogScopePanel | null = null;
 let statusBar: StatusBar | null = null;
 let statusInterval: ReturnType<typeof setInterval> | null = null;
@@ -34,6 +39,7 @@ let userDisconnecting = false;
 let lastDiscoveredDevices: DiscoveredDevice[] = [];
 let hciPacketCount = 0;
 let errorCount = 0;
+let licenseManager: LicenseManager;
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -59,6 +65,31 @@ async function saveSetting(key: string, value: unknown): Promise<void> {
   await cfg.update(key, value, target);
 }
 
+let freePatternNotificationShown = false;
+
+function loadWatchPatterns(): void {
+  const cfg = vscode.workspace.getConfiguration("logscope");
+  const patterns = cfg.get<WatchPatternConfig[]>("watchPatterns", []);
+
+  // License gate: truncate to 3 for free users
+  const isPro = licenseManager?.isProFeatureAvailable() ?? false;
+  const maxPatterns = isPro ? Infinity : 3;
+  const effective = patterns.slice(0, maxPatterns);
+
+  if (patterns.length > maxPatterns && !freePatternNotificationShown) {
+    freePatternNotificationShown = true;
+    vscode.window.showInformationMessage(
+      "LogScope Free supports up to 3 watch patterns. Upgrade to Pro for unlimited.",
+      "Enter License Key",
+    ).then(choice => {
+      if (choice === "Enter License Key") {
+        licenseManager.enterLicenseKey();
+      }
+    });
+  }
+
+  watchMatcher.loadPatterns(effective);
+}
 
 let bootDetected = false;
 
@@ -89,6 +120,7 @@ function handleChunk(chunk: Buffer): void {
 
   for (const entry of entries) {
     entry.receivedAt = now;
+    watchMatcher.match(entry);
     ringBuffer.push(entry);
     session.addEntry(entry);
     if (entry.severity === "err") errorCount++;
@@ -110,9 +142,10 @@ function wireTransportEvents(t: Transport): void {
     const entries = hciParser.parse(chunk);
     for (const entry of entries) {
       entry.receivedAt = now;
+      watchMatcher.match(entry);
       ringBuffer.push(entry);
       session.addEntry(entry);
-      hciPacketCount++;
+      if (entry.module !== "MON") hciPacketCount++;
     }
     if (entries.length > 0 && panel) {
       panel.addEntries(entries);
@@ -159,7 +192,13 @@ function startStatusUpdates(): void {
 
     panel?.updateStatus(connected, count, evicted);
     statusBar?.update(connected, count, evicted);
-    sidebarProvider.updateState({ entryCount: count, hciPacketCount, errorCount });
+    sidebarProvider.updateState({
+      entryCount: count,
+      hciPacketCount,
+      errorCount,
+      watchCounters: watchMatcher.getCounters(),
+      licenseTier: licenseManager?.getTierName() ?? "Free",
+    });
   }, 500);
 }
 
@@ -211,7 +250,7 @@ function handleErrorAction(action: ErrorAction): void {
 }
 
 async function resetAndReconnect(serialNumber?: string): Promise<void> {
-  if (!serialNumber) return;
+  if (!serialNumber || !/^\d+$/.test(serialNumber)) return;
   execFile("nrfutil", ["device", "reset", "--serial-number", serialNumber], (err) => {
     if (err) {
       vscode.window.showWarningMessage(`LogScope: Could not reset device \u2014 ${err.message}`);
@@ -358,6 +397,7 @@ async function doConnect(): Promise<void> {
     bootDetected = true; // Assume device has already booted — any boot banner seen is a reset
     hciPacketCount = 0;
     errorCount = 0;
+    watchMatcher.resetCounters();
     panel?.clear(); // Clear previous session's logs from the webview
 
     // Always show the panel when connecting — it shows connecting state and error cards
@@ -936,9 +976,27 @@ export function activate(context: vscode.ExtensionContext) {
   // Initialize sidebar state from settings (sets context keys)
   sidebarProvider.initFromSettings();
 
+  loadWatchPatterns();
+
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration(e => {
+      if (e.affectsConfiguration("logscope.watchPatterns")) {
+        loadWatchPatterns();
+        sidebarProvider.updateState({ watchCounters: watchMatcher.getCounters() });
+      }
+    }),
+  );
+
   // Initialize telemetry
   telemetry.init(context);
   telemetry.trackActivation(context.extension.packageJSON.version);
+
+  // Initialize license manager (non-blocking, never blocks startup)
+  licenseManager = new LicenseManager(context, "logscope");
+  licenseManager.initialize();
+
+  // Register license commands
+  registerLicenseCommands(context, licenseManager, "logscope");
 
   // Check for Python on activation (non-blocking)
   const PYTHON_WARNING_DISMISSED = "logscope.pythonWarningDismissed";
@@ -990,6 +1048,7 @@ export function activate(context: vscode.ExtensionContext) {
 
       case "clear": {
         ringBuffer?.clear();
+        watchMatcher.resetCounters();
         panel?.clear();
         break;
       }
@@ -1071,6 +1130,127 @@ export function activate(context: vscode.ExtensionContext) {
     await changeParser(current);
   });
 
+  // ── Watch pattern presets ────────────────────────────────
+  const WATCH_PRESETS: WatchPatternConfig[] = [
+    { name: "Errors", pattern: "failed|error|fault|CRC|timeout", regex: true, color: "#f44336" },
+    { name: "Warnings", pattern: "threshold|exceeded|critical|low|drift", regex: true, color: "#cca700" },
+    { name: "Retransmission", pattern: "Retransmission", color: "#ff9800" },
+    { name: "BLE State", pattern: "Connected|Disconnected|Advertising", regex: true, color: "#4caf50" },
+    { name: "Heartbeat", pattern: "Heartbeat", color: "#2196f3" },
+  ];
+
+  const addWatchPatternCmd = vscode.commands.registerCommand("logscope.addWatchPattern", async () => {
+    // License gate: free users limited to 3 patterns
+    const gateCfg = vscode.workspace.getConfiguration("logscope");
+    const existingPatterns = gateCfg.get<WatchPatternConfig[]>("watchPatterns", []);
+    if (existingPatterns.length >= 3 && !licenseManager.isProFeatureAvailable()) {
+      await guardProFeature(licenseManager, "More than 3 watch patterns", "watch-patterns");
+      return;
+    }
+
+    // Filter out presets that are already added (by name)
+    const existingNames = new Set(existingPatterns.map(p => p.name));
+    const availablePresets = WATCH_PRESETS.filter(p => !existingNames.has(p.name));
+
+    // Build QuickPick items: presets first, then custom option
+    const items: (vscode.QuickPickItem & { _preset?: WatchPatternConfig; _custom?: boolean })[] = [
+      ...availablePresets.map(p => ({
+        label: `$(star) ${p.name}`,
+        description: p.pattern,
+        detail: p.regex ? "Regex match" : "Substring match",
+        _preset: p,
+      })),
+    ];
+
+    if (availablePresets.length > 0) {
+      items.push({ label: "", kind: vscode.QuickPickItemKind.Separator } as any);
+    }
+    items.push({
+      label: "$(edit) Custom pattern...",
+      description: "Define your own pattern",
+      _custom: true,
+    });
+
+    const pick = await vscode.window.showQuickPick(items, {
+      placeHolder: "Select a watch pattern to add",
+    });
+    if (!pick) return;
+
+    if ((pick as any)._preset) {
+      // Add preset directly
+      const preset = (pick as any)._preset as WatchPatternConfig;
+      const cfg = vscode.workspace.getConfiguration("logscope");
+      const existing = cfg.get<WatchPatternConfig[]>("watchPatterns", []);
+      await saveSetting("watchPatterns", [...existing, preset]);
+      return;
+    }
+
+    // Custom pattern flow
+    const name = await vscode.window.showInputBox({
+      prompt: "Pattern name",
+      placeHolder: "e.g., Connection Timeout",
+    });
+    if (!name) return;
+
+    const pattern = await vscode.window.showInputBox({
+      prompt: "Text to match (use | for OR, e.g., 'error|fault|timeout')",
+      placeHolder: "e.g., retransmit",
+    });
+    if (!pattern) return;
+
+    const regexPick = await vscode.window.showQuickPick(
+      [
+        { label: "Substring match", description: "Matches if the pattern text appears anywhere in the log message" },
+        { label: "Regular expression", description: "Use regex syntax (e.g., error|fault for multiple terms)" },
+      ],
+      { placeHolder: "Match type" },
+    );
+    if (!regexPick) return;
+    const isRegex = regexPick.label.startsWith("Regular");
+
+    let module: string | undefined;
+    if (session) {
+      const moduleItems = ["All modules", ...Array.from(session.modules)];
+      const modulePick = await vscode.window.showQuickPick(moduleItems, {
+        placeHolder: "Scope to module (optional)",
+      });
+      if (!modulePick) return;
+      if (modulePick !== "All modules") module = modulePick;
+    }
+
+    const newPattern: WatchPatternConfig = { name, pattern };
+    if (isRegex) newPattern.regex = true;
+    if (module) newPattern.module = module;
+
+    const cfg = vscode.workspace.getConfiguration("logscope");
+    const existing = cfg.get<WatchPatternConfig[]>("watchPatterns", []);
+    await saveSetting("watchPatterns", [...existing, newPattern]);
+  });
+
+  const removeWatchPatternCmd = vscode.commands.registerCommand("logscope.removeWatchPattern", async () => {
+    const cfg = vscode.workspace.getConfiguration("logscope");
+    const patterns = cfg.get<WatchPatternConfig[]>("watchPatterns", []);
+    if (patterns.length === 0) {
+      vscode.window.showInformationMessage("LogScope: No watch patterns configured.");
+      return;
+    }
+
+    const pick = await vscode.window.showQuickPick(
+      patterns.map(p => ({ label: p.name, description: p.pattern })),
+      { placeHolder: "Select pattern to remove" },
+    );
+    if (!pick) return;
+
+    const updated = patterns.filter(p => p.name !== pick.label);
+    await saveSetting("watchPatterns", updated);
+  });
+
+  const scrollToWatchCmd = vscode.commands.registerCommand("logscope.scrollToWatchMatch", (patternName: string) => {
+    const cfg = getConfig();
+    panel?.show(cfg.logWrap, cfg.timeFormat);
+    panel?.postMessage({ type: "scrollToWatch", patternName });
+  });
+
   // ── Auto-connect on activation ────────────────────────────
 
   const devCfg = vscode.workspace.getConfiguration("logscope");
@@ -1100,7 +1280,9 @@ export function activate(context: vscode.ExtensionContext) {
   }
 
   context.subscriptions.push(
-    openCmd, connectCmd, reconnectCmd, disconnectCmd, exportCmd, changeSettingsCmd, openWalkthroughCmd, cycleParserCmd,
+    openCmd, connectCmd, reconnectCmd, disconnectCmd, exportCmd,
+    changeSettingsCmd, openWalkthroughCmd, cycleParserCmd,
+    addWatchPatternCmd, removeWatchPatternCmd, scrollToWatchCmd,
   );
 }
 

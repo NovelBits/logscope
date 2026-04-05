@@ -18,6 +18,7 @@ interface SerializedEntry {
   source: string;
   decoded?: DecodedPacket;
   raw?: number[];
+  watchHits?: { name: string; color: string }[];
 }
 
 // ── VS Code API handle ──────────────────────────────────────────
@@ -52,11 +53,12 @@ const dismissBtn = document.getElementById("dismiss-btn")!;
 let isConnected = false;
 const wrapBtn = document.getElementById("wrap-btn")!;
 const timestampBtn = document.getElementById("timestamp-btn")!;
-const timeFormatBtn = document.getElementById("time-format-btn")!;
+const dateBtn = document.getElementById("date-btn")!;
 
 // ── State ───────────────────────────────────────────────────────
 let autoScroll = true;
 let timestampsVisible = true;
+let dateVisible = false;
 const activeSeverities = new Set(["hci", "err", "wrn", "inf", "dbg"]);
 let selectedModule = ""; // "" means all modules
 let searchText = "";
@@ -83,9 +85,13 @@ function formatTimestamp(us: number): string {
 
 let use12HourTime = false;
 
-function formatWallClock(epochMs: number): string {
+function formatDate(epochMs: number): string {
   const d = new Date(epochMs);
-  const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function formatClock(epochMs: number): string {
+  const d = new Date(epochMs);
   const mins = String(d.getMinutes()).padStart(2, "0");
   const secs = String(d.getSeconds()).padStart(2, "0");
   const ms = String(d.getMilliseconds()).padStart(3, "0");
@@ -94,9 +100,9 @@ function formatWallClock(epochMs: number): string {
     let hours = d.getHours();
     const ampm = hours >= 12 ? "PM" : "AM";
     hours = hours % 12 || 12;
-    return `${date} ${hours}:${mins}:${secs}.${ms} ${ampm}`;
+    return `${hours}:${mins}:${secs}.${ms} ${ampm}`;
   }
-  return `${date} ${String(d.getHours()).padStart(2, "0")}:${mins}:${secs}.${ms}`;
+  return `${String(d.getHours()).padStart(2, "0")}:${mins}:${secs}.${ms}`;
 }
 
 // ── Row creation (XSS-safe: uses textContent, never innerHTML) ──
@@ -107,8 +113,17 @@ function createRow(entry: SerializedEntry): HTMLDivElement {
 
   const time = document.createElement("span");
   time.className = "time";
-  time.textContent = entry.receivedAt ? formatWallClock(entry.receivedAt) : "";
-  if (entry.receivedAt) time.dataset.epoch = String(entry.receivedAt);
+  if (entry.receivedAt) {
+    time.dataset.epoch = String(entry.receivedAt);
+    const dateSpan = document.createElement("span");
+    dateSpan.className = "time-date";
+    dateSpan.textContent = formatDate(entry.receivedAt);
+    const clockSpan = document.createElement("span");
+    clockSpan.className = "time-clock";
+    clockSpan.textContent = formatClock(entry.receivedAt);
+    time.appendChild(dateSpan);
+    time.appendChild(clockSpan);
+  }
 
   const ts = document.createElement("span");
   ts.className = "ts";
@@ -152,6 +167,20 @@ function createRow(entry: SerializedEntry): HTMLDivElement {
       autoScrollBtn.classList.remove("active");
       showFaultNotification();
     }
+  }
+
+  // Watch pattern markers
+  if (entry.watchHits && entry.watchHits.length > 0) {
+    const markers = document.createElement("span");
+    markers.className = "watch-markers";
+    for (const hit of entry.watchHits) {
+      const dot = document.createElement("span");
+      dot.className = "watch-dot";
+      dot.style.backgroundColor = hit.color;
+      dot.title = hit.name;
+      markers.appendChild(dot);
+    }
+    row.appendChild(markers);
   }
 
   row.appendChild(time);
@@ -203,9 +232,25 @@ function formatHexDump(raw: number[]): string {
 }
 
 // ── Build detail div for expanded HCI rows ──────────────────────
-function buildDetailDiv(decoded: DecodedPacket, raw?: number[]): HTMLDivElement {
+function buildDetailDiv(decoded: DecodedPacket, raw?: number[], row?: HTMLElement): HTMLDivElement {
   const detail = document.createElement("div");
   detail.className = "hci-detail";
+
+  // Spacer to align content with the message column
+  const spacer = document.createElement("div");
+  spacer.className = "hci-detail-spacer";
+  // Measure the offset of the .msg element in the parent row
+  if (row) {
+    const msgEl = row.querySelector(".msg") as HTMLElement | null;
+    if (msgEl) {
+      spacer.style.width = msgEl.offsetLeft - 10 + "px"; // 10px = row padding
+    }
+  }
+  detail.appendChild(spacer);
+
+  // Content wrapper
+  const content = document.createElement("div");
+  content.className = "hci-detail-content";
 
   // Fields table
   const table = document.createElement("table");
@@ -225,7 +270,7 @@ function buildDetailDiv(decoded: DecodedPacket, raw?: number[]): HTMLDivElement 
     tr.appendChild(tdValue);
     table.appendChild(tr);
   }
-  detail.appendChild(table);
+  content.appendChild(table);
 
   // Hex dump toggle + content
   if (raw && raw.length > 0) {
@@ -243,10 +288,11 @@ function buildDetailDiv(decoded: DecodedPacket, raw?: number[]): HTMLDivElement 
       toggle.textContent = (isHidden ? "\u25B6 Show" : "\u25BC Hide") + " raw hex (" + raw.length + " bytes)";
     });
 
-    detail.appendChild(toggle);
-    detail.appendChild(pre);
+    content.appendChild(toggle);
+    content.appendChild(pre);
   }
 
+  detail.appendChild(content);
   return detail;
 }
 
@@ -279,7 +325,7 @@ timeline.addEventListener("click", (e: Event) => {
     // Expand this row
     target.classList.add("expanded");
     if (target._decoded) {
-      const detail = buildDetailDiv(target._decoded, target._raw);
+      const detail = buildDetailDiv(target._decoded, target._raw, target);
       target.after(detail);
     }
   }
@@ -372,18 +418,10 @@ wrapBtn.addEventListener("click", () => {
   vscode.postMessage({ type: "updateSetting", key: "logscope.logWrap", value: wrapEnabled });
 });
 
-timeFormatBtn.addEventListener("click", () => {
-  use12HourTime = !use12HourTime;
-  timeFormatBtn.classList.toggle("active", use12HourTime);
-  timeFormatBtn.textContent = use12HourTime ? "24h" : "12h";
-  viewerEl.classList.toggle("time-12h", use12HourTime);
-  vscode.postMessage({ type: "updateSetting", key: "logscope.timeFormat", value: use12HourTime ? "12h" : "24h" });
-  // Re-render existing time cells
-  const timeCells = document.querySelectorAll(".log-row .time");
-  for (const cell of timeCells) {
-    const epochMs = Number((cell as HTMLElement).dataset.epoch);
-    if (epochMs) (cell as HTMLElement).textContent = formatWallClock(epochMs);
-  }
+dateBtn.addEventListener("click", () => {
+  dateVisible = !dateVisible;
+  dateBtn.classList.toggle("active", dateVisible);
+  viewerEl.classList.toggle("show-date", dateVisible);
 });
 
 // ── Filter controls ─────────────────────────────────────────────
@@ -549,8 +587,6 @@ function handleInitMessage(msg: { wrapEnabled?: boolean; timeFormat?: string }):
   wrapBtn.classList.toggle("active", wrapEnabled);
   timeline.classList.toggle("wrap-mode", wrapEnabled);
   use12HourTime = msg.timeFormat === "12h";
-  timeFormatBtn.classList.toggle("active", use12HourTime);
-  timeFormatBtn.textContent = use12HourTime ? "24h" : "12h";
   viewerEl.classList.toggle("time-12h", use12HourTime);
 }
 
@@ -789,5 +825,25 @@ window.addEventListener("message", (event) => {
     case "modules":      handleModulesMessage(msg); break;
     case "clear":        clearTimeline(); break;
     case "reset":        handleResetMessage(); break;
+    case "scrollToWatch": {
+      const patternName = msg.patternName as string;
+      const rows = document.querySelectorAll(".log-row");
+      let lastMatch: Element | null = null;
+      for (const row of rows) {
+        const dots = row.querySelectorAll(".watch-dot");
+        for (const dot of dots) {
+          if (dot.getAttribute("title") === patternName) {
+            lastMatch = row;
+            break;
+          }
+        }
+      }
+      if (lastMatch) {
+        lastMatch.scrollIntoView({ behavior: "smooth", block: "center" });
+        lastMatch.classList.add("watch-highlight");
+        setTimeout(() => lastMatch!.classList.remove("watch-highlight"), 1500);
+      }
+      break;
+    }
   }
 });
