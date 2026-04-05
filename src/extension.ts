@@ -1130,6 +1130,15 @@ export function activate(context: vscode.ExtensionContext) {
     await changeParser(current);
   });
 
+  // ── Watch pattern presets ────────────────────────────────
+  const WATCH_PRESETS: WatchPatternConfig[] = [
+    { name: "Errors", pattern: "failed|error|fault|CRC|timeout", regex: true, color: "#f44336" },
+    { name: "Warnings", pattern: "threshold|exceeded|critical|low|drift", regex: true, color: "#cca700" },
+    { name: "Retransmission", pattern: "Retransmission", color: "#ff9800" },
+    { name: "BLE State", pattern: "Connected|Disconnected|Advertising", regex: true, color: "#4caf50" },
+    { name: "Heartbeat", pattern: "Heartbeat", color: "#2196f3" },
+  ];
+
   const addWatchPatternCmd = vscode.commands.registerCommand("logscope.addWatchPattern", async () => {
     // License gate: free users limited to 3 patterns
     const gateCfg = vscode.workspace.getConfiguration("logscope");
@@ -1139,24 +1148,65 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
 
+    // Filter out presets that are already added (by name)
+    const existingNames = new Set(existingPatterns.map(p => p.name));
+    const availablePresets = WATCH_PRESETS.filter(p => !existingNames.has(p.name));
+
+    // Build QuickPick items: presets first, then custom option
+    const items: (vscode.QuickPickItem & { _preset?: WatchPatternConfig; _custom?: boolean })[] = [
+      ...availablePresets.map(p => ({
+        label: `$(star) ${p.name}`,
+        description: p.pattern,
+        detail: p.regex ? "Regex match" : "Substring match",
+        _preset: p,
+      })),
+    ];
+
+    if (availablePresets.length > 0) {
+      items.push({ label: "", kind: vscode.QuickPickItemKind.Separator } as any);
+    }
+    items.push({
+      label: "$(edit) Custom pattern...",
+      description: "Define your own pattern",
+      _custom: true,
+    });
+
+    const pick = await vscode.window.showQuickPick(items, {
+      placeHolder: "Select a watch pattern to add",
+    });
+    if (!pick) return;
+
+    if ((pick as any)._preset) {
+      // Add preset directly
+      const preset = (pick as any)._preset as WatchPatternConfig;
+      const cfg = vscode.workspace.getConfiguration("logscope");
+      const existing = cfg.get<WatchPatternConfig[]>("watchPatterns", []);
+      await saveSetting("watchPatterns", [...existing, preset]);
+      return;
+    }
+
+    // Custom pattern flow
     const name = await vscode.window.showInputBox({
       prompt: "Pattern name",
-      placeHolder: "e.g., Retransmission",
+      placeHolder: "e.g., Connection Timeout",
     });
     if (!name) return;
 
     const pattern = await vscode.window.showInputBox({
-      prompt: "Text to match",
+      prompt: "Text to match (use | for OR, e.g., 'error|fault|timeout')",
       placeHolder: "e.g., retransmit",
     });
     if (!pattern) return;
 
     const regexPick = await vscode.window.showQuickPick(
-      ["Substring match (default)", "Regular expression"],
+      [
+        { label: "Substring match", description: "Matches if the pattern text appears anywhere in the log message" },
+        { label: "Regular expression", description: "Use regex syntax (e.g., error|fault for multiple terms)" },
+      ],
       { placeHolder: "Match type" },
     );
     if (!regexPick) return;
-    const isRegex = regexPick.startsWith("Regular");
+    const isRegex = regexPick.label.startsWith("Regular");
 
     let module: string | undefined;
     if (session) {
