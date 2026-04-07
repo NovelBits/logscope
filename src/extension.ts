@@ -40,6 +40,22 @@ let lastDiscoveredDevices: DiscoveredDevice[] = [];
 let hciPacketCount = 0;
 let errorCount = 0;
 let licenseManager: LicenseManager;
+let outputChannel: vscode.OutputChannel | null = null;
+
+function log(message: string): void {
+  const timestamp = new Date().toISOString().slice(11, 23);
+  const line = `[${timestamp}] ${message}`;
+  outputChannel?.appendLine(line);
+  console.log(`[LogScope] ${message}`);
+}
+
+function logError(message: string, err?: unknown): void {
+  const timestamp = new Date().toISOString().slice(11, 23);
+  const detail = err instanceof Error ? `${err.message}` : err ? String(err) : "";
+  const line = `[${timestamp}] ERROR: ${message}${detail ? " — " + detail : ""}`;
+  outputChannel?.appendLine(line);
+  console.error(`[LogScope] ${message}`, err);
+}
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -179,7 +195,7 @@ function wireTransportEvents(t: Transport): void {
   });
 
   t.on("error", (err: Error) => {
-    console.error("[LogScope] Transport error:", err.message);
+    logError("Transport error", err);
   });
 }
 
@@ -268,13 +284,15 @@ async function connectRtt(device: string, pollInterval: number, serialNumber?: s
   session = new Session("device", "rtt");
   lineBuffer = "";
 
+  log(`RTT connect: device="${device}", serialNumber=${serialNumber ?? "(any)"}, pollInterval=${pollInterval}ms, searchRanges="${cfg.rttSearchRanges}"`);
+
   const MAX_RETRIES = 2;
   const RETRY_DELAY_MS = 2000;
   let lastErr: Error | undefined;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     if (attempt > 0) {
-      console.log(`[LogScope] RTT connect retry ${attempt}/${MAX_RETRIES} after ${RETRY_DELAY_MS}ms...`);
+      log(`RTT connect retry ${attempt}/${MAX_RETRIES} after ${RETRY_DELAY_MS}ms...`);
       await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
     }
 
@@ -290,10 +308,13 @@ async function connectRtt(device: string, pollInterval: number, serialNumber?: s
 
     try {
       await rttTransport.connect();
+      log(`RTT connected successfully`);
       startStatusUpdates();
       return;
     } catch (err) {
       lastErr = err instanceof Error ? err : new Error(String(err));
+      const exitCode = lastErr instanceof TransportError ? lastErr.exitCode : undefined;
+      logError(`RTT connect attempt ${attempt + 1} failed${exitCode !== undefined ? ` (exit code ${exitCode})` : ""}`, lastErr);
       rttTransport.disconnect();
       // Don't retry for NO_RTT (exit code 2) — firmware doesn't have RTT,
       // retrying won't help
@@ -965,6 +986,10 @@ async function doExport(): Promise<void> {
 // ── Activation ──────────────────────────────────────────────────
 
 export function activate(context: vscode.ExtensionContext) {
+  outputChannel = vscode.window.createOutputChannel("LogScope");
+  context.subscriptions.push(outputChannel);
+  log(`LogScope ${context.extension.packageJSON.version} activated`);
+
   panel = new LogScopePanel(context.extensionUri);
   statusBar = new StatusBar();
 
@@ -1264,10 +1289,10 @@ export function activate(context: vscode.ExtensionContext) {
         await doConnect();
       } catch (err) {
         if (attempt < MAX_RETRIES) {
-          console.log(`[LogScope] Auto-connect attempt ${attempt} failed, retrying in ${RETRY_DELAYS[attempt]}ms...`);
+          log(`Auto-connect attempt ${attempt} failed, retrying in ${RETRY_DELAYS[attempt]}ms...`);
           setTimeout(() => attemptAutoConnect(attempt + 1), RETRY_DELAYS[attempt]);
         } else {
-          console.log(`[LogScope] Auto-connect failed after ${MAX_RETRIES + 1} attempts`);
+          log(`Auto-connect failed after ${MAX_RETRIES + 1} attempts`);
           const message = err instanceof Error ? err.message : String(err);
           const exitCode = err instanceof TransportError ? err.exitCode : undefined;
           const error = classifyError(message, exitCode, sidebarProvider.currentDevice);

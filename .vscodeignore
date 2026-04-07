@@ -6,6 +6,8 @@ node_modules/**
 build/**
 build-hci/**
 build-uart/**
+build-generic/**
+build-generic-54l/**
 samples/**
 docs/**
 scripts/**
