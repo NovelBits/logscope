@@ -2,6 +2,28 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.5.0] — 2026-04-08
+
+### Added
+- **LogScope output channel** — new dedicated output channel under **View > Output > LogScope** for diagnostic logs. Shows connection attempts, retries, errors, and detailed helper process output to make troubleshooting connection issues much easier
+- **Verbose connection diagnostics** — connection attempts now log the full spawn command, Python and helper paths, nrfutil path, environment variables, helper process PID, exit codes, and every line of stderr from the rtt-helper. Critical for diagnosing issues on non-Nordic boards
+- **Effective device name logging** — logs both the user's `logscope.jlink.device` setting and the effective value being sent to the helper, plus whether it was auto-resolved or a user override
+
+### Changed
+- **Watch patterns sidebar UI hidden pending redesign** — the watch patterns section has been removed from the sidebar. Existing patterns configured in settings continue to work and produce highlights in the log view. Management is available via the Command Palette:
+  - `LogScope: Add Watch Pattern`
+  - `LogScope: Remove Watch Pattern`
+  - This is temporary while we rebuild the UI with proper lifecycle handling
+
+## [0.4.5] — 2026-04-06
+
+### Added
+- Initial LogScope output channel (expanded in v0.5.0 with full diagnostics)
+
+## [0.4.4] — 2026-04-06
+
+Skipped due to a Marketplace publishing conflict.
+
 ## [0.4.3] — 2026-04-04
 
 ### Fixed

@@ -22,6 +22,7 @@ import { WatchMatcher } from "./watch-matcher";
 import type { WatchPatternConfig } from "./watch-matcher";
 import { LicenseManager } from "./license/license-manager";
 import { registerLicenseCommands, guardProFeature } from "./license/license-ui";
+import { initLogger, log, logError } from "./logger";
 
 // ── Module-level state ──────────────────────────────────────────
 let transport: Transport | null = null;
@@ -40,22 +41,6 @@ let lastDiscoveredDevices: DiscoveredDevice[] = [];
 let hciPacketCount = 0;
 let errorCount = 0;
 let licenseManager: LicenseManager;
-let outputChannel: vscode.OutputChannel | null = null;
-
-function log(message: string): void {
-  const timestamp = new Date().toISOString().slice(11, 23);
-  const line = `[${timestamp}] ${message}`;
-  outputChannel?.appendLine(line);
-  console.log(`[LogScope] ${message}`);
-}
-
-function logError(message: string, err?: unknown): void {
-  const timestamp = new Date().toISOString().slice(11, 23);
-  const detail = err instanceof Error ? `${err.message}` : err ? String(err) : "";
-  const line = `[${timestamp}] ERROR: ${message}${detail ? " — " + detail : ""}`;
-  outputChannel?.appendLine(line);
-  console.error(`[LogScope] ${message}`, err);
-}
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -175,6 +160,7 @@ function wireTransportEvents(t: Transport): void {
   });
 
   t.on("disconnected", (info?: { reason?: string; message?: string }) => {
+    log(`Transport disconnected${info?.reason ? ` (reason: ${info.reason})` : ""}${info?.message ? ` — ${info.message}` : ""}`);
     if (!userDisconnecting) {
       if (info?.reason) {
         // Show structured error card (no reconnect bar — reconnecting won't help)
@@ -212,7 +198,6 @@ function startStatusUpdates(): void {
       entryCount: count,
       hciPacketCount,
       errorCount,
-      watchCounters: watchMatcher.getCounters(),
       licenseTier: licenseManager?.getTierName() ?? "Free",
     });
   }, 500);
@@ -365,6 +350,7 @@ async function connectAndShowRtt(device: string, parserMode: string): Promise<vo
   // Use the user's jlink.device setting if they changed it from the default.
   // Otherwise, use "auto" to let the helper auto-detect the target chip.
   const jlinkDevice = cfg.jlinkDevice !== "Cortex-M33" ? cfg.jlinkDevice : "auto";
+  log(`Device resolution: logscope.jlink.device="${cfg.jlinkDevice}" → effective="${jlinkDevice}"${jlinkDevice === "auto" ? " (will auto-detect)" : " (user override)"}`);
   await connectRtt(jlinkDevice, pollInterval, device);
   const rttTransport = transport as NrfutilRttTransport;
   const displayName = rttTransport.detectedDevice || "Connected";
@@ -986,9 +972,10 @@ async function doExport(): Promise<void> {
 // ── Activation ──────────────────────────────────────────────────
 
 export function activate(context: vscode.ExtensionContext) {
-  outputChannel = vscode.window.createOutputChannel("LogScope");
+  const outputChannel = vscode.window.createOutputChannel("LogScope");
   context.subscriptions.push(outputChannel);
-  log(`LogScope ${context.extension.packageJSON.version} activated`);
+  initLogger(outputChannel);
+  log(`LogScope ${context.extension.packageJSON.version} activated on ${process.platform} (${process.arch})`);
 
   panel = new LogScopePanel(context.extensionUri);
   statusBar = new StatusBar();

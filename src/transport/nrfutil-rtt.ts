@@ -5,6 +5,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import type { Transport } from "./types";
 import { TransportError } from "../errors";
+import { log, logError, logFromHelper } from "../logger";
 
 /** Directory for LogScope's auto-managed Python venv */
 const LOGSCOPE_VENV_DIR = path.join(os.homedir(), ".logscope", "venv");
@@ -236,7 +237,9 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
     this.lastErrorLine = "";
     const helperPath = path.join(__dirname, "rtt-helper.py");
     const pythonPath = await ensurePythonEnv(["pylink-square"]);
-    console.log(`[LogScope] Using Python: ${pythonPath}`);
+    log(`Using Python: ${pythonPath}`);
+    log(`Helper script: ${helperPath}`);
+    log(`nrfutil path: ${this.nrfutilPath || "(auto)"}`);
 
     return new Promise<void>((resolve, reject) => {
       const args = [
@@ -248,15 +251,37 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
       if (this.serialNumber) {
         args.push(this.serialNumber);
       }
+      log(`Spawning: ${pythonPath} ${args.map(a => a.includes(" ") ? `"${a}"` : a).join(" ")}`);
+      log(`LOGSCOPE_RTT_SEARCH_RANGES="${this.rttSearchRanges}"`);
+
       const proc = spawn(pythonPath, args, {
         stdio: ["pipe", "pipe", "pipe"],
         env: { ...process.env, LOGSCOPE_RTT_SEARCH_RANGES: this.rttSearchRanges },
       });
 
       this.helper = proc;
+      log(`Helper process started, pid=${proc.pid}`);
 
       let stderrBuf = "";
       let resolved = false;
+
+      proc.on("exit", (code, signal) => {
+        log(`Helper process exited: code=${code}, signal=${signal ?? "none"}`);
+        if (!resolved) {
+          resolved = true;
+          const msg = stderrBuf.trim() || `Helper exited with code ${code}`;
+          logError("Helper exited before RTT ready", msg);
+          reject(new TransportError(msg, code ?? undefined));
+        }
+      });
+
+      proc.on("error", (err) => {
+        logError("Helper process error", err);
+        if (!resolved) {
+          resolved = true;
+          reject(new TransportError(err.message));
+        }
+      });
 
       proc.stderr!.on("data", (chunk: Buffer) => {
         const text = chunk.toString("utf-8");
@@ -265,7 +290,7 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
         for (const line of text.split("\n")) {
           const trimmed = line.trim();
           if (trimmed) {
-            console.log(`[LogScope rtt-helper] ${trimmed}`);
+            logFromHelper("rtt-helper", trimmed);
           }
           // Detect board reset recovery — only on full reconnect, not lightweight RTT restart
           if (trimmed.startsWith("Reconnected OK")) {
@@ -277,13 +302,16 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
 
         // Capture auto-detected device name
         const deviceMatch = /DEVICE_DETECTED (\S+)/.exec(stderrBuf);
-        if (deviceMatch) {
+        if (deviceMatch && this.detectedDevice !== deviceMatch[1]) {
           this.detectedDevice = deviceMatch[1];
+          const isAutoResolution = this.device === "auto";
+          log(`${isAutoResolution ? "Auto-resolved" : "Confirmed"} target device: ${this.detectedDevice}${!isAutoResolution && this.device !== this.detectedDevice ? ` (user requested "${this.device}")` : ""}`);
         }
 
         if (!resolved && stderrBuf.includes("RTT_READY")) {
           resolved = true;
           this._connected = true;
+          log("RTT control block found, connection ready");
           this.emit("connected");
           resolve();
         }
@@ -296,6 +324,7 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
           const inferredExitCode = errLine.includes("No RTT control block") ? 2
             : errLine.includes("No J-Link probes") ? 3
             : undefined;
+          logError("RTT helper reported error", errLine);
           reject(new TransportError(errLine, inferredExitCode));
         }
       });

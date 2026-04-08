@@ -152,8 +152,7 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
       prev.transport !== this.state.transport ||
       prev.selectedDevice !== this.state.selectedDevice ||
       prev.selectedDeviceLabel !== this.state.selectedDeviceLabel ||
-      prev.hasLastSession !== this.state.hasLastSession ||
-      prev.watchCounters.length !== this.state.watchCounters.length;
+      prev.hasLastSession !== this.state.hasLastSession;
 
     if (structuralChange) {
       this.clearCachedItems();
@@ -201,11 +200,6 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
       return;
     }
 
-    // Watch counters change frequently — rebuild to update
-    if (this.state.watchCounters.length > 0) {
-      this.clearCachedItems();
-      this._onDidChangeTreeData.fire(undefined);
-    }
   }
 
   private clearCachedItems(): void {
@@ -317,40 +311,11 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
       items.push(this.cachedErrors);
     }
 
-    // Watch patterns section (always shown when connected)
-    items.push(SidebarItem.separator());
-
-    if (this.state.watchCounters.length > 0) {
-      const watchLabel = this.state.licenseTier === "Free"
-        ? SidebarItem.info("Watch Patterns", "eye", `${Math.min(this.state.watchCounters.length, 3)}/3 free`)
-        : SidebarItem.info("Watch Patterns", "eye", "");
-      items.push(watchLabel);
-      for (const wc of this.state.watchCounters) {
-        if (wc.count > 0) {
-          const item = SidebarItem.action(
-            wc.name,
-            "eye",
-            "logscope.scrollToWatchMatch",
-          );
-          item.command = {
-            command: "logscope.scrollToWatchMatch",
-            title: wc.name,
-            arguments: [wc.name],
-          };
-          item.description = wc.count.toLocaleString();
-          items.push(item);
-        }
-      }
-    }
-
-    const addPatternItem = SidebarItem.action("Add Watch Pattern", "add", "logscope.addWatchPattern");
-    const patternCount = this.state.watchCounters.length;
-    if (this.state.licenseTier === "Free") {
-      addPatternItem.description = `${patternCount}/3 used`;
-    } else if (patternCount > 0) {
-      addPatternItem.description = `${patternCount} active`;
-    }
-    items.push(addPatternItem);
+    // Watch patterns sidebar UI is hidden pending redesign.
+    // Backend still works: patterns configured in settings.json continue to
+    // produce highlights. Management available via command palette commands:
+    //   "LogScope: Add Watch Pattern"
+    //   "LogScope: Remove Watch Pattern"
 
     // License action (persistent, always at bottom)
     items.push(...this.buildLicenseItems());
@@ -372,13 +337,6 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
 
     const parserLabels: Record<string, string> = { zephyr: "Zephyr", nrf5: "nRF5 SDK", raw: "Raw" };
     items.push(SidebarItem.info("Parser", "file-code", parserLabels[this.state.parser] || "Zephyr"));
-
-    // Show watch pattern limit for free users even when disconnected
-    const cfg = vscode.workspace.getConfiguration("logscope");
-    const patternCount = cfg.get<unknown[]>("watchPatterns", []).length;
-    if (patternCount > 0 && this.state.licenseTier === "Free") {
-      items.push(SidebarItem.info("Watch Patterns", "eye", `${Math.min(patternCount, 3)}/3 free`));
-    }
 
     items.push(SidebarItem.separator(0));
 
