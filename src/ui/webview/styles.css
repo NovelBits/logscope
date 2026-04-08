@@ -222,8 +222,8 @@ body { display: flex; flex-direction: column; }
 /* Default: time only (no date) */
 #column-headers .col-time { min-width: 100px; margin-right: 10px; padding-right: 10px; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
 /* With date visible */
-#viewer.show-date #column-headers .col-time { min-width: 185px; }
-#viewer.show-date.time-12h #column-headers .col-time { min-width: 220px; }
+#viewer.show-date #column-headers .col-time { min-width: 155px; }
+#viewer.show-date.time-12h #column-headers .col-time { min-width: 185px; }
 #column-headers .col-ts { min-width: 100px; margin-right: 10px; padding-right: 10px; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
 #column-headers .col-sev { min-width: 32px; margin-right: 8px; padding-right: 8px; text-align: center; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
 #column-headers .col-mod { min-width: 90px; margin-right: 10px; padding-right: 10px; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
@@ -278,9 +278,9 @@ body { display: flex; flex-direction: column; }
 .log-row .time .time-date { display: none; }
 .log-row .time .time-clock { }
 /* With date visible */
-#viewer.show-date .log-row .time { min-width: 185px; }
+#viewer.show-date .log-row .time { min-width: 155px; }
 #viewer.show-date .log-row .time .time-date { display: inline; opacity: 0.6; margin-right: 8px; font-size: 0.9em; }
-#viewer.show-date.time-12h .log-row .time { min-width: 220px; }
+#viewer.show-date.time-12h .log-row .time { min-width: 185px; }
 .log-row .ts { color: var(--vscode-descriptionForeground, #888); margin-right: 10px; flex-shrink: 0; min-width: 100px; }
 .log-row .sev { font-weight: 700; margin-right: 8px; flex-shrink: 0; min-width: 32px; text-align: center; }
 .log-row .mod { color: var(--vscode-textLink-foreground, #3794ff); margin-right: 10px; flex-shrink: 0; min-width: 90px; overflow: hidden; text-overflow: ellipsis; }
