@@ -317,8 +317,11 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     //   "LogScope: Add Watch Pattern"
     //   "LogScope: Remove Watch Pattern"
 
-    // License action (persistent, always at bottom)
-    items.push(...this.buildLicenseItems());
+    items.push(SidebarItem.separator());
+    const docsItem = SidebarItem.link("Documentation", "globe", "https://docs.novelbits.io/logscope");
+    docsItem.description = "from Novel Bits";
+    items.push(docsItem);
+    items.push(SidebarItem.link("Report Issue", "github", "https://github.com/NovelBits/logscope/issues"));
 
     return items;
   }
@@ -358,18 +361,9 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
   }
 
   private buildLicenseItems(): SidebarItem[] {
-    const items: SidebarItem[] = [];
-    items.push(SidebarItem.separator(2));
-    if (this.state.licenseTier === "Free") {
-      const item = SidebarItem.action("Enter License Key", "key", "logscope.enterLicenseKey");
-      item.description = "Upgrade to Pro";
-      items.push(item);
-    } else {
-      const item = SidebarItem.action("License", "verified", "logscope.viewLicenseInfo");
-      item.description = this.state.licenseTier;
-      items.push(item);
-    }
-    return items;
+    // License UI hidden until Pro tier launches.
+    // LicenseManager + commands stay registered for future use.
+    return [];
   }
 }
 

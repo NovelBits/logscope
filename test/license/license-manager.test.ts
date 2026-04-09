@@ -75,8 +75,8 @@ describe("LicenseManager", () => {
   });
 
   describe("isProFeatureAvailable", () => {
-    it("returns false when no license", () => {
-      expect(manager.isProFeatureAvailable()).toBe(false);
+    it("returns true always (Pro not yet launched, all features unlocked)", () => {
+      expect(manager.isProFeatureAvailable()).toBe(true);
     });
 
     it("returns true when tier is pro", async () => {
@@ -107,7 +107,7 @@ describe("LicenseManager", () => {
       expect(manager.isProFeatureAvailable()).toBe(true);
     });
 
-    it("returns false when license is invalid", async () => {
+    it("returns true even when license is invalid (Pro not yet launched)", async () => {
       const cached = {
         licenseKey: "NB-TEST",
         status: { valid: false, reason: "expired", lastChecked: Date.now(), cached: false },
@@ -117,7 +117,7 @@ describe("LicenseManager", () => {
       mockSecrets.get.mockResolvedValue("NB-TEST");
 
       await manager.initialize();
-      expect(manager.isProFeatureAvailable()).toBe(false);
+      expect(manager.isProFeatureAvailable()).toBe(true);
     });
   });
 

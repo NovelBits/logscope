@@ -28,9 +28,12 @@ export class LicenseManager {
   }
 
   isProFeatureAvailable(_feature?: ProFeature): boolean {
-    const status = this.getStatus();
-    if (!status || !status.valid) return false;
-    return ["pro", "team", "enterprise"].includes(status.tier || "");
+    // Pro tier is not yet launched. All features unlocked for all users.
+    // When Pro ships, restore the license check:
+    //   const status = this.getStatus();
+    //   if (!status || !status.valid) return false;
+    //   return ["pro", "team", "enterprise"].includes(status.tier || "");
+    return true;
   }
 
   isTeamFeatureAvailable(_feature?: TeamFeature): boolean {
