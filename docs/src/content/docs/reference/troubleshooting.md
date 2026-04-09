@@ -74,7 +74,7 @@ The device timestamp column shows the firmware's internal uptime counter. If it'
 - Verify your patterns are correct by checking the exact message text in the log viewer
 - Substring matching is case-insensitive, so capitalization shouldn't matter
 - If using regex, test your regex with a tool like [regex101.com](https://regex101.com/)
-- Check if you're over the 3-pattern free limit. Only the first 3 patterns are active on the Free tier.
+- All configured watch patterns are active for all users, so pattern limits are not the issue.
 
 ### Counter shows 0 even though I see matching lines
 
@@ -89,6 +89,38 @@ LogScope keeps up to 100,000 entries in memory by default. If you're experiencin
 - Click **Clear** periodically to reset the buffer
 - Reduce `logscope.maxEntries` in settings if you don't need 100K entries
 - Disable severity levels you don't need (e.g., turn off DBG if you only care about errors)
+
+## Using the LogScope Output Channel
+
+The LogScope output channel provides detailed diagnostic information that is invaluable for troubleshooting.
+
+**How to open it:**
+
+1. Go to **View > Output** (or press `Ctrl+Shift+U` / `Cmd+Shift+U`)
+2. Select **LogScope** from the dropdown in the top-right of the Output panel
+
+**What it shows:**
+
+- Spawn commands used to launch helper processes
+- Python and helper script paths being used
+- J-Link DLL location and version
+- Device detection and enumeration details
+- RTT control block search status and address
+
+This is especially useful when diagnosing connection failures on non-Nordic boards where default settings may not work. When reporting issues on GitHub, include the full contents of the LogScope output channel to help with diagnosis.
+
+## Connection Issues with Non-Nordic Boards
+
+### Connection fails on STM32/NXP/SiLabs boards
+
+In versions before v0.5.1, the J-Link probe could default to JTAG mode instead of SWD, which caused connection failures on many non-Nordic targets. Updating to v0.5.1 or later resolves this.
+
+If the connection still fails after updating:
+
+- Set `logscope.jlink.device` to the **exact chip name** (e.g., `STM32H743II`, `LPC55S69`, `EFR32MG21A010F1024`) instead of a generic core name like `Cortex-M4`
+- Check the **LogScope output channel** (see above) for the specific error message
+- Make sure the board is powered and the SWD pins (SWDIO, SWCLK, GND) are properly connected to the J-Link probe
+- Verify that the J-Link software version supports your target chip
 
 ## Workspace Trust
 

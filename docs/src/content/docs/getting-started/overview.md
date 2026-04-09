@@ -9,7 +9,7 @@ LogScope is a VS Code extension from Novel Bits for viewing real-time firmware l
 
 - **Real-time log viewing** with severity coloring (ERR, WRN, INF, DBG)
 - **Three parser modes:** Zephyr RTOS, nRF5 SDK, and Raw (any firmware)
-- **Watch patterns** that match incoming log lines and show live counters
+- **Watch patterns** that match incoming log lines and highlight them with colored markers
 - **Bluetooth LE HCI packet decoding** with expandable detail views
 - **Module filtering** to focus on specific firmware subsystems
 - **Multi-format export:** Text (.log), JSON Lines (.jsonl), Wireshark btsnoop
@@ -27,7 +27,7 @@ LogScope works with any firmware that outputs text logs over RTT or UART:
 
 ## Requirements
 
-- VS Code 1.85 or later
+- VS Code 1.107 or later (also works with Windsurf, Cursor, and Kiro)
 - A J-Link debug probe (built into most Nordic DKs) for RTT, or a USB serial connection for UART
 - For HCI packet decoding: Zephyr firmware with `CONFIG_BT_DEBUG_MONITOR_RTT=y`
 

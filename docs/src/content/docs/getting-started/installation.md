@@ -30,10 +30,10 @@ The first time you open LogScope, you'll see a welcome view with:
 
 ## Requirements
 
-- **J-Link RTT transport:** Requires `nrfutil` installed and on your PATH. LogScope uses nrfutil for device discovery and RTT communication.
-- **Serial UART transport:** Requires Python 3 installed. LogScope uses a Python helper for serial port communication.
+- **J-Link RTT transport:** Requires Python 3. LogScope automatically installs the required `pylink-square` package on first connect. `nrfutil` is optional and only used for nRF device serial number lookup and reset commands.
+- **Serial UART transport:** Requires Python 3. LogScope uses a Python helper for serial port communication.
 - **Both transports:** No additional drivers needed beyond what your debug probe requires.
 
 :::tip
-If you're using a Nordic DK, `nrfutil` is included with the nRF Command Line Tools. Install them from [Nordic's downloads page](https://www.nordicsemi.com/Products/Development-tools/nrf-command-line-tools/download).
+For Nordic DK boards, installing `nrfutil` (included with the [nRF Command Line Tools](https://www.nordicsemi.com/Products/Development-tools/nrf-command-line-tools/download)) enables automatic device discovery and reset functionality.
 :::

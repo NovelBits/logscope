@@ -32,6 +32,10 @@ All commands are accessible via the command palette (`Cmd+Shift+P` on macOS, `Ct
 
 ## License Commands
 
+:::note
+These commands are registered in the command palette but are reserved for a future Pro tier. They have no effect in the current version.
+:::
+
 | Command | Description |
 |---------|-------------|
 | `LogScope: Enter License Key` | Enter a license key to activate Pro |

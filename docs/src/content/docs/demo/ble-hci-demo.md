@@ -78,7 +78,7 @@ flash_mgr: Flash recovery complete, 1 sector remapped
 
 ### Button 3: Stress Burst
 
-Fires 50 rapid messages (20ms apart) with realistic content cycling through errors, warnings, and info messages. Great for testing LogScope's parsing performance and watching sidebar counters climb in real-time.
+Fires 50 rapid messages (20ms apart) with realistic content cycling through errors, warnings, and info messages. Great for testing LogScope's parsing performance.
 
 ## Recurring Events
 
@@ -123,7 +123,7 @@ Set these up in LogScope to see watch patterns in action:
 ]
 ```
 
-Or add them one at a time using the **Add Watch Pattern** button in the sidebar.
+Or add them one at a time using the **LogScope: Add Watch Pattern** command in the Command Palette (`Cmd+Shift+P`).
 
 ## Requirements
 
