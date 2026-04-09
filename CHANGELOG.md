@@ -2,6 +2,13 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.5.1] — 2026-04-08
+
+### Fixed
+- **STM32 and other SWD-only boards failing to connect** — rtt-helper.py now explicitly sets SWD interface and a safe default speed (4 MHz) before calling `jlink.connect()`. Without this, pylink defaulted to whatever the probe's last interface state was (often JTAG), causing `connect()` to silently return a partial session that then failed at `jlink.halted()` with "Target is not connected". Affects standalone J-Link probes connecting to STM32, NXP, and other Cortex-M targets. Nordic DKs with J-Link OB were unaffected since they only support SWD. (thanks @littleYangYu91, fixes #3)
+- **Unclear error when target connection fails** — added explicit `target_connected()` check after `connect()` with a detailed error message listing possible causes (wrong device name, board not powered, SWD pins not wired)
+- **Tightened date column width** — date column was leaving ~30px of empty space past the timestamp text when the date toggle was enabled. Reduced from 185px/220px to 155px/185px to match the rendered width
+
 ## [0.5.0] — 2026-04-08
 
 ### Added

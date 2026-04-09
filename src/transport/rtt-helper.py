@@ -123,7 +123,50 @@ def run_pylink(device_or_addr, poll_ms, serial_no=None):
     else:
         device = device_or_addr
 
-    jlink.connect(device)
+    # Explicitly configure SWD interface and a safe default speed before connect.
+    # J-Link defaults to JTAG (or whatever was last used) which causes connect()
+    # to "succeed" with a partial session on SWD-only boards (STM32, NXP, most
+    # modern Cortex-M targets). Setting SWD explicitly fixes "Target is not
+    # connected" errors on non-Nordic boards.
+    try:
+        jlink.set_tif(pylink.enums.JLinkInterfaces.SWD)
+        print("Interface: SWD", file=sys.stderr)
+        sys.stderr.flush()
+    except Exception as e:
+        print(f"Warning: could not set SWD interface: {e}", file=sys.stderr)
+        sys.stderr.flush()
+
+    try:
+        jlink.set_speed(4000)  # 4 MHz — safe default for all Cortex-M
+        print("Speed: 4000 kHz", file=sys.stderr)
+        sys.stderr.flush()
+    except Exception as e:
+        print(f"Warning: could not set speed: {e}", file=sys.stderr)
+        sys.stderr.flush()
+
+    try:
+        jlink.connect(device)
+    except Exception as e:
+        print(f"ERROR: J-Link connect to '{device}' failed: {e}", file=sys.stderr)
+        print(f"Hint: If your board uses a specific chip (e.g., STM32H743II, nRF54L15), set", file=sys.stderr)
+        print(f"  \"logscope.jlink.device\" in VS Code settings to the exact chip name.", file=sys.stderr)
+        sys.stderr.flush()
+        sys.exit(1)
+
+    # Verify the connection is actually established before querying target state.
+    # connect() can silently return on some targets without establishing a real
+    # session. target_connected() uses the same underlying IsConnected() check
+    # that halted() uses, so we fail fast with a better message if it's wrong.
+    if not jlink.target_connected():
+        print(f"ERROR: J-Link reports no target connection after connect('{device}').", file=sys.stderr)
+        print(f"  Possible causes:", file=sys.stderr)
+        print(f"  1. Device name '{device}' doesn't match your target chip. Try the exact", file=sys.stderr)
+        print(f"     part number (e.g., STM32H743II) in \"logscope.jlink.device\".", file=sys.stderr)
+        print(f"  2. Target board is not powered or is held in reset.", file=sys.stderr)
+        print(f"  3. SWD/SWO pins are not connected to the J-Link probe.", file=sys.stderr)
+        sys.stderr.flush()
+        sys.exit(1)
+
     print(f"J-Link connected to {device}, CPU halted: {jlink.halted()}", file=sys.stderr)
 
     # If CPU is halted (shouldn't be with connect), resume it
