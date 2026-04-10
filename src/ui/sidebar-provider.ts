@@ -373,6 +373,7 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     items.push(SidebarItem.action("Reconnect", "debug-start", "logscope.reconnect"));
     items.push(SidebarItem.action("Change Settings", "settings-gear", "logscope.changeSettings"));
     items.push(SidebarItem.action("Connect New Device", "plug", "logscope.connect"));
+    items.push(SidebarItem.action("Forget Device", "trash", "logscope.forgetDevice"));
 
     items.push(SidebarItem.separator(1));
     items.push(SidebarItem.action("Get Started Guide", "book", "logscope.openWalkthrough"));

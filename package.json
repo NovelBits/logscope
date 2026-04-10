@@ -89,6 +89,11 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "logscope.forgetDevice",
+        "title": "LogScope: Forget Device",
+        "icon": "$(trash)"
+      },
+      {
         "command": "logscope.disconnect",
         "title": "LogScope: Disconnect",
         "icon": "$(debug-disconnect)"

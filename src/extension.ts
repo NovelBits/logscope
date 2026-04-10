@@ -1351,6 +1351,16 @@ export function activate(context: vscode.ExtensionContext) {
     userDisconnecting = false;
   });
 
+  const forgetDeviceCmd = vscode.commands.registerCommand("logscope.forgetDevice", async () => {
+    await saveSetting("lastDevice", "");
+    await saveSetting("uart.lastPort", "");
+    sidebarProvider.updateState({
+      selectedDevice: "",
+      selectedDeviceLabel: "",
+      hasLastSession: false,
+    });
+  });
+
   const exportCmd = vscode.commands.registerCommand("logscope.export", async () => {
     await doExport();
   });
@@ -1523,7 +1533,7 @@ export function activate(context: vscode.ExtensionContext) {
   }
 
   context.subscriptions.push(
-    openCmd, connectCmd, reconnectCmd, rescanCmd, disconnectCmd, exportCmd,
+    openCmd, connectCmd, reconnectCmd, rescanCmd, disconnectCmd, forgetDeviceCmd, exportCmd,
     changeSettingsCmd, openWalkthroughCmd, cycleParserCmd,
     addWatchPatternCmd, removeWatchPatternCmd, scrollToWatchCmd,
   );
