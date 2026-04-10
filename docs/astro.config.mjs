@@ -15,6 +15,7 @@ export default defineConfig({
 			},
 			components: {
 				Sidebar: './src/components/Sidebar.astro',
+				ThemeSelect: './src/components/ThemeSelect.astro',
 			},
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/NovelBits/logscope' },
