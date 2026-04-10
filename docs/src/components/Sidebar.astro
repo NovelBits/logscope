@@ -10,7 +10,11 @@ const pkg = JSON.parse(readFileSync(resolve(import.meta.dirname, '..', '..', '..
 
 <div class="sl-sidebar-footer">
   <a href="https://marketplace.visualstudio.com/items?itemName=novelbits.novelbits-logscope" class="sl-sidebar-footer-version" target="_blank" rel="noopener">LogScope v{pkg.version}</a>
-  <a href="https://novelbits.io/logscope" class="sl-sidebar-footer-brand" target="_blank" rel="noopener">from Novel Bits</a>
+  <div class="sl-sidebar-footer-links">
+    <a href="https://github.com/NovelBits/logscope" target="_blank" rel="noopener">GitHub</a>
+    <span class="sl-sidebar-footer-sep">&middot;</span>
+    <a href="https://novelbits.io/logscope" target="_blank" rel="noopener">from Novel Bits</a>
+  </div>
 </div>
 
 <style>
@@ -30,9 +34,18 @@ const pkg = JSON.parse(readFileSync(resolve(import.meta.dirname, '..', '..', '..
   .sl-sidebar-footer-version {
     color: var(--sl-color-gray-2);
   }
-  .sl-sidebar-footer-brand {
+  .sl-sidebar-footer-links {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .sl-sidebar-footer-links a {
     color: var(--sl-color-gray-3);
     font-size: 0.7rem !important;
+  }
+  .sl-sidebar-footer-sep {
+    color: var(--sl-color-gray-4);
+    font-size: 0.7rem;
   }
   .sl-sidebar-footer a:hover {
     color: var(--sl-color-accent-high);
