@@ -1,9 +1,11 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import sitemap from '@astrojs/sitemap';
 
 // https://astro.build/config
 export default defineConfig({
+	site: 'https://docs.novelbits.io/logscope',
 	integrations: [
 		starlight({
 			title: 'LogScope Docs',
@@ -16,6 +18,11 @@ export default defineConfig({
 			customCss: ['./src/styles/custom.css'],
 			head: [
 				{ tag: 'script', content: "if(!localStorage.getItem('starlight-theme')){localStorage.setItem('starlight-theme','dark')}" },
+				{ tag: 'meta', attrs: { property: 'og:type', content: 'website' } },
+				{ tag: 'meta', attrs: { property: 'og:site_name', content: 'LogScope Docs' } },
+				{ tag: 'meta', attrs: { property: 'og:title', content: 'LogScope — Embedded Log Viewer for VS Code' } },
+				{ tag: 'meta', attrs: { property: 'og:description', content: 'Real-time embedded firmware log viewer. Connect via J-Link RTT or Serial UART, filter by severity and module, decode Bluetooth LE HCI packets.' } },
+				{ tag: 'meta', attrs: { name: 'twitter:card', content: 'summary' } },
 			],
 			sidebar: [
 				{
@@ -57,9 +64,11 @@ export default defineConfig({
 						{ label: 'Settings', slug: 'reference/settings' },
 						{ label: 'Commands', slug: 'reference/commands' },
 						{ label: 'Troubleshooting', slug: 'reference/troubleshooting' },
+						{ label: 'Changelog', link: 'https://github.com/NovelBits/logscope/blob/main/CHANGELOG.md' },
 					],
 				},
 			],
 		}),
+		sitemap(),
 	],
 });

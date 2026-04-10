@@ -4,6 +4,7 @@ import * as path from "node:path";
 import type { Transport } from "./types";
 import { ensurePythonEnv } from "./nrfutil-rtt";
 import { TransportError } from "../errors";
+import { log, logError, logFromHelper } from "../logger";
 
 /** Configuration for UART serial transport */
 export interface UartTransportConfig {
@@ -43,16 +44,16 @@ export async function discoverSerialPorts(): Promise<DiscoveredSerialPort[]> {
     proc.on("exit", () => {
       try {
         const result = JSON.parse(stdout);
-        console.log(`[LogScope] Serial port scan found ${result.ports?.length ?? 0} ports`);
+        log(`Serial port scan found ${result.ports?.length ?? 0} ports`);
         resolve(result.ports ?? []);
       } catch {
-        console.error("[LogScope] Failed to parse serial port scan output");
+        logError("Failed to parse serial port scan output");
         resolve([]);
       }
     });
 
     proc.on("error", (err) => {
-      console.error("[LogScope] Serial port scan failed:", err.message);
+      logError("Serial port scan failed", err);
       resolve([]);
     });
   });
@@ -114,7 +115,7 @@ export class UartTransport extends EventEmitter implements Transport {
         for (const line of text.split("\n")) {
           const trimmed = line.trim();
           if (trimmed) {
-            console.log(`[LogScope uart-helper] ${trimmed}`);
+            logFromHelper("uart-helper", trimmed);
           }
         }
 
@@ -189,7 +190,7 @@ export class UartTransport extends EventEmitter implements Transport {
         const ports = await discoverSerialPorts();
         const portPaths = ports.map(p => p.path);
         if (!portPaths.includes(this.portPath)) {
-          console.log(`[LogScope] Port ${this.portPath} disappeared — device unplugged`);
+          log(`Port ${this.portPath} disappeared — device unplugged`);
           this.disconnect();
         }
       } catch {

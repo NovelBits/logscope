@@ -20,10 +20,16 @@ All settings are prefixed with `logscope.` and can be set in VS Code's `settings
 |---------|------|---------|-------------|
 | `logscope.nrfutil.path` | string | `"nrfutil"` | Path to nrfutil binary |
 | `logscope.rtt.pollInterval` | number | `50` | RTT poll interval in milliseconds |
-| `logscope.jlink.device` | string | `"Cortex-M33"` | Target device name for J-Link |
+| `logscope.rtt.address` | string | `"auto"` | RTT control block address (hex, e.g. `0x20004050`). Set to `auto` to detect from Zephyr ELF automatically. |
+| `logscope.rtt.host` | string | `"localhost"` | J-Link RTT telnet server host (jlink-telnet transport only) |
+| `logscope.rtt.port` | number | `19021` | J-Link RTT telnet server port (jlink-telnet transport only) |
+| `logscope.jlink.path` | string | `""` | Path to JLinkExe. Leave empty to auto-detect. |
+| `logscope.jlink.device` | string | `"Cortex-M33"` | Default target device name for J-Link. Overridden by per-probe settings in `jlink.deviceOverrides`. |
+| `logscope.jlink.deviceOverrides` | object | `{}` | Per-probe J-Link device overrides. Maps probe serial number to target device name (e.g., `{"777195662": "STM32F401RE"}`). Set automatically via Change Settings. |
 | `logscope.jlink.interface` | `"SWD"` \| `"JTAG"` | `"SWD"` | Debug interface type |
 | `logscope.jlink.speed` | number | `4000` | J-Link connection speed in kHz |
-| `logscope.jlink.rttSearchRanges` | string | `"0x20000000 0x80000"` | RTT control block search range |
+| `logscope.jlink.autoStart` | boolean | `true` | Automatically start J-Link when connecting. Disable to connect to an existing RTT server. |
+| `logscope.jlink.rttSearchRanges` | string | `"0x20000000 0x80000"` | RTT control block search range (base size in hex). Default covers 512KB starting at `0x20000000`. |
 
 ## UART Settings
 

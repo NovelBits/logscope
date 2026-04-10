@@ -377,7 +377,10 @@ async function connectAndShowRtt(device: string, parserMode: string): Promise<vo
 }
 
 async function doConnect(): Promise<void> {
-  if (connectInFlight) return; // Fix #6: prevent concurrent connects
+  if (connectInFlight) {
+    vscode.window.showInformationMessage("LogScope: Connection already in progress.");
+    return;
+  }
 
   const transportType = sidebarProvider.currentTransport;
   const device = sidebarProvider.currentDevice;
@@ -422,13 +425,19 @@ async function doConnect(): Promise<void> {
     const cfgConnect = getConfig();
     panel?.show(cfgConnect.logWrap, cfgConnect.timeFormat);
     sidebarProvider.updateState({ connecting: true });
+    statusBar?.setConnecting();
     panel?.sendConnecting();
 
-    if (transportType === "uart") {
-      await connectAndShowUart(device, baudRate, parserMode);
-    } else {
-      await connectAndShowRtt(device, parserMode);
-    }
+    await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: "LogScope: Connecting to device...", cancellable: false },
+      async () => {
+        if (transportType === "uart") {
+          await connectAndShowUart(device, baudRate, parserMode ?? "zephyr");
+        } else {
+          await connectAndShowRtt(device, parserMode ?? "zephyr");
+        }
+      },
+    );
     // Connection succeeded — reset disconnect flag and clear any error state
     userDisconnecting = false;
     telemetry.trackSessionStart(
@@ -528,7 +537,7 @@ async function guidedConnect(): Promise<void> {
               { label: "$(circuit-board) J-Link RTT", description: "Real-Time Transfer via J-Link probe", value: "rtt" as const },
               { label: "$(plug) Serial UART", description: "USB CDC ACM or UART bridge", value: "uart" as const },
             ] as (vscode.QuickPickItem & { value: "rtt" | "uart" })[],
-            { placeholder: "Select transport", step: 1, totalSteps: transportValue === "uart" ? 4 : 3, title: "Connect Device" },
+            { placeholder: "Select transport", step: 1, totalSteps: 4, title: "Connect Device" },
           );
           if (!pick) { telemetry.trackConnectFlowAbandoned("transport"); return; }
           transportValue = (pick as { value: "rtt" | "uart" }).value;
@@ -538,14 +547,13 @@ async function guidedConnect(): Promise<void> {
 
         case 2: {
           // Pick parser
-          const totalSteps = transportValue === "uart" ? 4 : 3;
           const pick = await showStepQuickPick(
             [
               { label: "$(file-code) Zephyr", description: "Zephyr RTOS — LOG_INF, LOG_ERR, LOG_WRN macros", value: "zephyr" as const },
               { label: "$(file-code) nRF5 SDK", description: "nRF5 SDK — NRF_LOG_INFO, NRF_LOG_ERROR macros", value: "nrf5" as const },
               { label: "$(file-code) Raw", description: "Any firmware — displays output as-is, no parsing", value: "raw" as const },
             ] as (vscode.QuickPickItem & { value: "zephyr" | "nrf5" | "raw" })[],
-            { placeholder: "Select log format", step: 2, totalSteps, showBack: true, title: "Connect Device" },
+            { placeholder: "Select log format", step: 2, totalSteps: 4, showBack: true, title: "Connect Device" },
           );
           if (!pick) { telemetry.trackConnectFlowAbandoned("parser"); return; }
           parserValue = (pick as { value: "zephyr" | "nrf5" | "raw" }).value;
@@ -557,14 +565,13 @@ async function guidedConnect(): Promise<void> {
 
         case 3: {
           // Pick device/port
-          const totalSteps = transportValue === "uart" ? 4 : 3;
           if (transportValue === "uart") {
-            const result = await pickSerialPort(true);
+            const result = await pickSerialPort(true, 3, 4);
             if (!result) { telemetry.trackConnectFlowAbandoned("device"); return; }
             port = result;
             step = 4; // go to baud rate
           } else {
-            const device = await pickJlinkDevice(true);
+            const device = await pickJlinkDevice(true, 3, 4);
             if (!device) { telemetry.trackConnectFlowAbandoned("device"); return; }
             sidebarProvider.updateState({
               transport: "rtt",
@@ -592,7 +599,7 @@ async function guidedConnect(): Promise<void> {
             }
             const targetPick = await showStepQuickPick(
               targetItems as (vscode.QuickPickItem & { _value: string })[],
-              { placeholder: "Select target device (Enter for auto-detect)", step: 3, totalSteps: 3, showBack: true, title: "Connect Device" },
+              { placeholder: "Select target device (Enter for auto-detect)", step: 4, totalSteps: 4, showBack: true, title: "Connect Device" },
             );
             if (!targetPick) { telemetry.trackConnectFlowAbandoned("jlinkDevice"); return; }
 
@@ -624,7 +631,7 @@ async function guidedConnect(): Promise<void> {
 
         case 4: {
           // Pick baud rate (UART only)
-          const baudRate = await pickBaudRate(true);
+          const baudRate = await pickBaudRate(true, 4, 4);
           if (!baudRate) { telemetry.trackConnectFlowAbandoned("baudRate"); return; }
           sidebarProvider.updateState({
             transport: "uart",
@@ -653,7 +660,7 @@ function deviceLabel(dev: { serial: number; targetName?: string }): string {
 
 // ── Individual QuickPick helpers (reused by guided flow + change settings)
 
-async function pickSerialPort(showBack = false): Promise<{ path: string; label: string } | undefined> {
+async function pickSerialPort(showBack = false, step?: number, totalSteps?: number): Promise<{ path: string; label: string } | undefined> {
   const qp = vscode.window.createQuickPick<vscode.QuickPickItem & { _path?: string; _label?: string; _rescan?: boolean }>();
   qp.placeholder = "Select serial port...";
   qp.title = "Connect Device";
@@ -661,8 +668,8 @@ async function pickSerialPort(showBack = false): Promise<{ path: string; label: 
   qp.items = [{ label: "Scanning..." }];
   if (showBack) {
     qp.buttons = [vscode.QuickInputButtons.Back];
-    qp.step = 2;
-    qp.totalSteps = 3;
+    qp.step = step ?? 2;
+    qp.totalSteps = totalSteps ?? 3;
   }
   qp.show();
 
@@ -730,7 +737,7 @@ async function pickSerialPort(showBack = false): Promise<{ path: string; label: 
   });
 }
 
-async function pickJlinkDevice(showBack = false): Promise<(DiscoveredDevice & { targetName?: string }) | undefined> {
+async function pickJlinkDevice(showBack = false, step?: number, totalSteps?: number): Promise<(DiscoveredDevice & { targetName?: string }) | undefined> {
   const qp = vscode.window.createQuickPick<vscode.QuickPickItem & { _serial?: number; _rescan?: boolean }>();
   qp.placeholder = "Select J-Link device...";
   qp.title = "Connect Device";
@@ -738,8 +745,8 @@ async function pickJlinkDevice(showBack = false): Promise<(DiscoveredDevice & { 
   qp.items = [{ label: "Scanning..." }];
   if (showBack) {
     qp.buttons = [vscode.QuickInputButtons.Back];
-    qp.step = 2;
-    qp.totalSteps = 2;
+    qp.step = step ?? 2;
+    qp.totalSteps = totalSteps ?? 2;
   }
   qp.show();
 
@@ -794,7 +801,7 @@ async function pickJlinkDevice(showBack = false): Promise<(DiscoveredDevice & { 
   });
 }
 
-async function pickBaudRate(showBack = false): Promise<number | undefined> {
+async function pickBaudRate(showBack = false, step?: number, totalSteps?: number): Promise<number | undefined> {
   const rates = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600, 1000000];
   const currentRate = sidebarProvider.currentBaudRate;
   const items = rates.map(r => ({
@@ -812,7 +819,7 @@ async function pickBaudRate(showBack = false): Promise<number | undefined> {
   // With back button support
   const pick = await showStepQuickPick(
     items as (vscode.QuickPickItem & { value: number })[],
-    { placeholder: "Select baud rate", step: 3, totalSteps: 3, showBack: true },
+    { placeholder: "Select baud rate", step: step ?? 3, totalSteps: totalSteps ?? 3, showBack: true },
   );
   if (!pick) return undefined;
   return (pick as { value: number }).value;

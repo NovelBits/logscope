@@ -24,6 +24,12 @@ export class StatusBar {
     this.countItem.show();
   }
 
+  setConnecting(): void {
+    this.connectionItem.text = "$(sync~spin) LogScope: Connecting...";
+    this.connectionItem.command = undefined;
+    this.connectionItem.tooltip = "LogScope from Novel Bits — Connecting to device...";
+  }
+
   update(connected: boolean, entryCount: number, evictedCount: number): void {
     if (connected) {
       this.connectionItem.text = "$(plug) LogScope: Connected";
