@@ -7,12 +7,12 @@ LogScope is a VS Code extension from Novel Bits for viewing real-time firmware l
 
 ## Key Features
 
-- **[Real-time log viewing](/features/log-viewer/)** with severity coloring (ERR, WRN, INF, DBG)
+- **[Real-time log viewing](/logscope/features/log-viewer/)** with severity coloring (ERR, WRN, INF, DBG)
 - **Three parser modes:** Zephyr RTOS, nRF5 SDK, and Raw (any firmware)
-- **[Watch patterns](/features/watch-patterns/)** that match incoming log lines and highlight them with colored markers
-- **[Bluetooth LE HCI packet decoding](/features/hci-decoding/)** with expandable detail views
-- **[Module filtering](/features/filtering/)** to focus on specific firmware subsystems
-- **[Multi-format export](/features/export/):** Text (.log), JSON Lines (.jsonl), Wireshark btsnoop
+- **[Watch patterns](/logscope/features/watch-patterns/)** that match incoming log lines and highlight them with colored markers
+- **[Bluetooth LE HCI packet decoding](/logscope/features/hci-decoding/)** with expandable detail views
+- **[Module filtering](/logscope/features/filtering/)** to focus on specific firmware subsystems
+- **[Multi-format export](/logscope/features/export/):** Text (.log), JSON Lines (.jsonl), Wireshark btsnoop
 - **Multi-probe support** for working with multiple devices
 
 ## Supported Firmware
@@ -29,7 +29,7 @@ LogScope works with any firmware that outputs text logs over RTT or UART:
 
 - VS Code 1.107 or later (also works with Windsurf, Cursor, and Kiro)
 - A J-Link debug probe (built into most Nordic DKs) for RTT, or a USB serial connection for UART
-- For [HCI packet decoding](/features/hci-decoding/): Zephyr firmware with `CONFIG_BT_DEBUG_MONITOR_RTT=y`
+- For [HCI packet decoding](/logscope/features/hci-decoding/): Zephyr firmware with `CONFIG_BT_DEBUG_MONITOR_RTT=y`
 
 ## Who It's For
 

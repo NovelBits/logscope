@@ -3,7 +3,7 @@ title: Supported Boards
 description: Development boards tested with LogScope's demo firmware
 ---
 
-LogScope works with any board that supports SEGGER RTT (J-Link) or Serial UART. The demo firmware has been tested on the following boards. For build instructions, see the [generic Zephyr demo](/demo/generic-zephyr/) or the [BLE HCI demo](/demo/ble-hci-demo/).
+LogScope works with any board that supports SEGGER RTT (J-Link) or Serial UART. The demo firmware has been tested on the following boards. For build instructions, see the [generic Zephyr demo](/logscope/demo/generic-zephyr/) or the [BLE HCI demo](/logscope/demo/ble-hci-demo/).
 
 ## Tested Boards
 
@@ -49,7 +49,7 @@ FRDM boards ship with MCU-Link/OpenSDA:
 
 ## Using an External J-Link Probe
 
-If your board doesn't have a built-in J-Link (or the built-in probe can't be reflashed), you can use an external J-Link probe connected to the board's SWD/JTAG header. You may need to configure [`logscope.jlink.device`](/reference/settings/) to match your target chip.
+If your board doesn't have a built-in J-Link (or the built-in probe can't be reflashed), you can use an external J-Link probe connected to the board's SWD/JTAG header. You may need to configure [`logscope.jlink.device`](/logscope/reference/settings/) to match your target chip.
 
 Any [SEGGER J-Link](https://www.segger.com/products/debug-probes/j-link/) model works. The J-Link EDU Mini (~$20) is the most affordable option for hobbyists.
 

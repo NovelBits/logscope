@@ -33,7 +33,7 @@ After your first connection, LogScope remembers your device. The sidebar shows y
 
 ## Auto-Connect
 
-Enable [`logscope.autoConnect`](/reference/settings/) in VS Code settings to automatically connect to your last device when VS Code starts.
+Enable [`logscope.autoConnect`](/logscope/reference/settings/) in VS Code settings to automatically connect to your last device when VS Code starts.
 
 ## Changing Settings
 

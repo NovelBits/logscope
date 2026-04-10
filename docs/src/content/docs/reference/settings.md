@@ -10,7 +10,7 @@ All settings are prefixed with `logscope.` and can be set in VS Code's `settings
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
 | `logscope.transport` | `"rtt"` \| `"uart"` | `"rtt"` | Transport mode for reading log data |
-| `logscope.autoConnect` | boolean | `false` | Automatically [connect](/getting-started/connecting/) to the last-used device on startup |
+| `logscope.autoConnect` | boolean | `false` | Automatically [connect](/logscope/getting-started/connecting/) to the last-used device on startup |
 | `logscope.lastDevice` | string | `""` | Last connected device serial number (set automatically) |
 | `logscope.parser` | `"zephyr"` \| `"nrf5"` \| `"raw"` | `"zephyr"` | Log format parser |
 
@@ -50,7 +50,7 @@ All settings are prefixed with `logscope.` and can be set in VS Code's `settings
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `logscope.watchPatterns` | array | `[]` | [Watch patterns](/features/watch-patterns/) to match against incoming log lines |
+| `logscope.watchPatterns` | array | `[]` | [Watch patterns](/logscope/features/watch-patterns/) to match against incoming log lines |
 
 Each watch pattern object has these fields:
 
