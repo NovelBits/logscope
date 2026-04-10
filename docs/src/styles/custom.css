@@ -23,6 +23,11 @@
   line-height: 1.75;
 }
 
+/* Table inline code — prevent excessive shrinking */
+.sl-markdown-content table code {
+  font-size: 0.95em;
+}
+
 /* Tighten hero spacing on splash page */
 [data-has-hero] .hero {
   padding-block: 3rem 2rem;
