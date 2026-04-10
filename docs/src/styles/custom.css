@@ -32,12 +32,14 @@
   padding-block-start: 0;
 }
 
-/* Previous/Next pagination — improve dark mode visibility */
+/* Previous/Next pagination — improve visibility in both modes */
 .pagination-links a {
-  border-color: var(--sl-color-gray-4) !important;
+  border: 1px solid var(--sl-color-gray-3) !important;
+  border-radius: 0.5rem;
 }
 .pagination-links a:hover {
   border-color: var(--sl-color-accent) !important;
+  background: var(--sl-color-accent-low);
 }
 
 /* Reduce card grid gap */
