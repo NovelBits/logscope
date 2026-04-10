@@ -17,6 +17,12 @@
   --sl-color-accent-high: #1a6b4f;
 }
 
+/* Content area text size */
+.sl-markdown-content {
+  font-size: 1.05rem;
+  line-height: 1.75;
+}
+
 /* Tighten hero spacing on splash page */
 [data-has-hero] .hero {
   padding-block: 3rem 2rem;
