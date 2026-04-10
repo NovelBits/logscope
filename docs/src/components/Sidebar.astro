@@ -1,0 +1,20 @@
+---
+import Default from '@astrojs/starlight/components/Sidebar.astro';
+import pkg from '../../../package.json';
+---
+
+<Default><slot /></Default>
+
+<div class="sl-sidebar-version">
+  LogScope v{pkg.version}
+</div>
+
+<style>
+  .sl-sidebar-version {
+    padding: 0.75rem 1rem;
+    font-size: 0.75rem;
+    color: var(--sl-color-gray-3);
+    border-top: 1px solid var(--sl-color-gray-6);
+    margin-top: auto;
+  }
+</style>

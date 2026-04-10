@@ -12,6 +12,9 @@ export default defineConfig({
 			logo: {
 				src: './src/assets/logscope-icon.svg',
 			},
+			components: {
+				Sidebar: './src/components/Sidebar.astro',
+			},
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/NovelBits/logscope' },
 			],
