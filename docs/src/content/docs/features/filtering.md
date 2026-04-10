@@ -9,7 +9,7 @@ The filter bar has toggle buttons for each log severity level:
 
 | Button | What It Shows |
 |--------|---------------|
-| **HCI** | Bluetooth LE HCI packets (RTT only) |
+| **HCI** | [Bluetooth LE HCI packets](/features/hci-decoding/) (RTT only) |
 | **MON** | BT Monitor mirrored logs (off by default) |
 | **ERR** | Error level logs |
 | **WRN** | Warning level logs |

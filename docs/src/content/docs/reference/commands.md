@@ -1,6 +1,6 @@
 ---
 title: Commands Reference
-description: All LogScope commands available in the VS Code command palette
+description: Complete reference for all LogScope VS Code commands including connect, export, parser switching, watch patterns, and licensing
 ---
 
 All commands are accessible via the command palette (`Cmd+Shift+P` on macOS, `Ctrl+Shift+P` on Windows/Linux).
@@ -9,7 +9,7 @@ All commands are accessible via the command palette (`Cmd+Shift+P` on macOS, `Ct
 
 | Command | Description |
 |---------|-------------|
-| `LogScope: Connect Device` | Start the guided connection flow (transport, parser, device) |
+| `LogScope: Connect Device` | Start the [guided connection flow](/getting-started/connecting/) (transport, parser, device) |
 | `LogScope: Reconnect` | Reconnect to the last-used device |
 | `LogScope: Disconnect` | Disconnect the current session |
 | `LogScope: Change Connection Settings` | Modify transport, device, baud rate, or parser |
@@ -18,15 +18,15 @@ All commands are accessible via the command palette (`Cmd+Shift+P` on macOS, `Ct
 
 | Command | Description |
 |---------|-------------|
-| `LogScope: Open Log Viewer` | Open or reveal the log viewer panel |
-| `LogScope: Export` | Export captured logs (Text, JSONL, or btsnoop) |
+| `LogScope: Open Log Viewer` | Open or reveal the [log viewer](/features/log-viewer/) panel |
+| `LogScope: Export` | [Export](/features/export/) captured logs (Text, JSONL, or btsnoop) |
 | `LogScope: Select Parser` | Change the log parser (Zephyr, nRF5 SDK, Raw) |
 
 ## Watch Pattern Commands
 
 | Command | Description |
 |---------|-------------|
-| `LogScope: Add Watch Pattern` | Add a watch pattern from presets or custom |
+| `LogScope: Add Watch Pattern` | Add a [watch pattern](/features/watch-patterns/) from presets or custom |
 | `LogScope: Remove Watch Pattern` | Remove an existing watch pattern |
 | `LogScope: Scroll to Watch Match` | Scroll to the last match for a pattern |
 

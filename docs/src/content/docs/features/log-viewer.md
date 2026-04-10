@@ -3,7 +3,7 @@ title: Log Viewer
 description: The main log viewing panel and its features
 ---
 
-The log viewer is where you see real-time firmware output. It opens automatically when you connect to a device, or you can open it manually with `LogScope: Open Log Viewer`.
+The log viewer is where you see real-time firmware output. It opens automatically when you [connect to a device](/getting-started/connecting/), or you can open it manually with [`LogScope: Open Log Viewer`](/reference/commands/).
 
 ## Columns
 
@@ -42,7 +42,7 @@ Each severity level has a distinct color and left border:
 - **WRN** - Yellow/amber. Warnings about potential issues.
 - **INF** - Blue. Informational messages about normal operation.
 - **DBG** - Gray. Verbose debug output.
-- **HCI** - Purple. Bluetooth LE HCI packets (RTT only).
+- **HCI** - Purple. [Bluetooth LE HCI packets](/features/hci-decoding/) (RTT only).
 
 ## Fault Detection
 
@@ -58,6 +58,6 @@ When LogScope detects a `*** Booting` message (indicating a device reset), it in
 
 ## Clear
 
-Click **Clear** to remove all log entries from the viewer and reset all counters (entries, HCI packets, errors, watch pattern counters).
+Click **Clear** to remove all log entries from the viewer and reset all counters (entries, HCI packets, errors, [watch pattern](/features/watch-patterns/) counters).
 
 <!-- Screenshot: Log viewer showing mixed severity levels with colored rows -->

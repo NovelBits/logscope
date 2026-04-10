@@ -27,7 +27,7 @@ Select **Custom pattern...** to define your own with the interactive flow: name,
 
 ### From VS Code Settings
 
-Add patterns directly in your `settings.json`:
+Add patterns directly in your `settings.json` (see the [settings reference](/reference/settings/) for all watch pattern fields):
 
 ```json
 "logscope.watchPatterns": [
@@ -75,7 +75,7 @@ Watch patterns reload immediately when you change them in settings. You don't ne
 
 ## Removing Watch Patterns
 
-- **From the Command Palette:** Run `LogScope: Remove Watch Pattern` and select the pattern to remove.
+- **From the Command Palette:** Run [`LogScope: Remove Watch Pattern`](/reference/commands/) and select the pattern to remove.
 - **From settings:** Remove the entry from the `logscope.watchPatterns` array in `settings.json`.
 
 ## Tips

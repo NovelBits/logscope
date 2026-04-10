@@ -235,6 +235,15 @@ body { display: flex; flex-direction: column; }
 #viewer.raw-mode #column-headers .col-sev { display: none; }
 #viewer.raw-mode #column-headers .col-mod { display: none; }
 
+/* Empty state — shown when no data and not connected */
+#empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 3rem 1rem; text-align: center;
+  color: var(--vscode-descriptionForeground); opacity: 0.7;
+}
+#empty-state p { margin: 0.25rem 0; font-size: 13px; }
+#empty-state.hidden { display: none; }
+
 /* End of log indicator — last element inside scrollable timeline */
 #end-of-log {
   text-align: center; padding: 4px 0 6px;

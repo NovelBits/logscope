@@ -21,7 +21,7 @@ west build -b nrf54l15dk/nrf54l15/cpuapp samples/nrf54l15-ble-hci-demo --build-d
 west flash --build-dir build-hci
 ```
 
-Then open LogScope, connect via J-Link RTT with the Zephyr parser.
+Then open LogScope, [connect via J-Link RTT](/getting-started/connecting/) with the Zephyr parser.
 
 ## Buttons
 
@@ -78,7 +78,7 @@ flash_mgr: Flash recovery complete, 1 sector remapped
 
 ### Button 3: Stress Burst
 
-Fires 50 rapid messages (20ms apart) with realistic content cycling through errors, warnings, and info messages. Great for testing LogScope's parsing performance.
+Fires 50 rapid messages (20ms apart) with realistic content cycling through errors, warnings, and info messages. Great for testing LogScope's parsing performance and [filtering](/features/filtering/).
 
 ## Recurring Events
 
@@ -99,7 +99,7 @@ Fires 50 rapid messages (20ms apart) with realistic content cycling through erro
 
 The firmware advertises as **"LogScope Demo"**. Connect with the nRF Connect mobile app to see:
 
-- Real HCI packets (Connection Complete, Parameter Updates, GATT operations)
+- Real [HCI packets](/features/hci-decoding/) (Connection Complete, Parameter Updates, GATT operations)
 - Application-level connection/disconnection logs
 - Sensor data notifications (every 2s when subscribed)
 
@@ -113,7 +113,7 @@ The firmware advertises as **"LogScope Demo"**. Connect with the nRF Connect mob
 
 ## Suggested Watch Patterns
 
-Set these up in LogScope to see watch patterns in action:
+Set these up in LogScope to see [watch patterns](/features/watch-patterns/) in action:
 
 ```json
 "logscope.watchPatterns": [
@@ -123,7 +123,7 @@ Set these up in LogScope to see watch patterns in action:
 ]
 ```
 
-Or add them one at a time using the **LogScope: Add Watch Pattern** command in the Command Palette (`Cmd+Shift+P`).
+Or add them one at a time using the [`LogScope: Add Watch Pattern`](/reference/commands/) command in the Command Palette (`Cmd+Shift+P`).
 
 ## Requirements
 

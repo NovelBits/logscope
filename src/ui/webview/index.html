@@ -44,19 +44,19 @@
         <div id="severity-toggles">
           <button id="check-all-btn" class="severity-meta-btn" title="Enable all (except MON)">&#10003;</button>
           <button id="uncheck-all-btn" class="severity-meta-btn" title="Disable all">&#10007;</button>
-          <button class="severity-btn hci-btn active" data-severity="hci" title="Bluetooth LE HCI packets">HCI</button>
-          <button class="severity-btn mon-btn" data-severity="mon" title="BT Monitor mirrored logs (off by default)">MON</button>
-          <button class="severity-btn active" data-severity="err" title="Error level logs">ERR</button>
-          <button class="severity-btn active" data-severity="wrn" title="Warning level logs">WRN</button>
-          <button class="severity-btn active" data-severity="inf" title="Info level logs">INF</button>
-          <button class="severity-btn active" data-severity="dbg" title="Debug level logs">DBG</button>
+          <button class="severity-btn hci-btn active" data-severity="hci" title="Bluetooth LE HCI packets" aria-pressed="true">HCI</button>
+          <button class="severity-btn mon-btn" data-severity="mon" title="BT Monitor mirrored logs (off by default)" aria-pressed="false">MON</button>
+          <button class="severity-btn active" data-severity="err" title="Error level logs" aria-pressed="true">ERR</button>
+          <button class="severity-btn active" data-severity="wrn" title="Warning level logs" aria-pressed="true">WRN</button>
+          <button class="severity-btn active" data-severity="inf" title="Info level logs" aria-pressed="true">INF</button>
+          <button class="severity-btn active" data-severity="dbg" title="Debug level logs" aria-pressed="true">DBG</button>
         </div>
         <div id="module-picker" class="mini-picker">
-          <button id="module-picker-btn" type="button" class="mini-picker-btn" title="Filter by module">
+          <button id="module-picker-btn" type="button" class="mini-picker-btn" title="Filter by module" aria-haspopup="listbox" aria-expanded="false">
             <span id="module-picker-text">All modules</span>
             <span class="chevron">&#x25BE;</span>
           </button>
-          <div id="module-picker-list" class="mini-picker-list hidden"></div>
+          <div id="module-picker-list" class="mini-picker-list hidden" role="listbox"></div>
         </div>
         <select id="module-select" class="hidden">
           <option value="">All modules</option>
@@ -87,6 +87,10 @@
     <!-- Timeline -->
     <div id="timeline-wrapper">
       <div id="timeline">
+        <div id="empty-state">
+          <p>No log data yet.</p>
+          <p>Connect a device from the sidebar or use <strong>LogScope: Connect</strong> from the Command Palette.</p>
+        </div>
         <div id="end-of-log" class="hidden">end of log</div>
       </div>
       <div id="new-data-bar" class="hidden">&#x2193; New log entries</div>

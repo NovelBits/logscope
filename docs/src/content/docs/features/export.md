@@ -3,7 +3,7 @@ title: Export
 description: Export captured logs in multiple formats
 ---
 
-Click **Export** in the connection bar (or run `LogScope: Export` from the command palette) to save captured logs.
+Click **Export** in the connection bar (or run [`LogScope: Export`](/reference/commands/) from the command palette) to save captured logs.
 
 ## Export Formats
 
@@ -30,11 +30,11 @@ Structured data, one JSON object per line. Useful for scripted analysis, log agg
 
 Binary format containing only HCI packets. Open in [Wireshark](https://www.wireshark.org/) for detailed Bluetooth LE protocol analysis.
 
-This format only includes HCI packets (not regular log entries). If no HCI packets were captured, LogScope will tell you and suggest enabling `CONFIG_BT_DEBUG_MONITOR_RTT=y` in your firmware.
+This format only includes [HCI packets](/features/hci-decoding/) (not regular log entries). If no HCI packets were captured, LogScope will tell you and suggest enabling `CONFIG_BT_DEBUG_MONITOR_RTT=y` in your firmware.
 
 ## What Gets Exported
 
-All entries currently in the ring buffer are exported. This includes entries captured since the last clear or connection. LogScope keeps up to 100,000 entries in memory (configurable via `logscope.maxEntries`).
+All entries currently in the ring buffer are exported. This includes entries captured since the last clear or connection. LogScope keeps up to 100,000 entries in memory (configurable via [`logscope.maxEntries`](/reference/settings/)).
 
 :::note
 Export includes all entries regardless of current filter settings. Even if you have severity filters active, the export captures everything.

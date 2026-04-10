@@ -199,7 +199,7 @@
         },
         {
           "command": "logscope.export",
-          "when": "view == logscope.sidebar && logscope.connected",
+          "when": "view == logscope.sidebar",
           "group": "navigation@3"
         },
         {

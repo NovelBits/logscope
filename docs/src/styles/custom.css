@@ -1,4 +1,4 @@
-/* LogScope brand colors */
+/* LogScope brand colors — dark mode */
 :root {
   --sl-color-accent-low: #1a3a2a;
   --sl-color-accent: #2d9d78;
@@ -6,6 +6,15 @@
   --sl-color-white: #ffffff;
   --sl-color-gray-1: #eeeeee;
   --sl-color-gray-5: #1a1a2e;
+}
+
+/* Light mode overrides — fix text visibility */
+:root[data-theme="light"] {
+  --sl-color-white: #1a1a2e;
+  --sl-color-gray-1: #2a2a3e;
+  --sl-color-gray-5: #f5f5f8;
+  --sl-color-accent-low: #e0f5ec;
+  --sl-color-accent-high: #1a6b4f;
 }
 
 /* Tighten hero spacing on splash page */

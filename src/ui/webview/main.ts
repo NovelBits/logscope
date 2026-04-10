@@ -41,6 +41,7 @@ const statusEvicted = document.getElementById("status-evicted")!;
 const viewerEl = document.getElementById("viewer")!;
 const newDataBar = document.getElementById("new-data-bar")!;
 const endOfLog = document.getElementById("end-of-log")!;
+const emptyState = document.getElementById("empty-state")!;
 const connDevice = document.getElementById("conn-device")!;
 const connectionBar = document.getElementById("connection-bar")!;
 const reconnectBar = document.getElementById("reconnect-bar")!;
@@ -433,7 +434,9 @@ document.getElementById("check-all-btn")!.addEventListener("click", () => {
   for (const sev of allDefaultSeverities) activeSeverities.add(sev);
   document.querySelectorAll(".severity-btn").forEach((btn) => {
     const sev = (btn as HTMLElement).dataset.severity!;
-    btn.classList.toggle("active", activeSeverities.has(sev));
+    const isActive = activeSeverities.has(sev);
+    btn.classList.toggle("active", isActive);
+    btn.setAttribute("aria-pressed", String(isActive));
   });
   refilterTimeline();
 
@@ -443,6 +446,7 @@ document.getElementById("uncheck-all-btn")!.addEventListener("click", () => {
   activeSeverities.clear();
   document.querySelectorAll(".severity-btn").forEach((btn) => {
     btn.classList.remove("active");
+    btn.setAttribute("aria-pressed", "false");
   });
   refilterTimeline();
 
@@ -455,12 +459,13 @@ document.querySelectorAll(".severity-btn").forEach((btn) => {
     if (activeSeverities.has(sev)) {
       activeSeverities.delete(sev);
       btn.classList.remove("active");
+      btn.setAttribute("aria-pressed", "false");
     } else {
       activeSeverities.add(sev);
       btn.classList.add("active");
+      btn.setAttribute("aria-pressed", "true");
     }
     refilterTimeline();
-  
   });
 });
 
@@ -473,11 +478,13 @@ moduleSelect.addEventListener("change", () => {
 
 // Module custom picker
 modulePickerBtn.addEventListener("click", () => {
-  modulePickerList.classList.toggle("hidden");
+  const isHidden = modulePickerList.classList.toggle("hidden");
+  modulePickerBtn.setAttribute("aria-expanded", String(!isHidden));
 });
 document.addEventListener("click", (e) => {
   if (!(e.target as HTMLElement).closest("#module-picker")) {
     modulePickerList.classList.add("hidden");
+    modulePickerBtn.setAttribute("aria-expanded", "false");
   }
 });
 function selectModule(value: string, label: string) {
@@ -485,6 +492,7 @@ function selectModule(value: string, label: string) {
   moduleSelect.value = value;
   modulePickerText.textContent = label;
   modulePickerList.classList.add("hidden");
+  modulePickerBtn.setAttribute("aria-expanded", "false");
   refilterTimeline();
 
   const items = modulePickerList.querySelectorAll(".picker-option");
@@ -497,6 +505,7 @@ function rebuildModulePicker() {
   const allItem = document.createElement("div");
   allItem.className = "picker-option" + (selectedModule === "" ? " selected" : "");
   allItem.dataset.value = "";
+  allItem.setAttribute("role", "option");
   allItem.textContent = "All modules";
   allItem.addEventListener("click", () => selectModule("", "All modules"));
   modulePickerList.appendChild(allItem);
@@ -505,6 +514,7 @@ function rebuildModulePicker() {
     const item = document.createElement("div");
     item.className = "picker-option" + (selectedModule === mod ? " selected" : "");
     item.dataset.value = mod;
+    item.setAttribute("role", "option");
     item.textContent = mod;
     item.addEventListener("click", () => selectModule(mod, mod));
     modulePickerList.appendChild(item);
@@ -576,6 +586,8 @@ function clearTimeline(): void {
   while (timeline.firstChild) {
     timeline.firstChild.remove();
   }
+  emptyState.classList.remove("hidden");
+  timeline.appendChild(emptyState);
   endOfLog.classList.add("hidden");
   timeline.appendChild(endOfLog);
   newDataBar.classList.add("hidden");
@@ -688,6 +700,7 @@ function handleConnectErrorMessage(msg: {
   const dismiss = document.createElement("button");
   dismiss.className = "error-card-dismiss";
   dismiss.title = "Dismiss";
+  dismiss.setAttribute("aria-label", "Dismiss error");
   dismiss.textContent = "\u00D7";  // × character
   dismiss.addEventListener("click", () => { card.className = "hidden"; });
   header.appendChild(dismiss);
@@ -742,6 +755,7 @@ function handleEntriesMessage(msg: { entries: SerializedEntry[] }): void {
     fragment.appendChild(row);
   }
 
+  emptyState.classList.add("hidden");
   endOfLog.before(fragment);
   endOfLog.classList.remove("hidden");
 

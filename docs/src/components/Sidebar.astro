@@ -1,20 +1,40 @@
 ---
 import Default from '@astrojs/starlight/components/Sidebar.astro';
-import pkg from '../../../package.json';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+// Go up from docs/src/components/ to the extension root
+const pkg = JSON.parse(readFileSync(resolve(import.meta.dirname, '..', '..', '..', '..', 'package.json'), 'utf-8'));
 ---
 
 <Default><slot /></Default>
 
-<div class="sl-sidebar-version">
-  LogScope v{pkg.version}
+<div class="sl-sidebar-footer">
+  <a href="https://marketplace.visualstudio.com/items?itemName=novelbits.novelbits-logscope" class="sl-sidebar-footer-version">LogScope v{pkg.version}</a>
+  <a href="https://novelbits.io/logscope" class="sl-sidebar-footer-brand">from Novel Bits</a>
 </div>
 
 <style>
-  .sl-sidebar-version {
+  .sl-sidebar-footer {
     padding: 0.75rem 1rem;
-    font-size: 0.75rem;
-    color: var(--sl-color-gray-3);
     border-top: 1px solid var(--sl-color-gray-6);
     margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+  .sl-sidebar-footer a {
+    text-decoration: none;
+    font-size: 0.75rem;
+    transition: color 0.15s;
+  }
+  .sl-sidebar-footer-version {
+    color: var(--sl-color-gray-2);
+  }
+  .sl-sidebar-footer-brand {
+    color: var(--sl-color-gray-3);
+    font-size: 0.7rem !important;
+  }
+  .sl-sidebar-footer a:hover {
+    color: var(--sl-color-accent-high);
   }
 </style>

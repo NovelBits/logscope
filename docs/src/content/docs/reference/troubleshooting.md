@@ -1,13 +1,13 @@
 ---
 title: Troubleshooting
-description: Common issues and solutions
+description: Troubleshoot LogScope connection issues with J-Link RTT and Serial UART, fix Python errors, and resolve display problems
 ---
 
 ## Connection Issues
 
 ### "Python 3 not found"
 
-LogScope requires Python 3 for device discovery and UART communication.
+LogScope requires Python 3 for device discovery and UART communication. See [installation requirements](/getting-started/installation/) for details.
 
 **Fix:** Install Python 3 from [python.org](https://www.python.org/downloads/) and reload VS Code.
 
@@ -25,7 +25,7 @@ The J-Link connected to the target, but RTT is not enabled in the firmware.
 **Fix:**
 - Verify your firmware has `CONFIG_USE_SEGGER_RTT=y` and `CONFIG_LOG_BACKEND_RTT=y` in `prj.conf`
 - Try resetting the device (LogScope offers a "Reset Device" action in the error card)
-- If your RTT control block is at a non-standard address, adjust `logscope.jlink.rttSearchRanges` in settings
+- If your RTT control block is at a non-standard address, adjust [`logscope.jlink.rttSearchRanges`](/reference/settings/) in settings
 
 ### "Serial device disconnected"
 
@@ -49,15 +49,15 @@ You may be using the wrong parser mode. Check your firmware's log format:
 - **nRF5 SDK format:** `<info> module: message` - Use the **nRF5 SDK** parser
 - **Other/custom format:** Use the **Raw** parser
 
-Change the parser via `LogScope: Select Parser` or in the sidebar settings.
+Change the parser via [`LogScope: Select Parser`](/reference/commands/) or in the sidebar settings.
 
 ### No HCI packets appearing
 
-HCI packet tracing requires:
+[HCI packet tracing](/features/hci-decoding/) requires:
 
 1. **J-Link RTT transport** (not UART)
 2. **Zephyr firmware** with `CONFIG_BT_DEBUG_MONITOR_RTT=y` in `prj.conf`
-3. **HCI toggle enabled** in the filter bar (the purple "HCI" button)
+3. **HCI toggle enabled** in the [filter bar](/features/filtering/) (the purple "HCI" button)
 
 ### Timestamps show "0:00:00.000"
 
@@ -87,7 +87,7 @@ Watch patterns only match **new incoming lines**. They don't retroactively match
 LogScope keeps up to 100,000 entries in memory by default. If you're experiencing slowness:
 
 - Click **Clear** periodically to reset the buffer
-- Reduce `logscope.maxEntries` in settings if you don't need 100K entries
+- Reduce [`logscope.maxEntries`](/reference/settings/) in settings if you don't need 100K entries
 - Disable severity levels you don't need (e.g., turn off DBG if you only care about errors)
 
 ## Using the LogScope Output Channel
@@ -117,13 +117,13 @@ In versions before v0.5.1, the J-Link probe could default to JTAG mode instead o
 
 If the connection still fails after updating:
 
-- Set `logscope.jlink.device` to the **exact chip name** (e.g., `STM32H743II`, `LPC55S69`, `EFR32MG21A010F1024`) instead of a generic core name like `Cortex-M4`
+- Set [`logscope.jlink.device`](/reference/settings/) to the **exact chip name** (e.g., `STM32H743II`, `LPC55S69`, `EFR32MG21A010F1024`) instead of a generic core name like `Cortex-M4`
 - Check the **LogScope output channel** (see above) for the specific error message
 - Make sure the board is powered and the SWD pins (SWDIO, SWCLK, GND) are properly connected to the J-Link probe
 - Verify that the J-Link software version supports your target chip
 
 ## Workspace Trust
 
-LogScope restricts the `logscope.nrfutil.path` and `logscope.jlink.path` settings in untrusted workspaces to prevent untrusted code from pointing LogScope at malicious executables.
+LogScope restricts the [`logscope.nrfutil.path` and `logscope.jlink.path`](/reference/settings/) settings in untrusted workspaces to prevent untrusted code from pointing LogScope at malicious executables.
 
 If you see warnings about restricted settings, open the workspace trust settings and mark your workspace as trusted.

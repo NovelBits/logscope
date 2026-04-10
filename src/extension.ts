@@ -1271,7 +1271,7 @@ export function activate(context: vscode.ExtensionContext) {
     disconnectAll();
     panel?.sendDisconnected(false);
     sidebarProvider.updateState({ connected: false, connecting: false });
-    setTimeout(() => { userDisconnecting = false; }, 100);
+    userDisconnecting = false;
   });
 
   const exportCmd = vscode.commands.registerCommand("logscope.export", async () => {

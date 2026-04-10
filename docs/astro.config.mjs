@@ -5,7 +5,8 @@ import sitemap from '@astrojs/sitemap';
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://docs.novelbits.io/logscope',
+	site: 'https://docs.novelbits.io',
+	base: '/logscope',
 	integrations: [
 		starlight({
 			title: 'LogScope Docs',
@@ -23,8 +24,6 @@ export default defineConfig({
 				{ tag: 'script', content: "if(!localStorage.getItem('starlight-theme')){localStorage.setItem('starlight-theme','dark')}" },
 				{ tag: 'meta', attrs: { property: 'og:type', content: 'website' } },
 				{ tag: 'meta', attrs: { property: 'og:site_name', content: 'LogScope Docs' } },
-				{ tag: 'meta', attrs: { property: 'og:title', content: 'LogScope — Embedded Log Viewer for VS Code' } },
-				{ tag: 'meta', attrs: { property: 'og:description', content: 'Real-time embedded firmware log viewer. Connect via J-Link RTT or Serial UART, filter by severity and module, decode Bluetooth LE HCI packets.' } },
 				{ tag: 'meta', attrs: { name: 'twitter:card', content: 'summary' } },
 			],
 			sidebar: [
@@ -49,8 +48,7 @@ export default defineConfig({
 				{
 					label: 'Licensing',
 					items: [
-						{ label: 'Free vs Pro', slug: 'licensing/free-vs-pro' },
-						{ label: 'Activating a License', slug: 'licensing/activation' },
+						{ label: 'Licensing', slug: 'licensing/free-vs-pro' },
 					],
 				},
 				{

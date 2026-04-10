@@ -1,6 +1,6 @@
 ---
 title: Settings Reference
-description: All LogScope VS Code settings
+description: Complete reference for all LogScope VS Code settings including RTT, UART, J-Link, display, and watch pattern configuration
 ---
 
 All settings are prefixed with `logscope.` and can be set in VS Code's `settings.json` or through the Settings UI.
@@ -10,7 +10,7 @@ All settings are prefixed with `logscope.` and can be set in VS Code's `settings
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
 | `logscope.transport` | `"rtt"` \| `"uart"` | `"rtt"` | Transport mode for reading log data |
-| `logscope.autoConnect` | boolean | `false` | Automatically connect to the last-used device on startup |
+| `logscope.autoConnect` | boolean | `false` | Automatically [connect](/getting-started/connecting/) to the last-used device on startup |
 | `logscope.lastDevice` | string | `""` | Last connected device serial number (set automatically) |
 | `logscope.parser` | `"zephyr"` \| `"nrf5"` \| `"raw"` | `"zephyr"` | Log format parser |
 
@@ -35,7 +35,7 @@ All settings are prefixed with `logscope.` and can be set in VS Code's `settings
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `logscope.uart.baudRate` | number | `115200` | Serial baud rate |
+| `logscope.uart.baudRate` | number | `115200` | Serial baud rate. Supported: 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600, 1000000. |
 | `logscope.uart.lastPort` | string | `""` | Last used serial port (set automatically) |
 
 ## Display Settings
@@ -50,7 +50,7 @@ All settings are prefixed with `logscope.` and can be set in VS Code's `settings
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `logscope.watchPatterns` | array | `[]` | Watch patterns to match against incoming log lines |
+| `logscope.watchPatterns` | array | `[]` | [Watch patterns](/features/watch-patterns/) to match against incoming log lines |
 
 Each watch pattern object has these fields:
 

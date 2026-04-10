@@ -1,10 +1,10 @@
 ---
-title: Free vs Pro
-description: LogScope licensing tiers
+title: Licensing
+description: LogScope licensing information and future Pro tier plans
 ---
 
-All LogScope features are currently available to all users at no cost. A Pro tier with advanced features is planned for a future release.
+All LogScope features are currently available to all users at no cost.
 
-When Pro launches, this page will document the differences between Free and Pro tiers, pricing, and how to upgrade.
+A Pro tier with advanced features is planned for a future release. When Pro launches, this page will document the differences between Free and Pro, pricing, and how to upgrade.
 
-For now, enjoy the full feature set!
+License-related [commands](/reference/commands/) exist in the Command Palette (`LogScope: Enter License Key`, etc.) but are reserved for future use and have no effect in the current version.

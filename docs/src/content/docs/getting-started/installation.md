@@ -20,12 +20,12 @@ code --install-extension novelbits.novelbits-logscope
 
 ## After Installation
 
-LogScope adds a new icon to the VS Code Activity Bar (left sidebar). Click it to open the LogScope sidebar, where you can connect to a device and start viewing logs.
+LogScope adds a new icon to the VS Code Activity Bar (left sidebar). Click it to open the LogScope sidebar, where you can [connect to a device](/getting-started/connecting/) and start viewing logs.
 
 The first time you open LogScope, you'll see a welcome view with:
 
-- **Connect Device** button to start the guided connection flow
-- **Open Log Viewer** to open the log viewer panel
+- **Connect Device** button to start the [guided connection flow](/getting-started/connecting/)
+- **Open Log Viewer** to open the [log viewer panel](/features/log-viewer/)
 - **Get Started Guide** to walk through the basics
 
 ## Requirements

@@ -40,11 +40,11 @@ The BT Monitor protocol carries two types of data:
 - **HCI packets** (CMD, EVT, ACL) - Real Bluetooth LE protocol traffic between the host and controller
 - **MON messages** - Debug strings that the Bluetooth stack mirrors to the monitor channel
 
-By default, MON messages are hidden. Use the **MON** toggle button in the filter bar to show them. The sidebar "HCI Packets" counter only counts real HCI protocol packets, not MON messages.
+By default, MON messages are hidden. Use the **MON** toggle button in the [filter bar](/features/filtering/) to show them. The sidebar "HCI Packets" counter only counts real HCI protocol packets, not MON messages.
 
 ## Exporting HCI Packets
 
-Export captured HCI packets in **Wireshark btsnoop format** for detailed protocol analysis:
+[Export](/features/export/) captured HCI packets in **Wireshark btsnoop format** for detailed protocol analysis:
 
 1. Click **Export** in the connection bar
 2. Select **Wireshark (.btsnoop)**
