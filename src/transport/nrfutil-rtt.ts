@@ -78,6 +78,35 @@ export function resolveSystemPython(): string {
 }
 
 /**
+ * Check whether the managed Python venv already exists and has all required packages.
+ * Returns true if ensurePythonEnv would return immediately (fast path).
+ */
+export function isPythonEnvReady(packages: string[]): boolean {
+  const IMPORT_MAP: Record<string, string> = { "pylink-square": "pylink", "pyserial": "serial" };
+  const importChecks = packages.map(p => IMPORT_MAP[p] ?? p);
+
+  if (fs.existsSync(VENV_PYTHON)) {
+    try {
+      const checkImports = importChecks.map(m => `import ${m}`).join("; ");
+      execFileSync(VENV_PYTHON, ["-c", checkImports], { timeout: 5000 });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // Check if system python has all packages
+  try {
+    const systemPython = resolveSystemPython();
+    const checkImports = importChecks.map(m => `import ${m}`).join("; ");
+    execFileSync(systemPython, ["-c", checkImports], { timeout: 5000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Ensure a Python venv at ~/.logscope/venv/ with the required packages.
  * Creates the venv on first use and installs any missing packages.
  */

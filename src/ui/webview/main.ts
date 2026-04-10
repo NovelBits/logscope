@@ -820,6 +820,9 @@ function handleResetMessage(): void {
   }
 }
 
+// ── Notify extension host that the webview script is ready ─────
+vscode.postMessage({ type: "ready" });
+
 // ── Message handler ─────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 window.addEventListener("message", (event) => {

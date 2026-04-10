@@ -84,6 +84,11 @@
         "icon": "$(debug-start)"
       },
       {
+        "command": "logscope.rescan",
+        "title": "LogScope: Rescan Devices",
+        "icon": "$(refresh)"
+      },
+      {
         "command": "logscope.disconnect",
         "title": "LogScope: Disconnect",
         "icon": "$(debug-disconnect)"

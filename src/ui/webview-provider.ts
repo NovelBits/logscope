@@ -30,6 +30,10 @@ export class LogScopePanel {
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private static readonly FLUSH_INTERVAL_MS = 16;
 
+  // Ready-state queuing: messages sent before the webview posts "ready" are buffered
+  private webviewReady = false;
+  private messageQueue: unknown[] = [];
+
   constructor(extensionUri: vscode.Uri) {
     this.extensionUri = extensionUri;
   }
@@ -64,6 +68,14 @@ export class LogScopePanel {
     this.panel.webview.html = this.getHtml(this.panel.webview);
 
     this.panel.webview.onDidReceiveMessage((msg) => {
+      if (msg.type === "ready") {
+        this.webviewReady = true;
+        for (const queued of this.messageQueue) {
+          this.panel?.webview.postMessage(queued);
+        }
+        this.messageQueue = [];
+        return;
+      }
       if (this.onMessage) {
         this.onMessage(msg);
       }
@@ -71,14 +83,16 @@ export class LogScopePanel {
 
     this.panel.onDidDispose(() => {
       this.panel = null;
+      this.webviewReady = false;
+      this.messageQueue = [];
       if (this.flushTimer) {
         clearTimeout(this.flushTimer);
         this.flushTimer = null;
       }
     });
 
-    // Send init after a short delay to ensure the WebView script has loaded
-    setTimeout(() => this.sendInit(wrapEnabled, timeFormat), 100);
+    // Queue init message; it will be delivered once the webview posts "ready"
+    this.sendInit(wrapEnabled, timeFormat);
   }
 
   /** Queue entries for batched delivery to the WebView */
@@ -150,31 +164,43 @@ export class LogScopePanel {
     return this.panel?.visible ?? false;
   }
 
+  // ── Queued messaging ──────────────────────────────────────────
+
+  /** Post a message to the webview, queuing it if the webview is not ready yet */
+  private postMessageQueued(message: unknown): void {
+    if (!this.panel) return;
+    if (this.webviewReady) {
+      this.panel.webview.postMessage(message);
+    } else {
+      this.messageQueue.push(message);
+    }
+  }
+
   // ── Connection state messages ─────────────────────────────────
 
   /** Bootstrap the WebView with wrap setting */
   sendInit(wrapEnabled: boolean, timeFormat = "24h"): void {
-    this.panel?.webview.postMessage({ type: "init", wrapEnabled, timeFormat });
+    this.postMessageQueued({ type: "init", wrapEnabled, timeFormat });
   }
 
   /** Notify WebView that connection attempt started */
   sendConnecting(): void {
-    this.panel?.webview.postMessage({ type: "connecting" });
+    this.postMessageQueued({ type: "connecting" });
   }
 
   /** Notify WebView that connection succeeded */
   sendConnected(transport: string, address: string, parserMode = "zephyr"): void {
-    this.panel?.webview.postMessage({ type: "connected", transport, address, parserMode });
+    this.postMessageQueued({ type: "connected", transport, address, parserMode });
   }
 
   /** Notify WebView of disconnection (user-initiated or unexpected) */
   sendDisconnected(unexpected: boolean): void {
-    this.panel?.webview.postMessage({ type: "disconnected", unexpected });
+    this.postMessageQueued({ type: "disconnected", unexpected });
   }
 
   /** Notify WebView that connection attempt failed */
   sendConnectError(error: LogScopeError): void {
-    this.panel?.webview.postMessage({
+    this.postMessageQueued({
       type: "connectError",
       code: error.code,
       headline: error.headline,
@@ -186,7 +212,7 @@ export class LogScopePanel {
 
   /** Notify WebView that a board reset was detected */
   sendReset(): void {
-    this.panel?.webview.postMessage({ type: "reset" });
+    this.postMessageQueued({ type: "reset" });
   }
 
   // ── HTML generation ───────────────────────────────────────────

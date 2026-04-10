@@ -66,6 +66,7 @@ export default defineConfig({
 						{ label: 'Settings', slug: 'reference/settings' },
 						{ label: 'Commands', slug: 'reference/commands' },
 						{ label: 'Troubleshooting', slug: 'reference/troubleshooting' },
+						{ label: 'FAQ', slug: 'reference/faq' },
 						{ label: 'Changelog', link: 'https://github.com/NovelBits/logscope/blob/main/CHANGELOG.md' },
 					],
 				},

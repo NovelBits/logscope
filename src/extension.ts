@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { execFile } from "child_process";
-import { NrfutilRttTransport, discoverDevices, resolveSystemPython } from "./transport/nrfutil-rtt";
+import { NrfutilRttTransport, discoverDevices, resolveSystemPython, ensurePythonEnv, isPythonEnvReady } from "./transport/nrfutil-rtt";
 import type { DiscoveredDevice } from "./transport/nrfutil-rtt";
 import { UartTransport, discoverSerialPorts } from "./transport/uart-serial";
 import { ZephyrLogParser } from "./parser/zephyr-log";
@@ -236,7 +236,7 @@ function disconnectAll(): void {
 function handleErrorAction(action: ErrorAction): void {
   switch (action.command) {
     case "rescan":
-      vscode.commands.executeCommand("logscope.connect");
+      vscode.commands.executeCommand("logscope.rescan");
       break;
     case "reconnect":
     case "retry":
@@ -337,8 +337,7 @@ async function connectAndShowUart(device: string, baudRate: number, parserMode: 
 
   const cfg = getConfig();
   panel?.show(cfg.logWrap, cfg.timeFormat);
-  // Fix #1: delay sendConnected to let webview load (show() uses 100ms for init)
-  setTimeout(() => panel?.sendConnected("Serial UART", device, parserMode), 150);
+  panel?.sendConnected("Serial UART", device, parserMode);
   sidebarProvider.updateState({
     connected: true, connecting: false,
     connectedTransport: "Serial UART", connectedAddress: device,
@@ -369,7 +368,7 @@ async function connectAndShowRtt(device: string, parserMode: string): Promise<vo
   await saveSetting("transport", "rtt");
 
   panel?.show(cfg.logWrap, cfg.timeFormat);
-  setTimeout(() => panel?.sendConnected("J-Link RTT", displayName, parserMode), 150);
+  panel?.sendConnected("J-Link RTT", displayName, parserMode);
   sidebarProvider.updateState({
     connected: true, connecting: false,
     connectedTransport: "J-Link RTT", connectedAddress: displayName,
@@ -428,14 +427,29 @@ async function doConnect(): Promise<void> {
     statusBar?.setConnecting();
     panel?.sendConnecting();
 
+    // Pre-flight: ensure Python environment is ready (can take 30-60s on first use)
+    const requiredPackages = transportType === "uart" ? ["pyserial"] : ["pylink-square"];
+    if (!isPythonEnvReady(requiredPackages)) {
+      await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: "LogScope: Setting up Python environment (one-time setup)...", cancellable: false },
+        async () => { await ensurePythonEnv(requiredPackages); },
+      );
+    }
+
     await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: "LogScope: Connecting to device...", cancellable: false },
-      async () => {
-        if (transportType === "uart") {
-          await connectAndShowUart(device, baudRate, parserMode ?? "zephyr");
-        } else {
-          await connectAndShowRtt(device, parserMode ?? "zephyr");
-        }
+      { location: vscode.ProgressLocation.Notification, title: "LogScope: Connecting to device...", cancellable: true },
+      async (_progress, token) => {
+        const cancelPromise = new Promise<never>((_resolve, reject) => {
+          token.onCancellationRequested(() => {
+            reject(new Error("Connection cancelled by user"));
+          });
+        });
+        await Promise.race([
+          transportType === "uart"
+            ? connectAndShowUart(device, baudRate, parserMode ?? "zephyr")
+            : connectAndShowRtt(device, parserMode ?? "zephyr"),
+          cancelPromise,
+        ]);
       },
     );
     // Connection succeeded — reset disconnect flag and clear any error state
@@ -451,6 +465,13 @@ async function doConnect(): Promise<void> {
     sidebarProvider.updateState({ connecting: false, connected: false });
 
     const message = err instanceof Error ? err.message : String(err);
+
+    // User cancelled via the progress notification — clean up silently
+    if (message === "Connection cancelled by user") {
+      panel?.sendDisconnected(false);
+      return;
+    }
+
     const exitCode = err instanceof TransportError ? err.exitCode : undefined;
     const serialNumber = sidebarProvider.currentDevice;
     const error = classifyError(message, exitCode, serialNumber);
@@ -476,6 +497,60 @@ async function doConnect(): Promise<void> {
     }
   } finally {
     connectInFlight = false;
+  }
+}
+
+// ── Rescan: discover devices using current transport, connect if found ──
+
+async function rescanAndConnect(): Promise<void> {
+  const transportType = sidebarProvider.currentTransport;
+
+  if (transportType === "uart") {
+    const ports = await discoverSerialPorts();
+    if (ports.length === 0) {
+      const error = classifyError("No serial ports found");
+      panel?.sendConnectError(error);
+      return;
+    }
+    if (ports.length === 1) {
+      const port = ports[0];
+      const basename = port.path.split("/").pop() || port.path.split("\\").pop() || port.path;
+      const name = port.description || basename;
+      const portLabel = port.portNumber ? `${name} (Port ${port.portNumber})` : name;
+      sidebarProvider.updateState({ selectedDevice: port.path, selectedDeviceLabel: portLabel });
+      await doConnect();
+      return;
+    }
+    // Multiple ports: show the port picker only (no guided wizard)
+    const picked = await pickSerialPort();
+    if (!picked) return;
+    sidebarProvider.updateState({ selectedDevice: picked.path, selectedDeviceLabel: picked.label });
+    await doConnect();
+  } else {
+    const devices = await discoverDevices();
+    lastDiscoveredDevices = devices;
+    if (devices.length === 0) {
+      const error = classifyError("", 3); // exit code 3 = NO_PROBE
+      panel?.sendConnectError(error);
+      return;
+    }
+    if (devices.length === 1) {
+      const dev = devices[0];
+      sidebarProvider.updateState({
+        selectedDevice: String(dev.serial),
+        selectedDeviceLabel: deviceLabel(dev),
+      });
+      await doConnect();
+      return;
+    }
+    // Multiple devices: show the device picker only (no guided wizard)
+    const picked = await pickJlinkDevice();
+    if (!picked) return;
+    sidebarProvider.updateState({
+      selectedDevice: String(picked.serial),
+      selectedDeviceLabel: deviceLabel(picked),
+    });
+    await doConnect();
   }
 }
 
@@ -1247,13 +1322,11 @@ export function activate(context: vscode.ExtensionContext) {
     // If connected, send state to the (possibly fresh) webview
     if (transport?.connected) {
       const currentParser = vscode.workspace.getConfiguration("logscope").get<string>("parser", "zephyr");
-      setTimeout(() => {
-        panel?.sendConnected(
-          sidebarProvider.connectedTransportLabel,
-          sidebarProvider.connectedAddress,
-          currentParser,
-        );
-      }, 150);
+      panel?.sendConnected(
+        sidebarProvider.connectedTransportLabel,
+        sidebarProvider.connectedAddress,
+        currentParser,
+      );
     }
   });
 
@@ -1263,6 +1336,10 @@ export function activate(context: vscode.ExtensionContext) {
 
   const reconnectCmd = vscode.commands.registerCommand("logscope.reconnect", async () => {
     await doConnect();
+  });
+
+  const rescanCmd = vscode.commands.registerCommand("logscope.rescan", async () => {
+    await rescanAndConnect();
   });
 
   const disconnectCmd = vscode.commands.registerCommand("logscope.disconnect", () => {
@@ -1446,7 +1523,7 @@ export function activate(context: vscode.ExtensionContext) {
   }
 
   context.subscriptions.push(
-    openCmd, connectCmd, reconnectCmd, disconnectCmd, exportCmd,
+    openCmd, connectCmd, reconnectCmd, rescanCmd, disconnectCmd, exportCmd,
     changeSettingsCmd, openWalkthroughCmd, cycleParserCmd,
     addWatchPatternCmd, removeWatchPatternCmd, scrollToWatchCmd,
   );
