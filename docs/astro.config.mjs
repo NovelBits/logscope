@@ -6,7 +6,6 @@ import sitemap from '@astrojs/sitemap';
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://docs.novelbits.io',
-	base: '/logscope',
 	integrations: [
 		starlight({
 			title: 'LogScope Docs',
