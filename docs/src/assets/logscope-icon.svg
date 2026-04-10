@@ -4,15 +4,15 @@
   <!-- Row 1 -->
   <line x1="1" y1="6" x2="3" y2="6" stroke="#2d9d78"/>
   <line x1="6" y1="6" x2="8" y2="6" stroke="#4cceac"/>
-  <line x1="12" y1="6" x2="23" y2="6" stroke="currentColor" opacity="0.6"/>
+  <line x1="12" y1="6" x2="23" y2="6" stroke="#9ca3af"/>
 
   <!-- Row 2 -->
   <line x1="1" y1="12" x2="3" y2="12" stroke="#f44336"/>
   <line x1="6" y1="12" x2="8" y2="12" stroke="#4cceac"/>
-  <line x1="12" y1="12" x2="18" y2="12" stroke="currentColor" opacity="0.6"/>
+  <line x1="12" y1="12" x2="18" y2="12" stroke="#9ca3af"/>
 
   <!-- Row 3 -->
   <line x1="1" y1="18" x2="3" y2="18" stroke="#2d9d78"/>
   <line x1="6" y1="18" x2="8" y2="18" stroke="#4cceac"/>
-  <line x1="12" y1="18" x2="21" y2="18" stroke="currentColor" opacity="0.6"/>
+  <line x1="12" y1="18" x2="21" y2="18" stroke="#9ca3af"/>
 </svg>
