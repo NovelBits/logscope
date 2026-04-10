@@ -2,6 +2,34 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.5.4] — 2026-04-10
+
+### Added
+- **Per-probe J-Link device overrides** — device name is now saved per J-Link probe serial number. Switching between boards (e.g., STM32 and Nordic DK) automatically uses the correct device name without manual settings changes
+- **J-Link Device in guided connect flow** — new step in the connection wizard lets you pick Auto-detect, a generic core (Cortex-M4, M7, M33, etc.), or enter an exact chip name
+- **J-Link Device in Change Settings** — accessible via the sidebar Change Settings menu when connected via RTT
+- **J-Link Device shown in sidebar** — displays the current device override (or "Auto") in both connected and disconnected states
+- **Accurate CPUID-based core detection** — auto-detect now reads the ARM CPUID register (0xE000ED00) to identify the actual core type (M0/M0+/M3/M4/M7/M23/M33/M55/M85) instead of trial-and-error connection
+- **Version number in sidebar** — LogScope version shown at the bottom of the sidebar for easy reference
+
+### Fixed
+- **Extension activation delay** — deferred synchronous Python path resolution to a setTimeout so the extension activates instantly and commands respond immediately after VS Code reload
+- **Incorrect core detection** — all boards were previously detected as Cortex-M33 regardless of actual core. Now correctly identifies Cortex-M4 (STM32F4), Cortex-M7 (STM32H7), etc.
+
+## [0.5.3] — 2026-04-10
+
+(Same changes as v0.5.4. Changelog was not included in v0.5.3 release.)
+
+## [0.5.2] — 2026-04-09
+
+### Changed
+- **License sidebar UI hidden** — "Enter License Key / Upgrade to Pro" removed from sidebar until Pro tier launches
+- **All features unlocked** — `isProFeatureAvailable()` returns true for all users
+- **Documentation and Report Issue visible when connected** — these links now appear in the sidebar during active sessions, not just when disconnected
+
+### Fixed
+- **9 documentation pages updated** — removed inaccurate Pro/licensing references, rewrote watch patterns docs, added output channel and STM32 troubleshooting sections, fixed nrfutil requirement (now optional)
+
 ## [0.5.1] — 2026-04-08
 
 ### Fixed

@@ -51,6 +51,9 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
   private cachedHci: SidebarItem | null = null;
   private cachedErrors: SidebarItem | null = null;
   private cachedDuration: SidebarItem | null = null;
+  private _version = "";
+
+  set version(v: string) { this._version = v; }
 
   /** Initialize state from VS Code settings and set context keys */
   initFromSettings(): void {
@@ -332,6 +335,13 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     items.push(docsItem);
     items.push(SidebarItem.link("Report Issue", "github", "https://github.com/NovelBits/logscope/issues"));
 
+    if (this._version) {
+      const versionItem = SidebarItem.info("", "", `LogScope v${this._version}`);
+      versionItem.description = `LogScope v${this._version}`;
+      versionItem.label = "";
+      items.push(versionItem);
+    }
+
     return items;
   }
 
@@ -373,6 +383,13 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
 
     // License action (persistent, always at bottom)
     items.push(...this.buildLicenseItems());
+
+    if (this._version) {
+      const versionItem = SidebarItem.info("", "", `LogScope v${this._version}`);
+      versionItem.description = `LogScope v${this._version}`;
+      versionItem.label = "";
+      items.push(versionItem);
+    }
 
     return items;
   }

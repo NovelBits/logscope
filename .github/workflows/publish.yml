@@ -23,6 +23,16 @@ jobs:
 
       - run: npm test
 
+      - name: Verify changelog has entry for this version
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          VERSION="${TAG_NAME#v}"
+          if ! grep -q "\[${VERSION}\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md is missing an entry for version ${VERSION}. Add a changelog entry before tagging."
+            exit 1
+          fi
+
       - name: Publish extension
         run: npx @vscode/vsce publish --pat "$VSCE_PAT"
         env:

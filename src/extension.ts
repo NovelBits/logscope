@@ -1123,6 +1123,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   panel = new LogScopePanel(context.extensionUri);
   statusBar = new StatusBar();
+  sidebarProvider.version = context.extension.packageJSON.version;
 
   // Register sidebar TreeView
   context.subscriptions.push(
