@@ -732,24 +732,41 @@ def main():
                 import pylink
                 probe = _create_jlink()
                 _open_jlink(probe, serial_no=serial_no)
-                detected_core = None
-                for core in ["Cortex-M33", "Cortex-M4", "Cortex-M7", "Cortex-M0+"]:
-                    try:
-                        probe.connect(core)
-                        detected_core = core
-                        print(f"DEVICE_DETECTED {core}", file=sys.stderr)
-                        sys.stderr.flush()
-                        probe.close()
-                        break
-                    except Exception:
-                        continue
+
+                # Connect with a generic name first just to get debug access,
+                # then read the CPUID register to identify the actual core.
+                probe.set_tif(pylink.enums.JLinkInterfaces.SWD)
+                probe.set_speed(4000)
+                probe.connect("Cortex-M33")  # generic, works for initial debug access
+
+                # CPUID register at 0xE000ED00 identifies the actual core
+                CPUID_ADDR = 0xE000ED00
+                cpuid = probe.memory_read32(CPUID_ADDR, 1)[0]
+                part_no = (cpuid >> 4) & 0xFFF  # bits [15:4] = PartNo
+
+                # ARM core identification from CPUID PartNo field
+                CORE_MAP = {
+                    0xC20: "Cortex-M0",
+                    0xC60: "Cortex-M0+",
+                    0xC23: "Cortex-M3",
+                    0xC24: "Cortex-M4",
+                    0xC27: "Cortex-M7",
+                    0xD20: "Cortex-M23",
+                    0xD21: "Cortex-M33",
+                    0xD22: "Cortex-M55",
+                    0xD23: "Cortex-M85",
+                }
+                detected_core = CORE_MAP.get(part_no)
                 if detected_core:
+                    print(f"DEVICE_DETECTED {detected_core}", file=sys.stderr)
+                    print(f"CPUID: 0x{cpuid:08X}, PartNo: 0x{part_no:03X} → {detected_core}", file=sys.stderr)
+                    sys.stderr.flush()
                     device_or_addr = detected_core
                 else:
-                    probe.close()
-                    print("Could not auto-detect device, using Cortex-M33", file=sys.stderr)
+                    print(f"CPUID: 0x{cpuid:08X}, PartNo: 0x{part_no:03X} — unknown core, using Cortex-M33", file=sys.stderr)
                     sys.stderr.flush()
                     device_or_addr = "Cortex-M33"
+                probe.close()
             except Exception:
                 print("Could not auto-detect device, using Cortex-M33", file=sys.stderr)
                 sys.stderr.flush()

@@ -2,7 +2,7 @@
   "name": "novelbits-logscope",
   "displayName": "LogScope — Embedded Log Viewer",
   "description": "Real-time embedded log viewer — Zephyr, nRF5 SDK, and raw mode with Bluetooth LE HCI decoding, filtering, search, fault detection, and Wireshark export",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "publisher": "novelbits",
   "author": {
     "name": "Novel Bits"
@@ -312,7 +312,12 @@
         "logscope.jlink.device": {
           "type": "string",
           "default": "Cortex-M33",
-          "description": "Target device name for J-Link connection (use Cortex-M33 for nRF54L15)"
+          "description": "Default target device name for J-Link connection. Overridden by per-probe settings in jlink.deviceOverrides."
+        },
+        "logscope.jlink.deviceOverrides": {
+          "type": "object",
+          "default": {},
+          "description": "Per-probe J-Link device overrides. Maps probe serial number to target device name (e.g., {\"777195662\": \"STM32F401RE\"}). Set automatically via Change Settings."
         },
         "logscope.jlink.interface": {
           "type": "string",

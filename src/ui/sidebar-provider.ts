@@ -280,6 +280,15 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
       items.push(SidebarItem.info("Device", "device-desktop", this.state.connectedAddress));
     }
 
+    // Show J-Link device setting when connected via RTT
+    if (this.state.transport === "rtt") {
+      const cfg = vscode.workspace.getConfiguration("logscope");
+      const overrides = cfg.get<Record<string, string>>("jlink.deviceOverrides", {});
+      const probeSerial = this.state.selectedDevice;
+      const override = overrides[probeSerial];
+      items.push(SidebarItem.info("J-Link Device", "chip", override || "Auto"));
+    }
+
     const parserLabels: Record<string, string> = { zephyr: "Zephyr", nrf5: "nRF5 SDK", raw: "Raw" };
     items.push(SidebarItem.info("Parser", "file-code", parserLabels[this.state.parser] || "Zephyr"));
 
@@ -336,6 +345,14 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     );
     if (this.state.transport === "uart") {
       items.push(SidebarItem.info("Baud Rate", "dashboard", String(this.state.baudRate)));
+    }
+
+    if (this.state.transport === "rtt") {
+      const cfg = vscode.workspace.getConfiguration("logscope");
+      const overrides = cfg.get<Record<string, string>>("jlink.deviceOverrides", {});
+      const probeSerial = this.state.selectedDevice;
+      const override = overrides[probeSerial];
+      items.push(SidebarItem.info("J-Link Device", "chip", override || "Auto"));
     }
 
     const parserLabels: Record<string, string> = { zephyr: "Zephyr", nrf5: "nRF5 SDK", raw: "Raw" };

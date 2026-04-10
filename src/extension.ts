@@ -49,6 +49,7 @@ function getConfig() {
   return {
     maxEntries: cfg.get<number>("maxEntries", 100_000),
     jlinkDevice: cfg.get<string>("jlink.device", "Cortex-M33"),
+    jlinkDeviceOverrides: cfg.get<Record<string, string>>("jlink.deviceOverrides", {}),
     nrfutilPath: cfg.get<string>("nrfutil.path", "nrfutil"),
     rttPollInterval: cfg.get<number>("rtt.pollInterval", 50),
     rttSearchRanges: cfg.get<string>("jlink.rttSearchRanges", "0x20000000 0x80000"),
@@ -347,10 +348,20 @@ async function connectAndShowUart(device: string, baudRate: number, parserMode: 
 async function connectAndShowRtt(device: string, parserMode: string): Promise<void> {
   const cfg = getConfig();
   const pollInterval = cfg.rttPollInterval;
-  // Use the user's jlink.device setting if they changed it from the default.
-  // Otherwise, use "auto" to let the helper auto-detect the target chip.
-  const jlinkDevice = cfg.jlinkDevice !== "Cortex-M33" ? cfg.jlinkDevice : "auto";
-  log(`Device resolution: logscope.jlink.device="${cfg.jlinkDevice}" → effective="${jlinkDevice}"${jlinkDevice === "auto" ? " (will auto-detect)" : " (user override)"}`);
+
+  // Per-probe device override takes priority, then global setting, then auto-detect.
+  const probeOverride = cfg.jlinkDeviceOverrides[device];
+  let jlinkDevice: string;
+  if (probeOverride && probeOverride !== "auto") {
+    jlinkDevice = probeOverride;
+    log(`Device resolution: probe ${device} has override "${probeOverride}"`);
+  } else if (cfg.jlinkDevice !== "Cortex-M33") {
+    jlinkDevice = cfg.jlinkDevice;
+    log(`Device resolution: using global jlink.device="${cfg.jlinkDevice}"`);
+  } else {
+    jlinkDevice = "auto";
+    log(`Device resolution: auto-detect (no override for probe ${device})`);
+  }
   await connectRtt(jlinkDevice, pollInterval, device);
   const rttTransport = transport as NrfutilRttTransport;
   const displayName = rttTransport.detectedDevice || "Connected";
@@ -501,6 +512,7 @@ function showStepQuickPick<T extends vscode.QuickPickItem>(
 }
 
 async function guidedConnect(): Promise<void> {
+  log("Guided connect flow started");
   let step = 1;
   let transportValue: "rtt" | "uart" = "rtt";
   let parserValue: "zephyr" | "nrf5" | "raw" = "zephyr";
@@ -559,6 +571,51 @@ async function guidedConnect(): Promise<void> {
               selectedDevice: String(device.serial),
               selectedDeviceLabel: deviceLabel(device),
             });
+
+            // Show J-Link target device picker (auto-detect is default, skip with Enter)
+            const probeSerial = String(device.serial);
+            const cfg = getConfig();
+            const currentOverride = cfg.jlinkDeviceOverrides[probeSerial];
+            const targetItems = [
+              { label: "$(check) Auto-detect", description: "Works with most boards", _value: "auto" },
+              { label: "Cortex-M4", description: "STM32F4, STM32L4, etc.", _value: "Cortex-M4" },
+              { label: "Cortex-M7", description: "STM32H7, STM32F7, etc.", _value: "Cortex-M7" },
+              { label: "Cortex-M33", description: "nRF54, STM32L5, STM32U5, etc.", _value: "Cortex-M33" },
+              { label: "Cortex-M0+", description: "STM32L0, STM32G0, RP2040, etc.", _value: "Cortex-M0+" },
+              { label: "Enter chip name...", description: "Type exact J-Link device name", _value: "__custom__" },
+            ];
+            // Pre-select current override
+            for (const item of targetItems) {
+              if ((item as any)._value === currentOverride) {
+                item.description = (item.description || "") + "  (current)";
+              }
+            }
+            const targetPick = await showStepQuickPick(
+              targetItems as (vscode.QuickPickItem & { _value: string })[],
+              { placeholder: "Select target device (Enter for auto-detect)", step: 3, totalSteps: 3, showBack: true, title: "Connect Device" },
+            );
+            if (!targetPick) { telemetry.trackConnectFlowAbandoned("jlinkDevice"); return; }
+
+            let targetDevice = (targetPick as { _value: string })._value;
+            if (targetDevice === "__custom__") {
+              const input = await vscode.window.showInputBox({
+                prompt: "Enter exact J-Link device name (e.g., STM32F401RE, STM32H743II)",
+                placeHolder: "STM32F401RE",
+                value: currentOverride || "",
+              });
+              if (!input) { telemetry.trackConnectFlowAbandoned("jlinkDevice"); return; }
+              targetDevice = input.trim();
+            }
+
+            // Save per-probe override (or clear it for auto)
+            const overrides = { ...cfg.jlinkDeviceOverrides };
+            if (targetDevice === "auto") {
+              delete overrides[probeSerial];
+            } else {
+              overrides[probeSerial] = targetDevice;
+            }
+            await saveSetting("jlink.deviceOverrides", overrides);
+
             await doConnect();
             return;
           }
@@ -825,6 +882,82 @@ async function changeBaudRate(): Promise<void> {
   }
 }
 
+async function changeJlinkDevice(): Promise<void> {
+  const probeSerial = sidebarProvider.currentDevice;
+  if (!probeSerial) {
+    vscode.window.showWarningMessage("LogScope: No J-Link probe connected.");
+    return;
+  }
+
+  const cfg = getConfig();
+  const currentOverride = cfg.jlinkDeviceOverrides[probeSerial] || "";
+
+  const commonDevices = [
+    { label: "Auto-detect", description: "Let J-Link identify the target automatically (recommended for Nordic)", _value: "auto" },
+    { label: "Cortex-M4", description: "Generic Cortex-M4 (STM32F4, STM32L4, etc.)", _value: "Cortex-M4" },
+    { label: "Cortex-M7", description: "Generic Cortex-M7 (STM32H7, STM32F7, etc.)", _value: "Cortex-M7" },
+    { label: "Cortex-M33", description: "Generic Cortex-M33 (nRF54, STM32L5, STM32U5, etc.)", _value: "Cortex-M33" },
+    { label: "Cortex-M0+", description: "Generic Cortex-M0+ (STM32L0, STM32G0, RP2040, etc.)", _value: "Cortex-M0+" },
+    { label: "Enter chip name...", description: "Type the exact J-Link device name (e.g., STM32F401RE)", _value: "__custom__" },
+  ];
+
+  // Mark the current selection
+  for (const item of commonDevices) {
+    if ((item as any)._value === currentOverride || (!currentOverride && (item as any)._value === "auto")) {
+      item.description = (item.description || "") + "  (current)";
+    }
+  }
+
+  const pick = await showStepQuickPick(
+    commonDevices as (vscode.QuickPickItem & { _value: string })[],
+    {
+      placeholder: `J-Link device for probe ${probeSerial}`,
+      title: "J-Link Target Device",
+    },
+  );
+  if (!pick) return;
+
+  let deviceName = (pick as { _value: string })._value;
+
+  if (deviceName === "__custom__") {
+    const input = await vscode.window.showInputBox({
+      prompt: "Enter the exact J-Link device name (e.g., STM32F401RE, STM32H743II, nRF52840_xxAA)",
+      placeHolder: "STM32F401RE",
+      value: currentOverride || "",
+    });
+    if (!input) return;
+    deviceName = input.trim();
+  }
+
+  // Save to the per-probe overrides map
+  const overrides = { ...cfg.jlinkDeviceOverrides };
+  if (deviceName === "auto") {
+    delete overrides[probeSerial];
+  } else {
+    overrides[probeSerial] = deviceName;
+  }
+  await saveSetting("jlink.deviceOverrides", overrides);
+
+  log(`J-Link device for probe ${probeSerial} set to "${deviceName}"`);
+
+  // Offer to reconnect so the new setting takes effect
+  if (transport?.connected) {
+    const answer = await vscode.window.showInformationMessage(
+      `J-Link device set to "${deviceName}". Reconnect to apply?`,
+      "Reconnect",
+      "Later",
+    );
+    if (answer === "Reconnect") {
+      userDisconnecting = true;
+      disconnectAll();
+      panel?.sendDisconnected(false);
+      sidebarProvider.updateState({ connected: false, connecting: false });
+      setTimeout(() => { userDisconnecting = false; }, 100);
+      await doConnect();
+    }
+  }
+}
+
 async function changeParser(currentParser: string): Promise<void> {
   const modes = ["zephyr", "nrf5", "raw"] as const;
   const labels: Record<string, string> = { zephyr: "Zephyr", nrf5: "nRF5 SDK", raw: "Raw" };
@@ -885,6 +1018,14 @@ async function changeSettings(): Promise<void> {
       items.push({ label: "$(dashboard) Baud Rate", description: String(sidebarProvider.currentBaudRate), _key: "baudRate" });
     }
 
+    if (sidebarProvider.currentTransport === "rtt") {
+      const cfg = getConfig();
+      const probeSerial = sidebarProvider.currentDevice;
+      const override = cfg.jlinkDeviceOverrides[probeSerial];
+      const deviceDesc = override || "Auto-detect";
+      items.push({ label: "$(chip) J-Link Device", description: deviceDesc, _key: "jlinkDevice" });
+    }
+
     items.push({ label: "$(file-code) Parser", description: parserLabels[currentParser] || "Zephyr", _key: "parser" });
 
     const pick = await showStepQuickPick(
@@ -905,6 +1046,9 @@ async function changeSettings(): Promise<void> {
           return;
         case "baudRate":
           await changeBaudRate();
+          return;
+        case "jlinkDevice":
+          await changeJlinkDevice();
           return;
         case "parser":
           await changeParser(currentParser);
@@ -1010,24 +1154,26 @@ export function activate(context: vscode.ExtensionContext) {
   // Register license commands
   registerLicenseCommands(context, licenseManager, "logscope");
 
-  // Check for Python on activation (non-blocking)
+  // Check for Python on activation (deferred to avoid blocking activation)
   const PYTHON_WARNING_DISMISSED = "logscope.pythonWarningDismissed";
   if (!context.globalState.get<boolean>(PYTHON_WARNING_DISMISSED)) {
-    try {
-      resolveSystemPython();
-    } catch {
-      vscode.window.showWarningMessage(
-        "LogScope requires Python 3 for device discovery and communication. Install Python and reload VS Code.",
-        "Download Python",
-        "Dismiss",
-      ).then(selection => {
-        if (selection === "Download Python") {
-          vscode.env.openExternal(vscode.Uri.parse("https://www.python.org/downloads/"));
-        } else if (selection === "Dismiss") {
-          context.globalState.update(PYTHON_WARNING_DISMISSED, true);
-        }
-      });
-    }
+    setTimeout(() => {
+      try {
+        resolveSystemPython();
+      } catch {
+        vscode.window.showWarningMessage(
+          "LogScope requires Python 3 for device discovery and communication. Install Python and reload VS Code.",
+          "Download Python",
+          "Dismiss",
+        ).then(selection => {
+          if (selection === "Download Python") {
+            vscode.env.openExternal(vscode.Uri.parse("https://www.python.org/downloads/"));
+          } else if (selection === "Dismiss") {
+            context.globalState.update(PYTHON_WARNING_DISMISSED, true);
+          }
+        });
+      }
+    }, 1000);
   }
 
   // Handle messages from WebView (viewer-only messages)
