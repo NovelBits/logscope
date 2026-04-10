@@ -1,11 +1,5 @@
 {
-  "buildCommand": "npx astro build",
-  "outputDirectory": "dist",
-  "framework": "astro",
-  "rewrites": [
-    { "source": "/logscope/:path*", "destination": "/:path*" }
-  ],
-  "redirects": [
-    { "source": "/", "destination": "/logscope", "permanent": false }
-  ]
+  "buildCommand": "npx astro build && mkdir -p dist_final/logscope && cp -r dist/* dist_final/logscope/",
+  "outputDirectory": "dist_final",
+  "framework": "astro"
 }
