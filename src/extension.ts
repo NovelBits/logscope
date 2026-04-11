@@ -252,12 +252,56 @@ function handleErrorAction(action: ErrorAction): void {
 }
 
 async function resetAndReconnect(serialNumber?: string): Promise<void> {
-  if (!serialNumber || !/^\d+$/.test(serialNumber)) return;
-  execFile("nrfutil", ["device", "reset", "--serial-number", serialNumber], (err) => {
+  if (!serialNumber) return;
+
+  const cfg = getConfig();
+  const remoteHost = vscode.workspace.getConfiguration("logscope").get<string>("jlink.remoteHost", "");
+  const isRemote = !!(remoteHost && sidebarProvider.currentDevice === remoteHost);
+
+  // Resolve the J-Link device name for the target
+  let jlinkDevice = "Cortex-M33";
+  if (isRemote) {
+    jlinkDevice = cfg.jlinkDevice !== "Cortex-M33" ? cfg.jlinkDevice : "Cortex-M33";
+  } else if (/^\d+$/.test(serialNumber)) {
+    const override = cfg.jlinkDeviceOverrides[serialNumber];
+    if (override && override !== "auto") {
+      jlinkDevice = override;
+    } else if (cfg.jlinkDevice !== "Cortex-M33") {
+      jlinkDevice = cfg.jlinkDevice;
+    }
+  }
+
+  // Build JLinkExe command file for reset
+  const fs = await import("node:fs");
+  const os = await import("node:os");
+  const path = await import("node:path");
+  const cmdFile = path.join(os.tmpdir(), "logscope-reset.jlink");
+  fs.writeFileSync(cmdFile, "r\ng\nq\n");
+
+  const args = [
+    "-device", jlinkDevice,
+    "-if", "SWD",
+    "-speed", "4000",
+    "-autoconnect", "1",
+    "-CommandFile", cmdFile,
+  ];
+
+  if (isRemote) {
+    args.push("-ip", remoteHost);
+  } else if (/^\d+$/.test(serialNumber)) {
+    args.push("-USB", serialNumber);
+  }
+
+  log(`Reset device: JLinkExe ${args.join(" ")}`);
+
+  execFile("JLinkExe", args, { timeout: 10_000 }, (err) => {
+    try { fs.unlinkSync(cmdFile); } catch { /* ignore */ }
     if (err) {
-      vscode.window.showWarningMessage(`LogScope: Could not reset device \u2014 ${err.message}`);
+      logError("Reset device failed", err);
+      vscode.window.showWarningMessage(`LogScope: Could not reset device. Check the LogScope output channel for details.`);
       return;
     }
+    log("Device reset successful, reconnecting in 2s...");
     setTimeout(() => doConnect(), 2000);
   });
 }

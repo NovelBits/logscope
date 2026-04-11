@@ -32,9 +32,11 @@ const ACTION_RECONNECT: ErrorAction = { label: "Reconnect", command: "reconnect"
 const ACTION_DOWNLOAD_PYTHON: ErrorAction = { label: "Download Python", command: "downloadPython" };
 
 function makeResetDeviceAction(serialNumber?: string): ErrorAction {
-  const validSerial = serialNumber && /^\d+$/.test(serialNumber) ? serialNumber : undefined;
-  return validSerial
-    ? { label: "Reset Device", command: "resetDevice", args: [validSerial] }
+  // Only pass identifiers that are safe for shell args: digits (serial numbers)
+  // or hostname-like strings (remote hosts: alphanumeric, dots, colons)
+  const safe = serialNumber && /^[\d.:\w-]+$/.test(serialNumber) ? serialNumber : undefined;
+  return safe
+    ? { label: "Reset Device", command: "resetDevice", args: [safe] }
     : { label: "Reset Device", command: "resetDevice" };
 }
 
