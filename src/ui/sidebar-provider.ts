@@ -17,6 +17,7 @@ export interface SidebarState {
   watchCounters: { name: string; count: number; color: string }[];
   licenseTier: string;
   hasLastSession: boolean;       // true if we have saved transport+device
+  remoteHost?: string;           // IP address for remote J-Link connection
 }
 
 export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
@@ -273,7 +274,10 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
 
   private buildConnectedItems(): SidebarItem[] {
     const items: SidebarItem[] = [];
-    const transportLabel = this.state.connectedTransport || (this.state.transport === "rtt" ? "J-Link RTT" : "Serial UART");
+    const isRemote = !!this.state.remoteHost;
+    const transportLabel = this.state.connectedTransport || (isRemote
+      ? "J-Link RTT (Remote)"
+      : this.state.transport === "rtt" ? "J-Link RTT" : "Serial UART");
 
     const connItem = SidebarItem.info("Connected", "plug", transportLabel);
     connItem.id = "info::connection-status";
@@ -347,11 +351,17 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
 
   private buildLastSessionItems(): SidebarItem[] {
     const items: SidebarItem[] = [];
-    const transportLabel = this.state.transport === "rtt" ? "J-Link RTT" : "Serial UART";
+    const isRemote = !!this.state.remoteHost;
+    const transportLabel = isRemote
+      ? "J-Link RTT (Remote)"
+      : this.state.transport === "rtt" ? "J-Link RTT" : "Serial UART";
+    const deviceLabel = isRemote
+      ? this.state.remoteHost!
+      : this.state.selectedDeviceLabel || this.state.selectedDevice;
 
     items.push(
       SidebarItem.info("Transport", "circuit-board", transportLabel),
-      SidebarItem.info("Device", "device-desktop", this.state.selectedDeviceLabel || this.state.selectedDevice),
+      SidebarItem.info("Device", isRemote ? "globe" : "device-desktop", deviceLabel),
     );
     if (this.state.transport === "uart") {
       items.push(SidebarItem.info("Baud Rate", "dashboard", String(this.state.baudRate)));
