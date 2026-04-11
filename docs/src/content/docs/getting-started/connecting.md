@@ -31,6 +31,30 @@ Select your device and LogScope connects automatically.
 
 After your first connection, LogScope remembers your device. The sidebar shows your last connection settings with a **Reconnect** button for one-click reconnection.
 
+## Remote Connection (J-Link Remote Server)
+
+LogScope can connect to J-Link probes over the network using SEGGER's J-Link Remote Server. This lets you stream RTT logs from devices on another machine, in a test lab, or anywhere on your network.
+
+### Setup
+
+1. On the machine with the J-Link and target device, start J-Link Remote Server:
+   ```
+   JLinkRemoteServerCLExe
+   ```
+   The server listens on port 19020 by default.
+
+2. In LogScope, start the guided connect flow and select **J-Link RTT**.
+3. Select your parser (Zephyr, nRF5 SDK, or Raw).
+4. In the device picker, select **Connect to Remote J-Link...** at the bottom of the list.
+5. Enter the IP address (and optional port) of the machine running the server, e.g., `192.168.1.100` or `192.168.1.100:19020`.
+6. LogScope connects and streams RTT data over the network.
+
+### Works with Any J-Link
+
+Remote connection works with any J-Link probe, including the on-board J-Link in Nordic DKs. You don't need a J-Link PRO; just a machine running J-Link Remote Server with the probe connected via USB.
+
+J-Link PRO users get a simpler setup: the PRO has built-in Ethernet and runs the server automatically with no host PC needed.
+
 ## Auto-Connect
 
 Enable [`logscope.autoConnect`](/logscope/reference/settings/) in VS Code settings to automatically connect to your last device when VS Code starts.

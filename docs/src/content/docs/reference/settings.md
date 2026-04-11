@@ -30,6 +30,7 @@ All settings are prefixed with `logscope.` and can be set in VS Code's `settings
 | `logscope.jlink.speed` | number | `4000` | J-Link connection speed in kHz |
 | `logscope.jlink.autoStart` | boolean | `true` | Automatically start J-Link when connecting. Disable to connect to an existing RTT server. |
 | `logscope.jlink.rttSearchRanges` | string | `"0x20000000 0x80000"` | RTT control block search range (base size in hex). Default covers 512KB starting at `0x20000000`. |
+| `logscope.jlink.remoteHost` | string | `""` | Last used J-Link Remote Server address (set automatically via the connect flow) |
 
 ## UART Settings
 

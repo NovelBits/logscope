@@ -15,6 +15,10 @@ Python 3.8 or later. LogScope automatically installs its Python dependencies on 
 
 ## Hardware
 
+### Can I connect to a J-Link over the network?
+
+Yes. LogScope supports [J-Link Remote Server](/logscope/getting-started/connecting/) connections. Start `JLinkRemoteServerCLExe` on the machine with the probe, then select "Connect to Remote J-Link..." in the device picker and enter the server's IP address. This works with any J-Link, including the on-board probes in Nordic DKs.
+
 ### Can I use LogScope without Nordic hardware?
 
 Yes! LogScope is not limited to Nordic devices. Any board with a J-Link debug probe works (STM32, NXP, Silicon Labs, RP2040, etc.), and any board with a USB serial connection works via UART transport. See [Connecting a Device](/logscope/getting-started/connecting/) for setup instructions.
