@@ -668,9 +668,9 @@ async function guidedConnect(): Promise<void> {
           // Pick parser
           const pick = await showStepQuickPick(
             [
-              { label: "$(file-code) Zephyr", description: "Zephyr RTOS — LOG_INF, LOG_ERR, LOG_WRN macros", value: "zephyr" as const },
-              { label: "$(file-code) nRF5 SDK", description: "nRF5 SDK — NRF_LOG_INFO, NRF_LOG_ERROR macros", value: "nrf5" as const },
-              { label: "$(file-code) Raw", description: "Any firmware — displays output as-is, no parsing", value: "raw" as const },
+              { label: "$(zap) Zephyr", description: "Zephyr RTOS — LOG_INF, LOG_ERR, LOG_WRN macros", value: "zephyr" as const },
+              { label: "$(package) nRF5 SDK", description: "nRF5 SDK — NRF_LOG_INFO, NRF_LOG_ERROR macros", value: "nrf5" as const },
+              { label: "$(terminal) Raw", description: "Any firmware — displays output as-is, no parsing", value: "raw" as const },
             ] as (vscode.QuickPickItem & { value: "zephyr" | "nrf5" | "raw" })[],
             { placeholder: "Select log format", step: 2, totalSteps: 4, showBack: true, title: "Connect Device" },
           );
@@ -1086,7 +1086,7 @@ async function changeJlinkDevice(): Promise<void> {
 
 async function changeParser(currentParser: string): Promise<void> {
   const modes = ["zephyr", "nrf5", "raw"] as const;
-  const labels: Record<string, string> = { zephyr: "Zephyr", nrf5: "nRF5 SDK", raw: "Raw" };
+  const labels: Record<string, string> = { zephyr: "$(zap) Zephyr", nrf5: "$(package) nRF5 SDK", raw: "$(terminal) Raw" };
   const descriptions: Record<string, string> = {
     zephyr: "Zephyr RTOS log format",
     nrf5: "nRF5 SDK NRF_LOG format",
