@@ -264,13 +264,14 @@ async function resetAndReconnect(serialNumber?: string): Promise<void> {
 
 // ── Connect helpers ─────────────────────────────────────────────
 
-async function connectRtt(device: string, pollInterval: number, serialNumber?: string): Promise<void> {
+async function connectRtt(device: string, pollInterval: number, serialNumber?: string, remoteHost?: string): Promise<void> {
   const cfg = getConfig();
   ringBuffer = new RingBuffer(cfg.maxEntries);
   session = new Session("device", "rtt");
   lineBuffer = "";
 
-  log(`RTT connect: device="${device}", serialNumber=${serialNumber ?? "(any)"}, pollInterval=${pollInterval}ms, searchRanges="${cfg.rttSearchRanges}"`);
+  const label = remoteHost ? `remote=${remoteHost}` : `serialNumber=${serialNumber ?? "(any)"}`;
+  log(`RTT connect: device="${device}", ${label}, pollInterval=${pollInterval}ms, searchRanges="${cfg.rttSearchRanges}"`);
 
   const MAX_RETRIES = 2;
   const RETRY_DELAY_MS = 2000;
@@ -285,6 +286,7 @@ async function connectRtt(device: string, pollInterval: number, serialNumber?: s
     const rttTransport = new NrfutilRttTransport({
       device,
       serialNumber,
+      remoteHost,
       pollIntervalMs: pollInterval,
       nrfutilPath: cfg.nrfutilPath,
       rttSearchRanges: cfg.rttSearchRanges,
@@ -348,30 +350,46 @@ async function connectAndShowRtt(device: string, parserMode: string): Promise<vo
   const cfg = getConfig();
   const pollInterval = cfg.rttPollInterval;
 
-  // Per-probe device override takes priority, then global setting, then auto-detect.
-  const probeOverride = cfg.jlinkDeviceOverrides[device];
+  // Check if this is a remote connection
+  const currentDevice = sidebarProvider.currentDevice;
+  const savedRemoteHost = vscode.workspace.getConfiguration("logscope").get<string>("jlink.remoteHost", "");
+  const remoteHost = (savedRemoteHost && currentDevice === savedRemoteHost) ? savedRemoteHost : undefined;
+
   let jlinkDevice: string;
-  if (probeOverride && probeOverride !== "auto") {
-    jlinkDevice = probeOverride;
-    log(`Device resolution: probe ${device} has override "${probeOverride}"`);
-  } else if (cfg.jlinkDevice !== "Cortex-M33") {
-    jlinkDevice = cfg.jlinkDevice;
-    log(`Device resolution: using global jlink.device="${cfg.jlinkDevice}"`);
+  if (remoteHost) {
+    // Remote: use global jlink.device setting or auto-detect
+    jlinkDevice = cfg.jlinkDevice !== "Cortex-M33" ? cfg.jlinkDevice : "auto";
+    log(`Device resolution: remote connection to ${remoteHost}, device="${jlinkDevice}"`);
   } else {
-    jlinkDevice = "auto";
-    log(`Device resolution: auto-detect (no override for probe ${device})`);
+    // Local: per-probe device override takes priority, then global setting, then auto-detect.
+    const probeOverride = cfg.jlinkDeviceOverrides[device];
+    if (probeOverride && probeOverride !== "auto") {
+      jlinkDevice = probeOverride;
+      log(`Device resolution: probe ${device} has override "${probeOverride}"`);
+    } else if (cfg.jlinkDevice !== "Cortex-M33") {
+      jlinkDevice = cfg.jlinkDevice;
+      log(`Device resolution: using global jlink.device="${cfg.jlinkDevice}"`);
+    } else {
+      jlinkDevice = "auto";
+      log(`Device resolution: auto-detect (no override for probe ${device})`);
+    }
   }
-  await connectRtt(jlinkDevice, pollInterval, device);
+
+  await connectRtt(jlinkDevice, pollInterval, remoteHost ? undefined : device, remoteHost);
   const rttTransport = transport as NrfutilRttTransport;
-  const displayName = rttTransport.detectedDevice || "Connected";
-  await saveSetting("lastDevice", device);
+  const displayName = remoteHost || rttTransport.detectedDevice || "Connected";
   await saveSetting("transport", "rtt");
+  if (!remoteHost) {
+    await saveSetting("lastDevice", device);
+  }
 
   panel?.show(cfg.logWrap, cfg.timeFormat);
-  panel?.sendConnected("J-Link RTT", displayName, parserMode);
+  panel?.sendConnected(remoteHost ? "J-Link RTT (Remote)" : "J-Link RTT", displayName, parserMode);
   sidebarProvider.updateState({
     connected: true, connecting: false,
-    connectedTransport: "J-Link RTT", connectedAddress: displayName,
+    connectedTransport: remoteHost ? "J-Link RTT (Remote)" : "J-Link RTT",
+    connectedAddress: displayName,
+    remoteHost: remoteHost || undefined,
   });
 }
 
@@ -648,6 +666,22 @@ async function guidedConnect(): Promise<void> {
           } else {
             const device = await pickJlinkDevice(true, 3, 4);
             if (!device) { telemetry.trackConnectFlowAbandoned("device"); return; }
+
+            const remoteHost = (device as any)._remoteHost as string | undefined;
+
+            if (remoteHost) {
+              // Remote connection — save host and skip J-Link target device picker
+              await saveSetting("jlink.remoteHost", remoteHost);
+              sidebarProvider.updateState({
+                transport: "rtt",
+                selectedDevice: remoteHost,
+                selectedDeviceLabel: remoteHost,
+                remoteHost,
+              });
+              await doConnect();
+              return;
+            }
+
             sidebarProvider.updateState({
               transport: "rtt",
               selectedDevice: String(device.serial),
@@ -813,7 +847,7 @@ async function pickSerialPort(showBack = false, step?: number, totalSteps?: numb
 }
 
 async function pickJlinkDevice(showBack = false, step?: number, totalSteps?: number): Promise<(DiscoveredDevice & { targetName?: string }) | undefined> {
-  const qp = vscode.window.createQuickPick<vscode.QuickPickItem & { _serial?: number; _rescan?: boolean }>();
+  const qp = vscode.window.createQuickPick<vscode.QuickPickItem & { _serial?: number; _rescan?: boolean; _remote?: boolean }>();
   qp.placeholder = "Select J-Link device...";
   qp.title = "Connect Device";
   qp.busy = true;
@@ -831,7 +865,7 @@ async function pickJlinkDevice(showBack = false, step?: number, totalSteps?: num
     const devices = await discoverDevices();
     lastDiscoveredDevices = devices;
     if (devices.length === 0) {
-      qp.items = [{ label: "No J-Link devices found" }, { label: "$(refresh) Rescan", _rescan: true }];
+      qp.items = [{ label: "No J-Link devices found" }, { label: "$(refresh) Rescan", _rescan: true }, { label: "$(globe) Connect to Remote J-Link...", _remote: true }];
       qp.busy = false;
       return;
     }
@@ -841,6 +875,7 @@ async function pickJlinkDevice(showBack = false, step?: number, totalSteps?: num
         _serial: d.serial,
       })),
       { label: "$(refresh) Rescan", _rescan: true },
+      { label: "$(globe) Connect to Remote J-Link...", _remote: true },
     ];
     qp.busy = false;
   };
@@ -848,10 +883,31 @@ async function pickJlinkDevice(showBack = false, step?: number, totalSteps?: num
   return new Promise<(DiscoveredDevice & { targetName?: string }) | undefined>((resolve, reject) => {
     let resolved = false;
     qp.onDidAccept(async () => {
-      const selected = qp.selectedItems[0] as { _serial?: number; _rescan?: boolean };
+      const selected = qp.selectedItems[0] as { _serial?: number; _rescan?: boolean; _remote?: boolean };
       if (!selected) return;
       if (selected._rescan) {
         await scanDevices();
+        return;
+      }
+      if (selected._remote) {
+        resolved = true;
+        qp.dispose();
+        // Show IP input
+        const lastHost = vscode.workspace.getConfiguration("logscope").get<string>("jlink.remoteHost", "");
+        const input = await vscode.window.showInputBox({
+          prompt: "Enter J-Link Remote Server address",
+          placeHolder: "192.168.1.100 or 192.168.1.100:19020",
+          value: lastHost,
+          validateInput: (value) => {
+            if (!value.trim()) return "Address is required";
+            return undefined;
+          },
+        });
+        if (!input) {
+          resolve(undefined);
+          return;
+        }
+        resolve({ serial: 0, _remoteHost: input.trim() } as any);
         return;
       }
       resolved = true;

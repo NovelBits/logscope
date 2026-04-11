@@ -353,6 +353,11 @@
           "default": "0x20000000 0x80000",
           "description": "RTT control block search range (base size in hex). Default covers 512KB starting at 0x20000000 which works for most ARM Cortex-M devices."
         },
+        "logscope.jlink.remoteHost": {
+          "type": "string",
+          "default": "",
+          "description": "Last used J-Link Remote Server address (host or host:port). Set automatically via the connect flow."
+        },
         "logscope.parser": {
           "type": "string",
           "default": "zephyr",
