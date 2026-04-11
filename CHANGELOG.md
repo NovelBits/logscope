@@ -2,6 +2,28 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.5.5] — 2026-04-10
+
+### Added
+- **Cancel connecting** — connection progress notification is now cancellable; click Cancel to abort without waiting for the 15-second timeout
+- **Python setup progress** — first-time users see "Setting up Python environment (one-time setup)..." instead of generic "Connecting..." while dependencies install
+- **Rescan command** — new `LogScope: Rescan Devices` command performs a lightweight device rescan without reopening the full guided connect wizard. Error card "Rescan" button now uses this
+- **Forget Device** — new sidebar action (trash icon) clears saved device/port settings, returning the sidebar to the clean welcome view
+- **Empty state message** — webview shows "No log data yet. Connect a device..." when no data is present
+- **ARIA accessibility** — `aria-pressed` on severity toggle buttons, `aria-label` on error dismiss button, `aria-haspopup`/`aria-expanded`/`role` attributes on module picker dropdown
+
+### Changed
+- **Webview ready handshake** — replaced hardcoded 150ms setTimeout delays with an event-based ready signal. The webview posts a "ready" message when loaded, and the extension queues state updates until ready. Eliminates race conditions on slow machines
+- **Step counter numbers** — guided connect flow now shows correct "Step X of 4" for all transports (was showing wrong totals for UART and RTT flows)
+- **Status bar connecting state** — shows spinning "LogScope: Connecting..." indicator during connection attempts
+- **Connection progress** — connect flow wrapped in `vscode.window.withProgress` notification
+- **Export button always visible** — export action in sidebar is now shown even when disconnected (data may still be in the ring buffer)
+- **UART transport logging** — routed through logger.ts output channel instead of raw console.log
+
+### Fixed
+- **connectInFlight feedback** — shows "Connection already in progress" message instead of silently ignoring duplicate connect attempts
+- **userDisconnecting race condition** — replaced 100ms setTimeout with synchronous flag reset after disconnect, preventing false "Connection lost" messages after intentional disconnects
+
 ## [0.5.4] — 2026-04-10
 
 ### Added

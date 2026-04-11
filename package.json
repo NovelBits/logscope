@@ -2,7 +2,7 @@
   "name": "novelbits-logscope",
   "displayName": "LogScope — Embedded Log Viewer",
   "description": "Real-time embedded log viewer — Zephyr, nRF5 SDK, and raw mode with Bluetooth LE HCI decoding, filtering, search, fault detection, and Wireshark export",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "publisher": "novelbits",
   "author": {
     "name": "Novel Bits"
