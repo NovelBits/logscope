@@ -158,6 +158,26 @@ describe("classifyError — NO_RTT serialNumber injection", () => {
   });
 });
 
+describe("classifyError — remote connection errors", () => {
+  it("maps 'Could not connect to remote' to REMOTE_CONNECT_FAILED", () => {
+    const result = classifyError("Could not connect to remote J-Link at 192.168.1.100:19020");
+    expect(result.code).toBe("REMOTE_CONNECT_FAILED");
+    expect(result.severity).toBe("error");
+    expect(result.actions.some((a) => a.command === "retry")).toBe(true);
+  });
+
+  it("maps 'Connection refused' to REMOTE_CONNECT_FAILED", () => {
+    const result = classifyError("Connection refused: 192.168.1.100:19020");
+    expect(result.code).toBe("REMOTE_CONNECT_FAILED");
+  });
+
+  it("maps 'Remote connection lost' to REMOTE_DISCONNECTED", () => {
+    const result = classifyError("Remote connection lost");
+    expect(result.code).toBe("REMOTE_DISCONNECTED");
+    expect(result.actions.some((a) => a.command === "reconnect")).toBe(true);
+  });
+});
+
 describe("classifyError — generic fallback", () => {
   it("falls back to GENERIC and passes raw message as detail", () => {
     const result = classifyError("some completely unknown error text");

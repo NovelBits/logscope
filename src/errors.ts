@@ -82,6 +82,28 @@ export function classifyError(
     };
   }
 
+  if (msgLower.includes("could not connect to remote") || msgLower.includes("connection refused")) {
+    return {
+      code: "REMOTE_CONNECT_FAILED",
+      headline: "Remote J-Link connection failed",
+      detail:
+        "Could not connect to J-Link Remote Server. Make sure the server is running and accessible on the network.",
+      actions: [ACTION_RETRY, ACTION_RESCAN],
+      severity: "error",
+    };
+  }
+
+  if (msgLower.includes("remote connection lost")) {
+    return {
+      code: "REMOTE_DISCONNECTED",
+      headline: "Remote connection lost",
+      detail:
+        "The connection to the remote J-Link was lost. The server may have stopped or the network connection was interrupted.",
+      actions: [ACTION_RECONNECT],
+      severity: "warning",
+    };
+  }
+
   if (msgLower.includes("timed out")) {
     return {
       code: "TIMEOUT",
