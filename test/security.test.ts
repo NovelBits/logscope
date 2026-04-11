@@ -73,10 +73,14 @@ describe("Security: serial number validation", () => {
     expect(resetAction?.args).toBeUndefined();
   });
 
-  it("rejects serial with hex characters", () => {
-    const error = classifyError("some error", 2, "0x1234ABCD");
-    const resetAction = error.actions.find((a) => a.command === "resetDevice");
-    expect(resetAction?.args).toBeUndefined();
+  it("allows alphanumeric identifiers (hex, hostnames)", () => {
+    const error1 = classifyError("some error", 2, "0x1234ABCD");
+    const resetAction1 = error1.actions.find((a) => a.command === "resetDevice");
+    expect(resetAction1?.args).toEqual(["0x1234ABCD"]);
+
+    const error2 = classifyError("some error", 2, "192.168.1.100:19020");
+    const resetAction2 = error2.actions.find((a) => a.command === "resetDevice");
+    expect(resetAction2?.args).toEqual(["192.168.1.100:19020"]);
   });
 });
 
