@@ -83,21 +83,25 @@ def _create_jlink():
     return pylink.JLink()
 
 
-def _open_jlink(jlink, serial_no=None):
+def _open_jlink(jlink, serial_no=None, ip_addr=None):
     """Open a J-Link probe and suppress all DLL dialog boxes.
 
     disable_dialog_boxes() uses JLINK_ExecCommand which only works AFTER
     JLINKARM_Open(). Calling it before open() silently fails, leaving dialogs
     enabled. This wrapper ensures the correct order: open first, then suppress.
     """
-    if serial_no:
+    if ip_addr:
+        print(f"Connecting to remote J-Link at {ip_addr}", file=sys.stderr)
+        sys.stderr.flush()
+        jlink.open(ip_addr=ip_addr)
+    elif serial_no:
         jlink.open(serial_no=serial_no)
     else:
         jlink.open()
     jlink.disable_dialog_boxes()
 
 
-def run_pylink(device_or_addr, poll_ms, serial_no=None):
+def run_pylink(device_or_addr, poll_ms, serial_no=None, ip_addr=None):
     """Fast path: native J-Link RTT via pylink. Works with any J-Link device."""
     import pylink
 
@@ -105,16 +109,20 @@ def run_pylink(device_or_addr, poll_ms, serial_no=None):
 
     # Check for connected probes BEFORE opening — otherwise the J-Link SDK
     # pops up a native dialog asking about TCP/IP connection.
-    if not jlink.connected_emulators():
+    # Skip this check for remote connections since connected_emulators() only lists USB probes.
+    if not ip_addr and not jlink.connected_emulators():
         print("ERROR: No J-Link probes found. Connect a device via USB and try again.", file=sys.stderr)
         sys.stderr.flush()
         sys.exit(3)
 
-    # Pass serial number to avoid probe selection dialog when multiple probes are connected
-    if serial_no:
+    # Pass serial number or ip_addr to avoid probe selection dialog / connect remotely
+    if ip_addr:
+        print(f"Connecting to remote J-Link at {ip_addr}", file=sys.stderr)
+        sys.stderr.flush()
+    elif serial_no:
         print(f"Opening J-Link probe SN: {serial_no}", file=sys.stderr)
         sys.stderr.flush()
-    _open_jlink(jlink, serial_no=serial_no)
+    _open_jlink(jlink, serial_no=serial_no, ip_addr=ip_addr)
 
     # If it looks like a hex address, it's the nrfutil fallback format.
     # For pylink, we need a device name. Default to Cortex-M33 if address given.
@@ -247,7 +255,7 @@ def run_pylink(device_or_addr, poll_ms, serial_no=None):
             pass
         time.sleep(0.5)
         try:
-            _open_jlink(jlink, serial_no=serial_no)
+            _open_jlink(jlink, serial_no=serial_no, ip_addr=ip_addr)
             jlink.connect(device)
             if jlink.halted():
                 jlink.restart()
@@ -678,7 +686,7 @@ def run_discover():
             # since jlink.connect() doesn't validate device names and can't
             # distinguish same-core devices (e.g. nRF52840 vs nRF52832).
             try:
-                _open_jlink(jlink, serial_no=serial)
+                _open_jlink(jlink, serial_no=serial, ip_addr=None)
                 for core in ["Cortex-M33", "Cortex-M4", "Cortex-M7", "Cortex-M0+"]:
                     try:
                         jlink.connect(core)
@@ -712,72 +720,88 @@ def main():
 
     poll_ms = int(sys.argv[2]) if len(sys.argv) > 2 else 20
     nrfutil_path = sys.argv[3] if len(sys.argv) > 3 else "nrfutil"
-    serial_no = int(sys.argv[4]) if len(sys.argv) > 4 else None
+    # Parse arg4: serial number (integer) or "remote:host:port"
+    serial_no = None
+    ip_addr = None
+    if len(sys.argv) > 4:
+        arg4 = sys.argv[4]
+        if arg4.startswith("remote:"):
+            ip_addr = arg4[7:]  # "remote:192.168.1.100:19020" -> "192.168.1.100:19020"
+        else:
+            serial_no = int(arg4)
 
     # Auto-detect device if requested
     if device_or_addr == "auto":
-        jlink_name, friendly_name = detect_device(nrfutil_path, serial_no=serial_no)
-        if jlink_name:
-            print(f"DEVICE_DETECTED {friendly_name}", file=sys.stderr)
+        if ip_addr:
+            # Remote connection — skip nrfutil and CPUID detection.
+            # The device name must be provided explicitly via the device argument
+            # or we default to Cortex-M33 for a safe generic connection.
+            print("Remote connection: skipping auto-detect, using Cortex-M33", file=sys.stderr)
             sys.stderr.flush()
-            device_or_addr = jlink_name
+            device_or_addr = "Cortex-M33"
         else:
-            # nrfutil didn't identify the device (not a Nordic chip, or nrfutil
-            # not installed). Use generic core names which are safe for any target.
-            # Do NOT try specific device names (e.g. nRF52832_XXAA) because
-            # jlink.connect() doesn't validate the chip identity and will
-            # happily connect with a wrong device name, causing target resets
-            # and other issues on non-matching hardware.
-            try:
-                import pylink
-                probe = _create_jlink()
-                _open_jlink(probe, serial_no=serial_no)
+            jlink_name, friendly_name = detect_device(nrfutil_path, serial_no=serial_no)
+            if jlink_name:
+                print(f"DEVICE_DETECTED {friendly_name}", file=sys.stderr)
+                sys.stderr.flush()
+                device_or_addr = jlink_name
+            else:
+                # nrfutil didn't identify the device (not a Nordic chip, or nrfutil
+                # not installed). Use generic core names which are safe for any target.
+                # Do NOT try specific device names (e.g. nRF52832_XXAA) because
+                # jlink.connect() doesn't validate the chip identity and will
+                # happily connect with a wrong device name, causing target resets
+                # and other issues on non-matching hardware.
+                try:
+                    import pylink
+                    probe = _create_jlink()
+                    _open_jlink(probe, serial_no=serial_no, ip_addr=ip_addr)
 
-                # Connect with a generic name first just to get debug access,
-                # then read the CPUID register to identify the actual core.
-                probe.set_tif(pylink.enums.JLinkInterfaces.SWD)
-                probe.set_speed(4000)
-                probe.connect("Cortex-M33")  # generic, works for initial debug access
+                    # Connect with a generic name first just to get debug access,
+                    # then read the CPUID register to identify the actual core.
+                    probe.set_tif(pylink.enums.JLinkInterfaces.SWD)
+                    probe.set_speed(4000)
+                    probe.connect("Cortex-M33")  # generic, works for initial debug access
 
-                # CPUID register at 0xE000ED00 identifies the actual core
-                CPUID_ADDR = 0xE000ED00
-                cpuid = probe.memory_read32(CPUID_ADDR, 1)[0]
-                part_no = (cpuid >> 4) & 0xFFF  # bits [15:4] = PartNo
+                    # CPUID register at 0xE000ED00 identifies the actual core
+                    CPUID_ADDR = 0xE000ED00
+                    cpuid = probe.memory_read32(CPUID_ADDR, 1)[0]
+                    part_no = (cpuid >> 4) & 0xFFF  # bits [15:4] = PartNo
 
-                # ARM core identification from CPUID PartNo field
-                CORE_MAP = {
-                    0xC20: "Cortex-M0",
-                    0xC60: "Cortex-M0+",
-                    0xC23: "Cortex-M3",
-                    0xC24: "Cortex-M4",
-                    0xC27: "Cortex-M7",
-                    0xD20: "Cortex-M23",
-                    0xD21: "Cortex-M33",
-                    0xD22: "Cortex-M55",
-                    0xD23: "Cortex-M85",
-                }
-                detected_core = CORE_MAP.get(part_no)
-                if detected_core:
-                    print(f"DEVICE_DETECTED {detected_core}", file=sys.stderr)
-                    print(f"CPUID: 0x{cpuid:08X}, PartNo: 0x{part_no:03X} → {detected_core}", file=sys.stderr)
-                    sys.stderr.flush()
-                    device_or_addr = detected_core
-                else:
-                    print(f"CPUID: 0x{cpuid:08X}, PartNo: 0x{part_no:03X} — unknown core, using Cortex-M33", file=sys.stderr)
+                    # ARM core identification from CPUID PartNo field
+                    CORE_MAP = {
+                        0xC20: "Cortex-M0",
+                        0xC60: "Cortex-M0+",
+                        0xC23: "Cortex-M3",
+                        0xC24: "Cortex-M4",
+                        0xC27: "Cortex-M7",
+                        0xD20: "Cortex-M23",
+                        0xD21: "Cortex-M33",
+                        0xD22: "Cortex-M55",
+                        0xD23: "Cortex-M85",
+                    }
+                    detected_core = CORE_MAP.get(part_no)
+                    if detected_core:
+                        print(f"DEVICE_DETECTED {detected_core}", file=sys.stderr)
+                        print(f"CPUID: 0x{cpuid:08X}, PartNo: 0x{part_no:03X} → {detected_core}", file=sys.stderr)
+                        sys.stderr.flush()
+                        device_or_addr = detected_core
+                    else:
+                        print(f"CPUID: 0x{cpuid:08X}, PartNo: 0x{part_no:03X} — unknown core, using Cortex-M33", file=sys.stderr)
+                        sys.stderr.flush()
+                        device_or_addr = "Cortex-M33"
+                    probe.close()
+                except Exception:
+                    print("Could not auto-detect device, using Cortex-M33", file=sys.stderr)
                     sys.stderr.flush()
                     device_or_addr = "Cortex-M33"
-                probe.close()
-            except Exception:
-                print("Could not auto-detect device, using Cortex-M33", file=sys.stderr)
-                sys.stderr.flush()
-                device_or_addr = "Cortex-M33"
 
     # Try pylink first (native J-Link RTT, works with any J-Link device)
     try:
         import pylink  # noqa: F401
         print("Using pylink (native J-Link RTT)", file=sys.stderr)
         sys.stderr.flush()
-        run_pylink(device_or_addr, poll_ms, serial_no=serial_no)
+        run_pylink(device_or_addr, poll_ms, serial_no=serial_no, ip_addr=ip_addr)
     except ImportError:
         print("pylink not available, falling back to nrfutil CLI", file=sys.stderr)
         sys.stderr.flush()
