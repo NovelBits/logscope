@@ -15,7 +15,7 @@ jest.mock("fs", () => ({
 
 const mockExecFileSync = execFileSync as jest.MockedFunction<typeof execFileSync>;
 
-import { resolveSystemPython } from "../../src/transport/nrfutil-rtt";
+import { resolveSystemPython, NrfutilRttTransport } from "../../src/transport/nrfutil-rtt";
 
 describe("resolveSystemPython", () => {
   beforeEach(() => {
@@ -165,5 +165,34 @@ describe("device discovery JSON parsing", () => {
       result = [];
     }
     expect(result).toEqual([]);
+  });
+});
+
+describe("NrfutilRttTransport remote config", () => {
+  it("stores remoteHost from config", () => {
+    const transport = new NrfutilRttTransport({
+      device: "Cortex-M33",
+      remoteHost: "192.168.1.100",
+      remotePort: 19020,
+    });
+    expect((transport as any).remoteHost).toBe("192.168.1.100");
+    expect((transport as any).remotePort).toBe(19020);
+  });
+
+  it("defaults remoteHost to empty string when not provided", () => {
+    const transport = new NrfutilRttTransport({
+      device: "Cortex-M33",
+    });
+    expect((transport as any).remoteHost).toBe("");
+    expect((transport as any).remotePort).toBeUndefined();
+  });
+
+  it("stores remoteHost without port", () => {
+    const transport = new NrfutilRttTransport({
+      device: "Cortex-M33",
+      remoteHost: "10.0.0.5",
+    });
+    expect((transport as any).remoteHost).toBe("10.0.0.5");
+    expect((transport as any).remotePort).toBeUndefined();
   });
 });

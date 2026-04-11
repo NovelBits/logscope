@@ -227,6 +227,10 @@ export interface RttTransportConfig {
   device: string;
   /** J-Link probe serial number — prevents probe selection dialog when multiple probes are connected */
   serialNumber?: string;
+  /** Remote J-Link Server hostname or IP address — when set, connects via J-Link Remote Server instead of a local probe */
+  remoteHost?: string;
+  /** Remote J-Link Server port (default: 19020) */
+  remotePort?: number;
   /** Poll interval in ms (default 50) */
   pollIntervalMs?: number;
   /** Path to nrfutil binary for fallback (default: "nrfutil") */
@@ -245,6 +249,8 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
 
   private readonly device: string;
   private readonly serialNumber: string;
+  private readonly remoteHost: string;
+  private readonly remotePort: number | undefined;
   private readonly pollIntervalMs: number;
   private readonly nrfutilPath: string;
   private readonly rttSearchRanges: string;
@@ -253,6 +259,8 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
     super();
     this.device = config.device;
     this.serialNumber = config.serialNumber ?? "";
+    this.remoteHost = config.remoteHost ?? "";
+    this.remotePort = config.remotePort;
     this.pollIntervalMs = config.pollIntervalMs ?? 50;
     this.nrfutilPath = config.nrfutilPath ?? "nrfutil";
     this.rttSearchRanges = config.rttSearchRanges ?? "0x20000000 0x80000";
@@ -277,7 +285,12 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
         String(this.pollIntervalMs),
         this.nrfutilPath,
       ];
-      if (this.serialNumber) {
+      if (this.remoteHost) {
+        const hostPort = this.remotePort
+          ? `${this.remoteHost}:${this.remotePort}`
+          : this.remoteHost;
+        args.push(`remote:${hostPort}`);
+      } else if (this.serialNumber) {
         args.push(this.serialNumber);
       }
       log(`Spawning: ${pythonPath} ${args.map(a => a.includes(" ") ? `"${a}"` : a).join(" ")}`);
