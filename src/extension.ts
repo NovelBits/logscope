@@ -233,6 +233,31 @@ function disconnectAll(): void {
   panel?.updateStatus(false, ringBuffer?.size ?? 0, ringBuffer?.evictedCount ?? 0);
 }
 
+function restorePanelFromSession(): void {
+  if (!panel) return;
+
+  // Re-send the current connection header in case this is a recreated webview.
+  if (transport?.connected) {
+    const currentParser = vscode.workspace.getConfiguration("logscope").get<string>("parser", "zephyr");
+    panel.sendConnected(
+      sidebarProvider.connectedTransportLabel,
+      sidebarProvider.connectedAddress,
+      currentParser,
+    );
+  }
+
+  const allEntries = ringBuffer?.getAll() ?? [];
+  if (allEntries.length > 0) {
+    const REPLAY_CHUNK_SIZE = 1000;
+    for (let i = 0; i < allEntries.length; i += REPLAY_CHUNK_SIZE) {
+      panel.addEntries(allEntries.slice(i, i + REPLAY_CHUNK_SIZE));
+    }
+  }
+
+  panel.updateModules(session ? Array.from(session.modules) : []);
+  panel.updateStatus(transport?.connected ?? false, ringBuffer?.size ?? 0, ringBuffer?.evictedCount ?? 0);
+}
+
 function handleErrorAction(action: ErrorAction): void {
   switch (action.command) {
     case "rescan":
@@ -1248,6 +1273,9 @@ export function activate(context: vscode.ExtensionContext) {
   log(`LogScope ${context.extension.packageJSON.version} activated on ${process.platform} (${process.arch})`);
 
   panel = new LogScopePanel(context.extensionUri);
+  panel.setReadyHandler(() => {
+    restorePanelFromSession();
+  });
   statusBar = new StatusBar();
   sidebarProvider.version = context.extension.packageJSON.version;
 

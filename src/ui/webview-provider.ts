@@ -19,11 +19,13 @@ interface SerializedEntry {
 
 /** Callback when the WebView sends a message back */
 export type WebViewMessageHandler = (msg: { type: string; [key: string]: unknown }) => void;
+export type WebViewReadyHandler = () => void;
 
 export class LogScopePanel {
   private panel: vscode.WebviewPanel | null = null;
   private readonly extensionUri: vscode.Uri;
   private onMessage: WebViewMessageHandler | null = null;
+  private onReady: WebViewReadyHandler | null = null;
 
   // Batching: accumulate entries and flush at ~60 fps
   private pendingEntries: SerializedEntry[] = [];
@@ -41,6 +43,11 @@ export class LogScopePanel {
   /** Register a handler for messages coming FROM the WebView */
   setMessageHandler(handler: WebViewMessageHandler): void {
     this.onMessage = handler;
+  }
+
+  /** Register a handler for when the WebView reports it is ready */
+  setReadyHandler(handler: WebViewReadyHandler): void {
+    this.onReady = handler;
   }
 
   /** Show or reveal the panel. Always opens in viewer mode. */
@@ -74,6 +81,7 @@ export class LogScopePanel {
           this.panel?.webview.postMessage(queued);
         }
         this.messageQueue = [];
+        this.onReady?.();
         return;
       }
       if (this.onMessage) {
