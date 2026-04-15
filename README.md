@@ -38,11 +38,17 @@ When your debugging sessions get longer and your log output gets denser, LogScop
 - **ACL/ATT/GATT decoding** — Write Request, Read Response, Notifications, MTU Exchange decoded inline
 - **Wireshark export** — one-click btsnoop export for deep protocol analysis in Wireshark
 
+### Watch Patterns
+- **Real-time pattern matching** — define text or regex patterns that highlight matching log lines with colored markers
+- **Live hit counters** — see how many times each pattern has matched
+- **Presets** — one-click setup for common patterns (errors, retransmissions, heartbeat)
+
 ### Debugging
 - **Crash/fault detection** — auto-detects hard faults, bus faults, Zephyr fatal errors, assertions, stack overflows, and watchdog resets. Highlights fault rows and pauses auto-scroll
 - **Board reset detection** — automatic detection of device reboots with timestamped markers
 - **Module filtering** — toggle log modules on/off. Focus on Bluetooth LE, hide sensor noise, or vice versa
 - **Search** — full-text search across messages, modules, severity levels, and timestamps
+- **Persistent logs** — logs are preserved when moving tabs between VS Code windows
 
 ### Session Management
 - **Multi-format export** — export as plain text (.log), JSON Lines (.jsonl), or Wireshark btsnoop (.btsnoop)
@@ -192,9 +198,9 @@ LogScope connects to your embedded device via J-Link RTT or Serial UART. When yo
 
 ## Requirements
 
-- VS Code 1.110.0 or later
-- For J-Link RTT: `nrfutil` with device command installed
-- For Serial UART: no additional tools needed
+- VS Code 1.107.0 or later (also works with Windsurf, Cursor, and Kiro)
+- For J-Link RTT: Python 3 (LogScope installs dependencies automatically on first connect). `nrfutil` is optional (used for Nordic device auto-detection).
+- For Serial UART: Python 3 (installed automatically)
 
 ## FAQ
 

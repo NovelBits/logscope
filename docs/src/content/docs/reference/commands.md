@@ -11,6 +11,8 @@ All commands are accessible via the command palette (`Cmd+Shift+P` on macOS, `Ct
 |---------|-------------|
 | `LogScope: Connect Device` | Start the [guided connection flow](/logscope/getting-started/connecting/) (transport, parser, device) |
 | `LogScope: Reconnect` | Reconnect to the last-used device |
+| `LogScope: Rescan Devices` | Rescan for J-Link probes or serial ports without restarting the full connect wizard |
+| `LogScope: Forget Device` | Clear the saved device and return to the welcome view |
 | `LogScope: Disconnect` | Disconnect the current session |
 | `LogScope: Change Connection Settings` | Modify transport, device, baud rate, or parser |
 
