@@ -133,6 +133,12 @@ export class LogScopePanel {
     this.flushTimer = null;
     if (this.pendingEntries.length === 0 || !this.panel) return;
 
+    if (!this.webviewReady) {
+      // Webview not ready yet; reschedule so entries aren't lost
+      this.flushTimer = setTimeout(() => this.flushEntries(), LogScopePanel.FLUSH_INTERVAL_MS);
+      return;
+    }
+
     this.panel.webview.postMessage({
       type: "entries",
       entries: this.pendingEntries,

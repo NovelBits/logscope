@@ -236,6 +236,10 @@ function disconnectAll(): void {
 function restorePanelFromSession(): void {
   if (!panel) return;
 
+  // Clear any entries that leaked through during the webview transition.
+  // The ring buffer is the source of truth and will be replayed below.
+  panel.clear();
+
   // Re-send the current connection header in case this is a recreated webview.
   if (transport?.connected) {
     const currentParser = vscode.workspace.getConfiguration("logscope").get<string>("parser", "zephyr");
