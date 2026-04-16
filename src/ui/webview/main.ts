@@ -812,6 +812,7 @@ function handleResetMessage(): void {
   label.textContent = "\u26A0 Device Reset Detected";
   sep.appendChild(ts);
   sep.appendChild(label);
+  emptyState.classList.add("hidden");
   endOfLog.before(sep);
   if (autoScroll) {
     programmaticScroll = true;
