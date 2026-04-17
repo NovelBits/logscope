@@ -463,6 +463,28 @@ async function doConnect(): Promise<void> {
     return;
   }
 
+  // Pre-flight check for RTT: verify the saved probe is actually connected.
+  // This gives a clear error instead of a confusing pylink traceback when the
+  // user reconnects after swapping boards or unplugging the previous probe.
+  // Skip for remote connections and for UART.
+  const savedRemoteHost = vscode.workspace.getConfiguration("logscope").get<string>("jlink.remoteHost", "");
+  const isRemote = !!(savedRemoteHost && device === savedRemoteHost);
+  if (transportType === "rtt" && !isRemote && /^\d+$/.test(device)) {
+    try {
+      const probes = await discoverDevices();
+      const serials = probes.map(p => String(p.serial));
+      if (!serials.includes(device)) {
+        const error = classifyError(`Probe SN ${device} no longer connected`, undefined, device);
+        panel?.show(getConfig().logWrap, getConfig().timeFormat);
+        panel?.sendConnectError(error);
+        sidebarProvider.updateState({ connected: false, connecting: false });
+        return;
+      }
+    } catch {
+      // Discovery failed; let the normal connect flow handle it
+    }
+  }
+
   connectInFlight = true;
   try {
     const parserMode = vscode.workspace.getConfiguration("logscope").get<string>("parser", "zephyr");
