@@ -294,23 +294,10 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
       let stderrBuf = "";
       let resolved = false;
 
-      proc.on("exit", (code, signal) => {
-        log(`Helper process exited: code=${code}, signal=${signal ?? "none"}`);
-        if (!resolved) {
-          resolved = true;
-          const msg = stderrBuf.trim() || `Helper exited with code ${code}`;
-          logError("Helper exited before RTT ready", msg);
-          reject(new TransportError(msg, code ?? undefined));
-        }
-      });
-
-      proc.on("error", (err) => {
-        logError("Helper process error", err);
-        if (!resolved) {
-          resolved = true;
-          reject(new TransportError(err.message));
-        }
-      });
+      // NOTE: single exit/error handler each — previously there were two
+      // listeners that both ran on helper exit, causing inconsistent cleanup.
+      // The single handler below covers both connect-time (pre-resolve) and
+      // post-connect disconnect paths.
 
       proc.stderr!.on("data", (chunk: Buffer) => {
         const text = chunk.toString("utf-8");
@@ -385,17 +372,17 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
         }
       });
 
-      proc.on("exit", (code) => {
+      proc.on("exit", (code, signal) => {
+        log(`Helper process exited: code=${code}, signal=${signal ?? "none"}`);
         const wasConnected = this._connected;
         this._connected = false;
         this.helper = null;
 
         if (!resolved) {
           resolved = true;
-          reject(new TransportError(
-            this.lastErrorLine || `RTT helper exited with code ${code}`,
-            code ?? undefined,
-          ));
+          const msg = this.lastErrorLine || stderrBuf.trim() || `Helper exited with code ${code}`;
+          logError("Helper exited before RTT ready", msg);
+          reject(new TransportError(msg, code ?? undefined));
         } else if (wasConnected) {
           let reason: string | undefined;
           if (code === 4) {
@@ -410,13 +397,14 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
       });
 
       proc.on("error", (err) => {
+        logError("Helper process error", err);
         this._connected = false;
         this.helper = null;
-        if (resolved) {
-          this.emit("error", err);
-        } else {
+        if (!resolved) {
           resolved = true;
-          reject(err);
+          reject(new TransportError(err.message));
+        } else {
+          this.emit("error", err);
         }
       });
 

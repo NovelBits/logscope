@@ -32,16 +32,25 @@ interface CompiledPattern {
 export class WatchMatcher {
   private patterns: CompiledPattern[] = [];
   private counters = new Map<string, number>();
+  /** Patterns that failed to compile (invalid regex). Exposed so the extension can warn the user. */
+  invalidPatterns: { name: string; pattern: string; error: string }[] = [];
 
   loadPatterns(configs: WatchPatternConfig[]): void {
-    this.patterns = configs.map((cfg, i) => {
+    this.patterns = [];
+    this.invalidPatterns = [];
+    configs.forEach((cfg, i) => {
       const source = cfg.regex ? cfg.pattern : escapeRegex(cfg.pattern);
-      return {
-        name: cfg.name,
-        regex: new RegExp(source, "i"),
-        module: cfg.module ? cfg.module.toLowerCase() : null,
-        color: cfg.color || COLOR_PALETTE[i % COLOR_PALETTE.length],
-      };
+      try {
+        this.patterns.push({
+          name: cfg.name,
+          regex: new RegExp(source, "i"),
+          module: cfg.module ? cfg.module.toLowerCase() : null,
+          color: cfg.color || COLOR_PALETTE[i % COLOR_PALETTE.length],
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.invalidPatterns.push({ name: cfg.name, pattern: cfg.pattern, error: message });
+      }
     });
     this.counters = new Map(this.patterns.map(p => [p.name, 0]));
   }

@@ -93,6 +93,10 @@ export class LogScopePanel {
       this.panel = null;
       this.webviewReady = false;
       this.messageQueue = [];
+      // Drop any pending entries — the ring buffer is the source of truth and
+      // will be replayed via restorePanelFromSession if the panel is reopened.
+      // Without this, pendingEntries grows unbounded while transport streams.
+      this.pendingEntries = [];
       if (this.flushTimer) {
         clearTimeout(this.flushTimer);
         this.flushTimer = null;
@@ -105,6 +109,9 @@ export class LogScopePanel {
 
   /** Queue entries for batched delivery to the WebView */
   addEntries(entries: LogEntry[]): void {
+    // Skip if the panel is closed — the ring buffer retains the data and
+    // restorePanelFromSession replays it when the panel is reopened.
+    if (!this.panel) return;
     for (const e of entries) {
       const serialized: SerializedEntry = {
         timestamp: e.timestamp,

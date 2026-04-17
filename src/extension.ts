@@ -91,6 +91,18 @@ function loadWatchPatterns(): void {
   }
 
   watchMatcher.loadPatterns(effective);
+
+  // Surface invalid regex patterns (prevents extension activation crashes and
+  // gives the user a clear message instead of silently failing).
+  if (watchMatcher.invalidPatterns.length > 0) {
+    for (const bad of watchMatcher.invalidPatterns) {
+      logError(`Watch pattern "${bad.name}" has invalid regex: ${bad.error}`);
+    }
+    const names = watchMatcher.invalidPatterns.map(p => p.name).join(", ");
+    vscode.window.showWarningMessage(
+      `LogScope: Invalid regex in watch pattern(s): ${names}. These patterns were skipped. Check the LogScope output channel for details.`,
+    );
+  }
 }
 
 let bootDetected = false;
