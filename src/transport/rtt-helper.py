@@ -785,4 +785,14 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+        # Use os._exit to skip Python's __cxa_finalize cleanup, which can trigger
+        # a libjlinkarm destructor crash (segfault in ffi_closure_SYSV_inner during
+        # JLINKARM_Close). jlink.close() is already called explicitly in the main
+        # code paths; os._exit() just avoids the buggy C destructor chain.
+        os._exit(0)
+    except SystemExit as e:
+        # sys.exit() throws SystemExit; preserve the exit code but skip cleanup
+        code = e.code if isinstance(e.code, int) else (0 if e.code is None else 1)
+        os._exit(code)
