@@ -76,7 +76,8 @@ Nordic devices are auto-detected. Other vendors can be selected from the device 
 ### Prerequisites
 
 For **J-Link RTT**:
-- **nrfutil** with the **device** command — install from [Nordic's tools page](https://www.nordicsemi.com/Products/Development-tools/nRF-Util)
+- **SEGGER J-Link Software and Documentation Pack** — install from [segger.com/downloads/jlink](https://www.segger.com/downloads/jlink). Required so LogScope can discover and talk to your debug probe via `libjlinkarm`. On macOS the installer places it under `/Applications/SEGGER/JLink_V*/`; on Windows under `C:\Program Files\SEGGER\JLink_V*\`.
+- **nrfutil** with the **device** command (optional, used for Nordic device auto-detection) — install from [Nordic's tools page](https://www.nordicsemi.com/Products/Development-tools/nRF-Util)
 
 For **Serial UART**: no additional tools needed.
 

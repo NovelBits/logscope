@@ -30,6 +30,7 @@ const ACTION_RESCAN: ErrorAction = { label: "Rescan", command: "rescan" };
 const ACTION_RETRY: ErrorAction = { label: "Retry", command: "retry" };
 const ACTION_RECONNECT: ErrorAction = { label: "Reconnect", command: "reconnect" };
 const ACTION_DOWNLOAD_PYTHON: ErrorAction = { label: "Download Python", command: "downloadPython" };
+const ACTION_DOWNLOAD_SEGGER: ErrorAction = { label: "Download SEGGER J-Link", command: "downloadSegger" };
 
 function makeResetDeviceAction(serialNumber?: string): ErrorAction {
   // Only pass identifiers that are safe for shell args: digits (serial numbers)
@@ -69,6 +70,17 @@ export function classifyError(
       detail:
         "LogScope needs Python 3 for device communication.",
       actions: [ACTION_DOWNLOAD_PYTHON],
+      severity: "error",
+    };
+  }
+
+  if (msg.includes("SEGGER J-Link Software not found") || exitCode === 5) {
+    return {
+      code: "NO_SEGGER",
+      headline: "SEGGER J-Link Software not found",
+      detail:
+        "LogScope uses SEGGER J-Link Software (libjlinkarm) to discover and talk to your debug probe. Install the J-Link Software and Documentation Pack from segger.com, then restart VS Code.",
+      actions: [ACTION_DOWNLOAD_SEGGER],
       severity: "error",
     };
   }

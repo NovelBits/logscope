@@ -11,10 +11,10 @@ LogScope requires Python 3 for device discovery and UART communication. See [ins
 
 **Fix:** Install Python 3 from [python.org](https://www.python.org/downloads/) and reload VS Code.
 
-### "No J-Link devices found"
+### "No J-Link devices found" or "SEGGER J-Link Software not found"
 
+- Install the [SEGGER J-Link Software and Documentation Pack](https://www.segger.com/downloads/jlink) — LogScope uses `libjlinkarm` (macOS) / `JLink_x64.dll` (Windows) to enumerate probes. The default install path is `/Applications/SEGGER/JLink_V*/` on macOS and `C:\Program Files\SEGGER\JLink_V*\` on Windows. Other tools like nRF Connect for VS Code bundle their own libraries, so they may see a probe LogScope can't.
 - Verify your board is connected via USB
-- Check that the J-Link driver is installed (comes with [J-Link Software Pack](https://www.segger.com/downloads/jlink/))
 - On macOS: check System Preferences > Security for any blocked kernel extensions
 - Try `nrfutil device list` in a terminal to verify the device is visible
 

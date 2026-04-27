@@ -30,9 +30,12 @@ The first time you open LogScope, you'll see a welcome view with:
 
 ## Requirements
 
-- **J-Link RTT transport:** Requires Python 3. LogScope automatically installs the required `pylink-square` package on first connect. `nrfutil` is optional and only used for nRF device serial number lookup and reset commands.
+- **J-Link RTT transport:**
+  - **SEGGER J-Link Software and Documentation Pack** — required so LogScope can discover and talk to your debug probe via `libjlinkarm`. Install from [segger.com/downloads/jlink](https://www.segger.com/downloads/jlink). The macOS installer places it under `/Applications/SEGGER/JLink_V*/`; the Windows installer under `C:\Program Files\SEGGER\JLink_V*\`.
+  - **Python 3** — LogScope automatically installs the required `pylink-square` package on first connect.
+  - **nrfutil** (optional) — only used for Nordic device auto-detection and reset commands.
 - **Serial UART transport:** Requires Python 3. LogScope uses a Python helper for serial port communication.
-- **Both transports:** No additional drivers needed beyond what your debug probe requires.
+- **Drivers:** No additional drivers needed beyond what your debug probe requires.
 
 :::tip
 For Nordic DK boards, installing `nrfutil` (included with the [nRF Command Line Tools](https://www.nordicsemi.com/Products/Development-tools/nrf-command-line-tools/download)) enables automatic device discovery and reset functionality.

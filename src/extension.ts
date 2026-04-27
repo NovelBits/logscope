@@ -289,6 +289,9 @@ function handleErrorAction(action: ErrorAction): void {
     case "downloadPython":
       vscode.env.openExternal(vscode.Uri.parse("https://www.python.org/downloads/"));
       break;
+    case "downloadSegger":
+      vscode.env.openExternal(vscode.Uri.parse("https://www.segger.com/downloads/jlink"));
+      break;
   }
 }
 
@@ -483,7 +486,7 @@ async function doConnect(): Promise<void> {
   const isRemote = !!(savedRemoteHost && device === savedRemoteHost);
   if (transportType === "rtt" && !isRemote && /^\d+$/.test(device)) {
     try {
-      const probes = await discoverDevices();
+      const { devices: probes } = await discoverDevices();
       const serials = probes.map(p => String(p.serial));
       if (!serials.includes(device)) {
         const error = classifyError(`Probe SN ${device} no longer connected`, undefined, device);
@@ -634,10 +637,14 @@ async function rescanAndConnect(): Promise<void> {
     sidebarProvider.updateState({ selectedDevice: picked.path, selectedDeviceLabel: picked.label });
     await doConnect();
   } else {
-    const devices = await discoverDevices();
+    const { devices, error: discoverErr } = await discoverDevices();
     lastDiscoveredDevices = devices;
     if (devices.length === 0) {
-      const error = classifyError("", 3); // exit code 3 = NO_PROBE
+      // If the helper reported a specific reason (e.g. SEGGER tools missing), surface it.
+      // Otherwise fall back to the generic NO_PROBE message.
+      const error = discoverErr
+        ? classifyError(discoverErr)
+        : classifyError("", 3); // exit code 3 = NO_PROBE
       panel?.sendConnectError(error);
       return;
     }
@@ -935,10 +942,13 @@ async function pickJlinkDevice(showBack = false, step?: number, totalSteps?: num
   const scanDevices = async () => {
     qp.busy = true;
     qp.items = [{ label: "Scanning..." }];
-    const devices = await discoverDevices();
+    const { devices, error: discoverErr } = await discoverDevices();
     lastDiscoveredDevices = devices;
     if (devices.length === 0) {
-      qp.items = [{ label: "No J-Link devices found" }, { label: "$(refresh) Rescan", _rescan: true }];
+      const emptyItem: vscode.QuickPickItem = discoverErr
+        ? { label: "$(warning) No J-Link devices found", detail: discoverErr }
+        : { label: "No J-Link devices found" };
+      qp.items = [emptyItem, { label: "$(refresh) Rescan", _rescan: true }];
       qp.busy = false;
       return;
     }

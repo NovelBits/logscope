@@ -184,11 +184,19 @@ export interface DiscoveredDevice {
   jlinkProduct?: string;
 }
 
+/** Result of device discovery — includes diagnostic error when discovery fails */
+export interface DiscoveryResult {
+  devices: DiscoveredDevice[];
+  /** Set when discovery failed or the helper reported a problem (e.g. SEGGER tools missing) */
+  error?: string;
+}
+
 /**
  * Discover connected J-Link probes via pylink.
- * Returns a list of connected devices with serial numbers.
+ * Returns connected probes plus, when discovery fails, a user-actionable error string.
+ * Helper stderr is also forwarded to the LogScope output channel for diagnostics.
  */
-export async function discoverDevices(): Promise<DiscoveredDevice[]> {
+export async function discoverDevices(): Promise<DiscoveryResult> {
   const helperPath = path.join(__dirname, "rtt-helper.py");
   const pythonPath = await ensurePythonEnv(["pylink-square"]);
 
@@ -199,16 +207,27 @@ export async function discoverDevices(): Promise<DiscoveredDevice[]> {
     });
 
     let stdout = "";
+    let stderrBuf = "";
     proc.stdout!.on("data", (chunk: Buffer) => { stdout += chunk.toString(); });
+    proc.stderr!.on("data", (chunk: Buffer) => {
+      const text = chunk.toString("utf-8");
+      stderrBuf += text;
+      for (const line of text.split("\n")) {
+        const trimmed = line.trim();
+        if (trimmed) logFromHelper("rtt-helper", trimmed);
+      }
+    });
     proc.on("exit", () => {
       try {
         const result = JSON.parse(stdout);
-        resolve(result.devices ?? []);
+        resolve({ devices: result.devices ?? [], error: result.error });
       } catch {
-        resolve([]);
+        // Helper crashed before producing JSON — surface the last stderr line as the error.
+        const lastStderrLine = stderrBuf.trim().split("\n").filter(l => l.trim()).pop();
+        resolve({ devices: [], error: lastStderrLine || "Device discovery failed" });
       }
     });
-    proc.on("error", () => resolve([]));
+    proc.on("error", (err) => resolve({ devices: [], error: err.message }));
   });
 }
 
@@ -339,6 +358,7 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
           // Infer exit code from error message so callers can distinguish error types
           const inferredExitCode = errLine.includes("No RTT control block") ? 2
             : errLine.includes("No J-Link probes") ? 3
+            : errLine.includes("SEGGER J-Link Software not found") ? 5
             : undefined;
           logError("RTT helper reported error", errLine);
           reject(new TransportError(errLine, inferredExitCode));

@@ -101,6 +101,18 @@ def run_pylink(device_or_addr, poll_ms, serial_no=None):
     """Fast path: native J-Link RTT via pylink. Works with any J-Link device."""
     import pylink
 
+    # Pre-check: SEGGER J-Link Software must be installed for libjlinkarm to load.
+    if sys.platform in ("darwin", "win32") and _find_newest_jlink_dll() is None:
+        install_path = "/Applications/SEGGER/" if sys.platform == "darwin" else r"C:\Program Files\SEGGER\\"
+        print(
+            f"ERROR: SEGGER J-Link Software not found at {install_path}. "
+            f"Install the J-Link Software and Documentation Pack from "
+            f"https://www.segger.com/downloads/jlink and restart VS Code.",
+            file=sys.stderr,
+        )
+        sys.stderr.flush()
+        sys.exit(5)
+
     jlink = _create_jlink()
 
     # Check for connected probes BEFORE opening — otherwise the J-Link SDK
@@ -647,6 +659,23 @@ def run_discover():
     except ImportError:
         print(json.dumps({"error": "pylink not installed", "devices": []}))
         return
+
+    # Pre-check: on macOS/Windows, libjlinkarm/JLink_x64.dll is required to
+    # enumerate probes. If SEGGER J-Link Software isn't installed in the
+    # standard location, surface an actionable error instead of letting pylink
+    # fail with a confusing low-level traceback.
+    if sys.platform in ("darwin", "win32"):
+        if _find_newest_jlink_dll() is None:
+            install_path = "/Applications/SEGGER/" if sys.platform == "darwin" else r"C:\Program Files\SEGGER\\"
+            msg = (
+                f"SEGGER J-Link Software not found at {install_path}. "
+                f"Install the J-Link Software and Documentation Pack from "
+                f"https://www.segger.com/downloads/jlink and restart VS Code."
+            )
+            print(f"ERROR: {msg}", file=sys.stderr)
+            sys.stderr.flush()
+            print(json.dumps({"error": msg, "devices": []}))
+            return
 
     nrfutil_path = sys.argv[2] if len(sys.argv) > 2 else "nrfutil"
 
