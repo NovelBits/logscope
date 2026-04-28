@@ -192,7 +192,10 @@ export function classifyError(
       code: "NO_PROBE",
       headline: "No J-Link probe found",
       detail:
-        "Connect your board via USB and make sure the debug probe is powered on.",
+        "Common causes:\n" +
+        "• No probe connected — check the USB cable\n" +
+        "• Another tool is holding the probe — close any RTT or VCOM session in nRF Connect for VS Code, JLink Commander, or SEGGER RTT Viewer, then rescan\n" +
+        "• Driver needs a refresh — unplug the probe, wait 2 seconds, replug",
       actions: [ACTION_RESCAN],
       severity: "error",
     };

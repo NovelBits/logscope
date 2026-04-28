@@ -126,6 +126,25 @@ describe("classifyError — exit code fallback", () => {
     expect(result.actions.some((a) => a.command === "rescan")).toBe(true);
   });
 
+  it("NO_PROBE detail lists common causes including contention", () => {
+    const result = classifyError("", 3);
+    expect(result.detail).toContain("Common causes");
+    expect(result.detail).toContain("nRF Connect");
+    expect(result.detail).toContain("USB");
+  });
+
+  it("maps exit code 5 to NO_SEGGER with download action", () => {
+    const result = classifyError("", 5);
+    expect(result.code).toBe("NO_SEGGER");
+    expect(result.severity).toBe("error");
+    expect(result.actions.some((a) => a.command === "downloadSegger")).toBe(true);
+  });
+
+  it("matches 'SEGGER J-Link Software not found' message text to NO_SEGGER", () => {
+    const result = classifyError("ERROR: SEGGER J-Link Software not found at /Applications/SEGGER/");
+    expect(result.code).toBe("NO_SEGGER");
+  });
+
   it("maps exit code 2 to NO_RTT", () => {
     const result = classifyError("some generic error", 2);
     expect(result.code).toBe("NO_RTT");

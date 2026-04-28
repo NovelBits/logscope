@@ -945,9 +945,16 @@ async function pickJlinkDevice(showBack = false, step?: number, totalSteps?: num
     const { devices, error: discoverErr } = await discoverDevices();
     lastDiscoveredDevices = devices;
     if (devices.length === 0) {
+      // Multi-line detail isn't well-supported in QuickPick; pick the most likely
+      // user-actionable hint. If discovery returned a specific error (e.g. SEGGER
+      // tools missing), show that. Otherwise the silent-empty case is most often
+      // caused by another tool holding the probe.
       const emptyItem: vscode.QuickPickItem = discoverErr
         ? { label: "$(warning) No J-Link devices found", detail: discoverErr }
-        : { label: "No J-Link devices found" };
+        : {
+          label: "$(warning) No J-Link devices found",
+          detail: "Probe held by another tool? Close any RTT/VCOM session in nRF Connect, JLink Commander, or RTT Viewer and rescan.",
+        };
       qp.items = [emptyItem, { label: "$(refresh) Rescan", _rescan: true }];
       qp.busy = false;
       return;
