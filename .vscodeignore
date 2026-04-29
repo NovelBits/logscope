@@ -4,10 +4,7 @@ test/**
 node_modules/**
 .venv/**
 build/**
-build-hci/**
-build-uart/**
-build-generic/**
-build-generic-54l/**
+build-*/**
 samples/**
 docs/**
 scripts/**

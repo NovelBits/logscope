@@ -192,6 +192,43 @@ export interface DiscoveryResult {
 }
 
 /**
+ * Parse the helper's exit + stdout + stderr into a DiscoveryResult.
+ * Exported for unit testing — kept pure (no I/O) so tests can drive every branch.
+ *
+ * Branches, in order of priority:
+ * 1. stdout parses as JSON → trust the helper's structured output
+ * 2. exit 0 + empty stdout → helper produced no output (this is a bug; we hit
+ *    it once when os._exit() in v0.5.7 dropped buffered stdout). Surface a
+ *    "report this" message instead of silently treating as "no devices found".
+ * 3. stderr has an ERROR: or Traceback line → use that as the error
+ * 4. fallback → use the last non-empty stderr line, or a generic message
+ */
+export function parseDiscoverResult(
+  stdout: string,
+  stderrBuf: string,
+  exitCode: number | null,
+): DiscoveryResult {
+  try {
+    const result = JSON.parse(stdout);
+    return { devices: result.devices ?? [], error: result.error };
+  } catch {
+    if (stdout.trim() === "" && exitCode === 0) {
+      return {
+        devices: [],
+        error:
+          "Discovery helper produced no output. This is likely a LogScope bug — please report at https://github.com/NovelBits/logscope/issues",
+      };
+    }
+    const stderrLines = stderrBuf.trim().split("\n").map(l => l.trim()).filter(Boolean);
+    const errorLine = stderrLines.find(l => l.includes("ERROR:") || l.includes("Traceback"));
+    if (errorLine) {
+      return { devices: [], error: errorLine };
+    }
+    return { devices: [], error: stderrLines.pop() || "Device discovery failed" };
+  }
+}
+
+/**
  * Discover connected J-Link probes via pylink.
  * Returns connected probes plus, when discovery fails, a user-actionable error string.
  * Helper stderr is also forwarded to the LogScope output channel for diagnostics.
@@ -217,16 +254,7 @@ export async function discoverDevices(): Promise<DiscoveryResult> {
         if (trimmed) logFromHelper("rtt-helper", trimmed);
       }
     });
-    proc.on("exit", () => {
-      try {
-        const result = JSON.parse(stdout);
-        resolve({ devices: result.devices ?? [], error: result.error });
-      } catch {
-        // Helper crashed before producing JSON — surface the last stderr line as the error.
-        const lastStderrLine = stderrBuf.trim().split("\n").filter(l => l.trim()).pop();
-        resolve({ devices: [], error: lastStderrLine || "Device discovery failed" });
-      }
-    });
+    proc.on("exit", (code) => resolve(parseDiscoverResult(stdout, stderrBuf, code)));
     proc.on("error", (err) => resolve({ devices: [], error: err.message }));
   });
 }

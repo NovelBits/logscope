@@ -2,6 +2,18 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.5.11] — 2026-04-29
+
+Hardening release. Adds defenses against the regression class that produced [#11](https://github.com/NovelBits/logscope/issues/11) so it can't sneak through CI again.
+
+### Added
+- **Helper smoke test** — Jest spawns `python3 rtt-helper.py discover` on every PR and asserts the helper produces valid JSON with a `devices` key. Catches the exit-without-flush regression class regardless of whether pylink or SEGGER tools are installed in CI.
+- **Empty-stdout detection in `discoverDevices`** — when the helper exits with code 0 but produces no output, the user now sees a clear "helper produced no output — likely a LogScope bug, please report at the issue tracker" message instead of degrading to silent "no devices found." Previous behavior misattributed the issue to "no probe connected."
+
+### Changed
+- **`parseDiscoverResult` extracted as a pure function** — pulled JSON parsing out of the spawn callback so it's unit-testable. 10 new tests cover every branch (valid JSON, helper-reported error, empty-stdout-bug detection, stderr fallback, exit-code-aware behavior).
+- **`.vscodeignore` uses `build-*/**` wildcard** — prevents stray Zephyr build directories from breaking `vsce package`.
+
 ## [0.5.10] — 2026-04-29
 
 Critical bugfix release. Resolves [#11](https://github.com/NovelBits/logscope/issues/11).
