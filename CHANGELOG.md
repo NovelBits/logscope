@@ -2,6 +2,14 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.5.13] — 2026-04-29
+
+UX patch — copy-from-log-rows now produces usable output.
+
+### Fixed
+- **Copying multiple log rows** previously emitted each cell on its own line because the row uses `display: flex` with span children, and browsers serialize flex children as block-level on copy. Selections spanning two or more rows are now reformatted on the fly: each row becomes one tab-separated line (date + clock + timestamp + level + module + message), and rows are joined with newlines. Spreadsheet- and markdown-table-friendly. Single-cell selections still use the browser default so partial-message copies aren't disturbed.
+- **Device-reset banners** are now included in copied output as `--- ⚠ Device Reset Detected · <timestamp> ---` separator lines, preserving the boot-boundary context users rely on when sharing logs that span a reset.
+
 ## [0.5.12] — 2026-04-29
 
 UART configurability + connect-flow UX. Resolves [#9](https://github.com/NovelBits/logscope/issues/9).

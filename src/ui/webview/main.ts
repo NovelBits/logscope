@@ -344,6 +344,85 @@ timeline.addEventListener("keydown", (e: Event) => {
   }
 });
 
+// ── Copy reformatting ───────────────────────────────────────────
+// Each .log-row uses display:flex with span children (.time, .ts, .sev, .mod,
+// .msg). When a user selects across rows, the browser's default serializer
+// emits each span on its own line because flex children behave like blocks
+// for selection purposes — copy-pasting then looks like a vertical list of
+// every cell, not one line per row. We intercept the copy event, find the
+// log rows in the selection, and rebuild the clipboard payload as one
+// tab-separated line per row. Single-span selections (e.g. copying part of
+// a single message) fall through to default browser behavior.
+function getRowText(row: HTMLElement): string {
+  // Reset separators carry contextual meaning ("the entries that follow are
+  // from a different boot"). Include them as a delineated line so a pasted
+  // log keeps the boot boundary visible.
+  if (row.classList.contains("reset-separator")) {
+    const ts = row.querySelector(".reset-ts")?.textContent?.trim() ?? "";
+    const label = row.querySelector(".reset-label")?.textContent?.trim() ?? "Device Reset Detected";
+    return `--- ${label}${ts ? " · " + ts : ""} ---`;
+  }
+
+  const cells: string[] = [];
+  for (const cls of [".time", ".ts", ".sev", ".mod", ".msg"]) {
+    const el = row.querySelector(cls);
+    let text: string | undefined;
+    if (cls === ".time") {
+      // .time has two children (.time-date + .time-clock) that are visually
+      // separated via CSS margin, but textContent concatenates them with no
+      // separator. Join with a space so the clipboard payload is readable.
+      const date = el?.querySelector(".time-date")?.textContent?.trim();
+      const clock = el?.querySelector(".time-clock")?.textContent?.trim();
+      text = [date, clock].filter(Boolean).join(" ");
+    } else {
+      text = el?.textContent?.trim();
+    }
+    if (text) cells.push(text);
+  }
+  return cells.join("\t");
+}
+
+const COPYABLE_SELECTOR = ".log-row, .reset-separator";
+
+document.addEventListener("copy", (e: ClipboardEvent) => {
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
+
+  // Collect every .log-row or .reset-separator that intersects the selection.
+  // We walk the common ancestor for fully-contained rows, then check each
+  // endpoint's ancestor chain to catch single-row selections where the
+  // TreeWalker root is the row itself.
+  const range = selection.getRangeAt(0);
+  const rows = new Set<HTMLElement>();
+  const walker = document.createTreeWalker(range.commonAncestorContainer, NodeFilter.SHOW_ELEMENT, {
+    acceptNode: (node) => {
+      const el = node as HTMLElement;
+      const isCopyable = el.classList?.contains("log-row") || el.classList?.contains("reset-separator");
+      if (!isCopyable) return NodeFilter.FILTER_SKIP;
+      return range.intersectsNode(el) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+    },
+  });
+  let cur: Node | null = walker.nextNode();
+  while (cur) { rows.add(cur as HTMLElement); cur = walker.nextNode(); }
+
+  for (const node of [range.startContainer, range.endContainer]) {
+    const el = (node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement) as HTMLElement | null;
+    const rowEl = el?.closest(COPYABLE_SELECTOR) as HTMLElement | null;
+    if (rowEl) rows.add(rowEl);
+  }
+
+  // Single-element selections: let the browser do its thing — the user is
+  // probably grabbing a substring, not a full row. Multi-row: reformat.
+  if (rows.size <= 1) return;
+
+  const sorted = Array.from(rows).sort((a, b) =>
+    a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
+  );
+  const text = sorted.map(getRowText).join("\n");
+  e.preventDefault();
+  e.clipboardData?.setData("text/plain", text);
+});
+
 // ── Visibility check ────────────────────────────────────────────
 function shouldShow(entry: SerializedEntry): boolean {
   // MON entries (BT Monitor mirrored logs): separate toggle
