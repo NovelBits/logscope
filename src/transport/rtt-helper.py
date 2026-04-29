@@ -813,15 +813,32 @@ def main():
         run_nrfutil(device_or_addr, poll_ms, nrfutil_path)
 
 
+def _exit_skip_cleanup(code):
+    """Exit via os._exit() to skip Python's __cxa_finalize cleanup, which can
+    trigger a libjlinkarm destructor crash (segfault in ffi_closure_SYSV_inner
+    during JLINKARM_Close). os._exit() does NOT flush stdio buffers, so we must
+    flush stdout and stderr explicitly first — otherwise any pending output
+    (e.g. the discover-mode JSON payload) is lost when the process terminates.
+
+    Regression note: shipped without flush in v0.5.7; user-visible symptom was
+    "discover" returning silently with no JSON, manifesting as "No J-Link
+    devices found" even with a probe attached. Fixed in v0.5.10 (#11)."""
+    try:
+        sys.stdout.flush()
+    except Exception:
+        pass
+    try:
+        sys.stderr.flush()
+    except Exception:
+        pass
+    os._exit(code)
+
+
 if __name__ == "__main__":
     try:
         main()
-        # Use os._exit to skip Python's __cxa_finalize cleanup, which can trigger
-        # a libjlinkarm destructor crash (segfault in ffi_closure_SYSV_inner during
-        # JLINKARM_Close). jlink.close() is already called explicitly in the main
-        # code paths; os._exit() just avoids the buggy C destructor chain.
-        os._exit(0)
+        _exit_skip_cleanup(0)
     except SystemExit as e:
         # sys.exit() throws SystemExit; preserve the exit code but skip cleanup
         code = e.code if isinstance(e.code, int) else (0 if e.code is None else 1)
-        os._exit(code)
+        _exit_skip_cleanup(code)

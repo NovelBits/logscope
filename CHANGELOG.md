@@ -2,6 +2,15 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.5.10] — 2026-04-29
+
+Critical bugfix release. Resolves [#11](https://github.com/NovelBits/logscope/issues/11).
+
+### Fixed
+- **Discover-mode JSON output silently dropped on exit** — v0.5.7 added `os._exit()` to bypass a libjlinkarm destructor crash, but `os._exit()` does **not** flush stdio buffers. The discover helper was successfully detecting probes via pylink, then `print(json.dumps(...))` wrote the JSON into Python's stdout buffer, then `os._exit(0)` terminated the process before the buffer was flushed. The JSON never reached LogScope, which interpreted "empty stdout" as "no devices found." Symptoms: every user with v0.5.7–v0.5.9 saw "No J-Link devices found" even when a probe was attached and JLink Commander could see it. Fix: explicit `sys.stdout.flush()` and `sys.stderr.flush()` before `os._exit()`.
+
+This regression was platform-agnostic (Intel and Apple Silicon, macOS and Windows). It was caught when reproducing [#11](https://github.com/NovelBits/logscope/issues/11) locally — pylink enumerated the probe correctly when called directly, but the same call inside the helper produced no output.
+
 ## [0.5.9] — 2026-04-28
 
 UX release. Continuation of [#11](https://github.com/NovelBits/logscope/issues/11) — when discovery returns empty, the most common silent failure mode is another tool (nRF Connect for VS Code, JLink Commander, RTT Viewer) holding the probe. The "No J-Link devices found" message gave no hint that contention was a possibility.
