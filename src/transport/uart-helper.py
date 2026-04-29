@@ -4,8 +4,11 @@ UART serial reader helper — runs as a long-lived subprocess, reads serial data
 and writes raw bytes to stdout. Also supports port discovery.
 
 Usage:
-  python3 uart-helper.py discover                    # List serial ports as JSON
-  python3 uart-helper.py <port> [baud_rate]          # Stream serial data to stdout
+  python3 uart-helper.py discover                            # List serial ports as JSON
+  python3 uart-helper.py <port> [baud] [data] [stop] [parity]
+    data   = 5|6|7|8     (default 8)
+    stop   = 1|1.5|2     (default 1)
+    parity = none|odd|even|mark|space (default none)
 """
 import sys
 import os
@@ -61,18 +64,51 @@ def run_discover():
     print(json.dumps({"ports": ports}))
 
 
-def run_serial(port_path, baud_rate):
+def _resolve_uart_options(data_bits, stop_bits, parity):
+    """Map our string/int knobs to pyserial constants. Defaults preserve 8N1
+    (the implicit behavior before these settings were added)."""
+    import serial as _s
+    bytesize = {5: _s.FIVEBITS, 6: _s.SIXBITS, 7: _s.SEVENBITS, 8: _s.EIGHTBITS}.get(data_bits)
+    stopbits = {"1": _s.STOPBITS_ONE, "1.5": _s.STOPBITS_ONE_POINT_FIVE, "2": _s.STOPBITS_TWO}.get(stop_bits)
+    par = {
+        "none": _s.PARITY_NONE,
+        "odd": _s.PARITY_ODD,
+        "even": _s.PARITY_EVEN,
+        "mark": _s.PARITY_MARK,
+        "space": _s.PARITY_SPACE,
+    }.get(parity)
+    if bytesize is None:
+        raise ValueError(f"Unsupported dataBits: {data_bits}")
+    if stopbits is None:
+        raise ValueError(f"Unsupported stopBits: {stop_bits}")
+    if par is None:
+        raise ValueError(f"Unsupported parity: {parity}")
+    return bytesize, stopbits, par
+
+
+def run_serial(port_path, baud_rate, data_bits=8, stop_bits="1", parity="none"):
     """Open serial port and stream data to stdout."""
     import serial
 
     try:
-        ser = serial.Serial(port_path, baud_rate, timeout=0.1)
-    except serial.SerialException as e:
+        bytesize, stopbits, par = _resolve_uart_options(data_bits, stop_bits, parity)
+        ser = serial.Serial(
+            port_path,
+            baud_rate,
+            bytesize=bytesize,
+            stopbits=stopbits,
+            parity=par,
+            timeout=0.1,
+        )
+    except (serial.SerialException, ValueError) as e:
         print(f"ERROR: {e}", file=sys.stderr)
         sys.stderr.flush()
         sys.exit(2)
 
-    print(f"SERIAL_READY port={port_path} baud={baud_rate}", file=sys.stderr)
+    print(
+        f"SERIAL_READY port={port_path} baud={baud_rate} data={data_bits} stop={stop_bits} parity={parity}",
+        file=sys.stderr,
+    )
     sys.stderr.flush()
 
     stdout = os.fdopen(sys.stdout.fileno(), "wb", 0)
@@ -117,7 +153,10 @@ def main():
 
     port_path = sys.argv[1]
     baud_rate = int(sys.argv[2]) if len(sys.argv) > 2 else 115200
-    run_serial(port_path, baud_rate)
+    data_bits = int(sys.argv[3]) if len(sys.argv) > 3 else 8
+    stop_bits = sys.argv[4] if len(sys.argv) > 4 else "1"
+    parity = sys.argv[5] if len(sys.argv) > 5 else "none"
+    run_serial(port_path, baud_rate, data_bits=data_bits, stop_bits=stop_bits, parity=parity)
 
 
 if __name__ == "__main__":

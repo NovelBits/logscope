@@ -407,7 +407,13 @@ async function connectUart(portPath: string, baudRate: number): Promise<void> {
   session = new Session("device", "uart");
   lineBuffer = "";
 
-  const uartTransport = new UartTransport({ port: portPath, baudRate });
+  // Read frame settings from VS Code config; defaults preserve 8N1 behavior.
+  const uartCfg = vscode.workspace.getConfiguration("logscope");
+  const dataBits = uartCfg.get<5 | 6 | 7 | 8>("uart.dataBits", 8);
+  const stopBits = uartCfg.get<"1" | "1.5" | "2">("uart.stopBits", "1");
+  const parity = uartCfg.get<"none" | "odd" | "even" | "mark" | "space">("uart.parity", "none");
+
+  const uartTransport = new UartTransport({ port: portPath, baudRate, dataBits, stopBits, parity });
   transport = uartTransport;
   wireTransportEvents(uartTransport);
   await uartTransport.connect();
@@ -692,6 +698,13 @@ function showStepQuickPick<T extends vscode.QuickPickItem>(
 
     qp.onDidAccept(() => {
       const selected = qp.selectedItems[0];
+      // Items marked with _hint are advisory text, not actionable. Ignore
+      // acceptance so the picker stays open rather than abandoning the wizard
+      // when a user clicks the hint by accident.
+      if (selected && (selected as { _hint?: boolean })._hint) {
+        qp.selectedItems = [];
+        return;
+      }
       qp.dispose();
       if (selected) resolve(selected);
     });
@@ -720,31 +733,38 @@ async function guidedConnect(): Promise<void> {
     try {
       switch (step) {
         case 1: {
-          // Pick transport
+          // Pick transport. Separator + advisory item below help users who
+          // don't know which transport their firmware uses.
           const pick = await showStepQuickPick(
             [
               { label: "$(circuit-board) J-Link RTT", description: "Real-Time Transfer via J-Link probe", value: "rtt" as const },
               { label: "$(plug) Serial UART", description: "USB CDC ACM or UART bridge", value: "uart" as const },
-            ] as (vscode.QuickPickItem & { value: "rtt" | "uart" })[],
+              { label: "Tip", kind: vscode.QuickPickItemKind.Separator },
+              { label: "$(lightbulb) Pick RTT for Zephyr/SEGGER RTT firmware", description: "Pick UART for USB CDC or any serial console", _hint: true },
+            ] as (vscode.QuickPickItem & { value?: "rtt" | "uart" })[],
             { placeholder: "Select transport", step: 1, totalSteps: 4, title: "Connect Device" },
           );
-          if (!pick) { telemetry.trackConnectFlowAbandoned("transport"); return; }
+          if (!pick || (pick as { value?: "rtt" | "uart" }).value === undefined) { telemetry.trackConnectFlowAbandoned("transport"); return; }
           transportValue = (pick as { value: "rtt" | "uart" }).value;
           step = 2;
           break;
         }
 
         case 2: {
-          // Pick parser
+          // Pick parser. The hint clarifies when "Raw" is the right choice
+          // (most users don't realize their firmware might log in a custom
+          // format that none of our parsers will handle correctly).
           const pick = await showStepQuickPick(
             [
               { label: "$(zap) Zephyr", description: "Zephyr RTOS — LOG_INF, LOG_ERR, LOG_WRN macros", value: "zephyr" as const },
               { label: "$(package) nRF5 SDK", description: "nRF5 SDK — NRF_LOG_INFO, NRF_LOG_ERROR macros", value: "nrf5" as const },
               { label: "$(terminal) Raw", description: "Any firmware — displays output as-is, no parsing", value: "raw" as const },
-            ] as (vscode.QuickPickItem & { value: "zephyr" | "nrf5" | "raw" })[],
+              { label: "Tip", kind: vscode.QuickPickItemKind.Separator },
+              { label: "$(lightbulb) Pick Raw for custom log formats", description: "e.g., printf, MCUboot recovery, vendor-specific formats", _hint: true },
+            ] as (vscode.QuickPickItem & { value?: "zephyr" | "nrf5" | "raw" })[],
             { placeholder: "Select log format", step: 2, totalSteps: 4, showBack: true, title: "Connect Device" },
           );
-          if (!pick) { telemetry.trackConnectFlowAbandoned("parser"); return; }
+          if (!pick || (pick as { value?: "zephyr" | "nrf5" | "raw" }).value === undefined) { telemetry.trackConnectFlowAbandoned("parser"); return; }
           parserValue = (pick as { value: "zephyr" | "nrf5" | "raw" }).value;
           await saveSetting("parser", parserValue);
           sidebarProvider.updateState({ parser: parserValue });
@@ -1003,24 +1023,36 @@ async function pickJlinkDevice(showBack = false, step?: number, totalSteps?: num
 async function pickBaudRate(showBack = false, step?: number, totalSteps?: number): Promise<number | undefined> {
   const rates = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600, 1000000];
   const currentRate = sidebarProvider.currentBaudRate;
-  const items = rates.map(r => ({
+  const rateItems = rates.map(r => ({
     label: r.toLocaleString(),
     value: r,
     description: r === currentRate ? "(current)" : "",
   }));
 
+  // Discoverability: 95% of firmware uses 8N1, but the 5% who need 7E1 etc.
+  // would never find the data/parity/stop settings if we hid them in Change
+  // Settings without a hint. A non-selectable separator at the bottom of the
+  // baud rate list is loud enough that users see it without obscuring the
+  // primary action (selecting a rate). Placeholder text alone was too subtle.
+  const items: (vscode.QuickPickItem & { value?: number })[] = [
+    ...rateItems,
+    { label: "Tip", kind: vscode.QuickPickItemKind.Separator },
+    { label: "$(lightbulb) Need 7E1, 8E1, 8N2, etc.?", description: "Set Data Bits, Stop Bits, Parity in Change Settings", _hint: true },
+  ];
+
   if (!showBack) {
     const pick = await vscode.window.showQuickPick(items, { placeHolder: "Select baud rate" });
-    if (!pick) return undefined;
+    if (!pick || (pick as { value?: number }).value === undefined) return undefined;
     return (pick as { value: number }).value;
   }
 
-  // With back button support
   const pick = await showStepQuickPick(
     items as (vscode.QuickPickItem & { value: number })[],
     { placeholder: "Select baud rate", step: step ?? 3, totalSteps: totalSteps ?? 3, showBack: true },
   );
-  if (!pick) return undefined;
+  // The advisory item has no value — treat selecting it as "no choice made"
+  // and let the wizard re-prompt rather than crashing on undefined.
+  if (!pick || (pick as { value?: number }).value === undefined) return undefined;
   return (pick as { value: number }).value;
 }
 
@@ -1086,6 +1118,72 @@ async function changeBaudRate(): Promise<void> {
     sidebarProvider.updateState({ baudRate: rate });
     await saveSetting("uart.baudRate", rate);
   }
+}
+
+async function pickFromList<T extends string | number>(
+  options: { label: string; value: T }[],
+  current: T,
+  placeholder: string,
+): Promise<T | undefined> {
+  const items = options.map(o => ({
+    label: o.label,
+    description: o.value === current ? "(current)" : "",
+    _value: o.value,
+  }));
+  const pick = await showStepQuickPick(
+    items as (vscode.QuickPickItem & { _value: T })[],
+    { placeholder, title: "Connection Settings", showBack: true },
+  );
+  if (!pick) return undefined;
+  return (pick as { _value: T })._value;
+}
+
+async function changeDataBits(): Promise<void> {
+  const cfg = vscode.workspace.getConfiguration("logscope");
+  const current = cfg.get<number>("uart.dataBits", 8);
+  const value = await pickFromList<number>(
+    [
+      { label: "5", value: 5 },
+      { label: "6", value: 6 },
+      { label: "7", value: 7 },
+      { label: "8 — most modern firmware", value: 8 },
+    ],
+    current,
+    "Select UART data bits",
+  );
+  if (value !== undefined) await saveSetting("uart.dataBits", value);
+}
+
+async function changeStopBits(): Promise<void> {
+  const cfg = vscode.workspace.getConfiguration("logscope");
+  const current = cfg.get<string>("uart.stopBits", "1");
+  const value = await pickFromList<string>(
+    [
+      { label: "1 — most modern firmware", value: "1" },
+      { label: "1.5", value: "1.5" },
+      { label: "2", value: "2" },
+    ],
+    current,
+    "Select UART stop bits",
+  );
+  if (value !== undefined) await saveSetting("uart.stopBits", value);
+}
+
+async function changeParity(): Promise<void> {
+  const cfg = vscode.workspace.getConfiguration("logscope");
+  const current = cfg.get<string>("uart.parity", "none");
+  const value = await pickFromList<string>(
+    [
+      { label: "None — most modern firmware", value: "none" },
+      { label: "Even", value: "even" },
+      { label: "Odd", value: "odd" },
+      { label: "Mark", value: "mark" },
+      { label: "Space", value: "space" },
+    ],
+    current,
+    "Select UART parity",
+  );
+  if (value !== undefined) await saveSetting("uart.parity", value);
 }
 
 async function changeJlinkDevice(): Promise<void> {
@@ -1221,7 +1319,16 @@ async function changeSettings(): Promise<void> {
     ];
 
     if (sidebarProvider.currentTransport === "uart") {
-      items.push({ label: "$(dashboard) Baud Rate", description: String(sidebarProvider.currentBaudRate), _key: "baudRate" });
+      const uartCfg = vscode.workspace.getConfiguration("logscope");
+      const dataBits = uartCfg.get<number>("uart.dataBits", 8);
+      const stopBits = uartCfg.get<string>("uart.stopBits", "1");
+      const parity = uartCfg.get<string>("uart.parity", "none");
+      items.push(
+        { label: "$(dashboard) Baud Rate", description: String(sidebarProvider.currentBaudRate), _key: "baudRate" },
+        { label: "$(symbol-numeric) Data Bits", description: String(dataBits), _key: "dataBits" },
+        { label: "$(symbol-operator) Stop Bits", description: stopBits, _key: "stopBits" },
+        { label: "$(check-all) Parity", description: parity, _key: "parity" },
+      );
     }
 
     if (sidebarProvider.currentTransport === "rtt") {
@@ -1253,6 +1360,15 @@ async function changeSettings(): Promise<void> {
         case "baudRate":
           await changeBaudRate();
           return;
+        case "dataBits":
+          await changeDataBits();
+          return;
+        case "stopBits":
+          await changeStopBits();
+          return;
+        case "parity":
+          await changeParity();
+          return;
         case "jlinkDevice":
           await changeJlinkDevice();
           return;
@@ -1280,7 +1396,7 @@ async function doExport(): Promise<void> {
     [
       { label: "Text (.log)", value: "text", description: "All log entries as plain text" },
       { label: "JSON Lines (.jsonl)", value: "jsonl", description: "All log entries as JSON" },
-      { label: "Wireshark (.btsnoop)", value: "btsnoop", description: "HCI packets only — opens in Wireshark" },
+      { label: "Wireshark (.btsnoop)", value: "btsnoop", description: "HCI packets only — needs firmware with bt_monitor enabled (J-Link RTT)" },
     ],
     { placeHolder: "Select export format" }
   );
@@ -1479,6 +1595,19 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   const forgetDeviceCmd = vscode.commands.registerCommand("logscope.forgetDevice", async () => {
+    // Confirmation modal: users frequently expect "Forget Device" to delete
+    // all their settings (parser, baud rate, watch patterns) when in fact it
+    // only clears the saved device/port. Spelling that out before action
+    // removes the "did I just lose my config?" worry.
+    const choice = await vscode.window.showInformationMessage(
+      "Forget the saved device?",
+      {
+        modal: true,
+        detail: "Your parser, baud rate, watch patterns, and other settings are kept. Only the saved probe/port is cleared, so you'll see the full Connect wizard next time.",
+      },
+      "Forget Device",
+    );
+    if (choice !== "Forget Device") return;
     await saveSetting("lastDevice", "");
     await saveSetting("uart.lastPort", "");
     sidebarProvider.updateState({

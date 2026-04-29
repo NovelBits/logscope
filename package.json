@@ -2,7 +2,7 @@
   "name": "novelbits-logscope",
   "displayName": "LogScope — Embedded Log Viewer",
   "description": "Real-time embedded log viewer — Zephyr, nRF5 SDK, and raw mode with Bluetooth LE HCI decoding, filtering, search, fault detection, and Wireshark export",
-  "version": "0.5.11",
+  "version": "0.5.12",
   "publisher": "novelbits",
   "author": {
     "name": "Novel Bits"
@@ -280,6 +280,24 @@
           "type": "string",
           "default": "",
           "description": "Last used serial port path (used for auto-connect). Set automatically."
+        },
+        "logscope.uart.dataBits": {
+          "type": "number",
+          "default": 8,
+          "enum": [5, 6, 7, 8],
+          "description": "Number of data bits per UART frame. Most modern firmware uses 8."
+        },
+        "logscope.uart.stopBits": {
+          "type": "string",
+          "default": "1",
+          "enum": ["1", "1.5", "2"],
+          "description": "Number of stop bits per UART frame. Most modern firmware uses 1."
+        },
+        "logscope.uart.parity": {
+          "type": "string",
+          "default": "none",
+          "enum": ["none", "odd", "even", "mark", "space"],
+          "description": "Parity for the UART frame. 'none' is the most common; 'even' or 'odd' are sometimes used in legacy/industrial protocols."
         },
         "logscope.maxEntries": {
           "type": "number",

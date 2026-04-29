@@ -5,8 +5,7 @@ dist/
 .vscode-test/
 build/
 .vscode/settings.json
-build-hci/
-build-uart/
+build-*/
 .superpowers/
 .worktrees/
 docs/node_modules/

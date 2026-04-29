@@ -31,7 +31,7 @@ When your debugging sessions get longer and your log output gets denser, LogScop
 
 ### Transports
 - **J-Link RTT** — zero packet loss via native J-Link, CPU keeps running at full speed
-- **Serial UART** — USB CDC ACM or UART bridge with configurable baud rate
+- **Serial UART** — USB CDC ACM or UART bridge with configurable baud rate, data bits, stop bits, and parity
 
 ### Bluetooth LE
 - **Deep HCI decoding** — 14+ Bluetooth LE HCI packet decoders. See connection parameters, PHY changes, ATT operations — not hex dumps. Click to expand decoded fields

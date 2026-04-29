@@ -1,0 +1,8 @@
+/*
+ * UART overlay: 8 data bits, NO parity, 2 stop bits.
+ * Build with: -DEXTRA_DTC_OVERLAY_FILE=overlay-8n2.overlay
+ * LogScope test settings: dataBits=8, parity="none", stopBits="2"
+ */
+&uart20 {
+    stop-bits = "2";
+};

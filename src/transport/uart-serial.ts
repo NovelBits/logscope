@@ -12,6 +12,12 @@ export interface UartTransportConfig {
   port: string;
   /** Baud rate (default 115200) */
   baudRate?: number;
+  /** Data bits per frame (default 8) */
+  dataBits?: 5 | 6 | 7 | 8;
+  /** Stop bits per frame (default "1"); string because of "1.5" */
+  stopBits?: "1" | "1.5" | "2";
+  /** Parity (default "none") */
+  parity?: "none" | "odd" | "even" | "mark" | "space";
 }
 
 /** A serial port discovered on the system */
@@ -76,11 +82,17 @@ export class UartTransport extends EventEmitter implements Transport {
   private portWatcher: ReturnType<typeof setInterval> | null = null;
   private readonly portPath: string;
   private readonly baudRate: number;
+  private readonly dataBits: 5 | 6 | 7 | 8;
+  private readonly stopBits: "1" | "1.5" | "2";
+  private readonly parity: "none" | "odd" | "even" | "mark" | "space";
 
   constructor(config: UartTransportConfig) {
     super();
     this.portPath = config.port;
     this.baudRate = config.baudRate ?? 115200;
+    this.dataBits = config.dataBits ?? 8;
+    this.stopBits = config.stopBits ?? "1";
+    this.parity = config.parity ?? "none";
   }
 
   get connected(): boolean {
@@ -100,6 +112,9 @@ export class UartTransport extends EventEmitter implements Transport {
         helperPath,
         this.portPath,
         String(this.baudRate),
+        String(this.dataBits),
+        this.stopBits,
+        this.parity,
       ], {
         stdio: ["pipe", "pipe", "pipe"],
       });

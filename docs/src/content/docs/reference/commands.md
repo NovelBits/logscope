@@ -14,7 +14,7 @@ All commands are accessible via the command palette (`Cmd+Shift+P` on macOS, `Ct
 | `LogScope: Rescan Devices` | Rescan for J-Link probes or serial ports without restarting the full connect wizard |
 | `LogScope: Forget Device` | Clear the saved device and return to the welcome view |
 | `LogScope: Disconnect` | Disconnect the current session |
-| `LogScope: Change Connection Settings` | Modify transport, device, baud rate, or parser |
+| `LogScope: Change Connection Settings` | Modify transport, device, baud rate, UART frame format (data bits / stop bits / parity), or parser |
 
 ## Viewer Commands
 

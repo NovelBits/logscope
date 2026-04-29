@@ -36,7 +36,12 @@ All settings are prefixed with `logscope.` and can be set in VS Code's `settings
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
 | `logscope.uart.baudRate` | number | `115200` | Serial baud rate. Supported: 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600, 1000000. |
+| `logscope.uart.dataBits` | number | `8` | Data bits per UART frame. Supported: 5, 6, 7, 8. Most modern firmware uses 8. |
+| `logscope.uart.stopBits` | string | `"1"` | Stop bits per UART frame. Supported: `"1"`, `"1.5"`, `"2"`. Most modern firmware uses 1. |
+| `logscope.uart.parity` | string | `"none"` | UART parity. Supported: `"none"`, `"odd"`, `"even"`, `"mark"`, `"space"`. `"none"` is the most common. |
 | `logscope.uart.lastPort` | string | `""` | Last used serial port (set automatically) |
+
+The data bits / stop bits / parity settings can also be changed from the **LogScope: Change Settings** command (sidebar gear icon → Change Settings) once you're connected via UART.
 
 ## Display Settings
 

@@ -42,6 +42,7 @@ Click **Change Settings** in the sidebar to modify:
 - **Transport** (RTT or UART)
 - **Device** (rescan for devices)
 - **Baud Rate** (UART only)
+- **Data Bits**, **Stop Bits**, **Parity** (UART only — defaults to 8N1; change for legacy or industrial protocols)
 - **Parser** (Zephyr, nRF5 SDK, or Raw)
 
 :::note
