@@ -337,9 +337,18 @@ async function resetAndReconnect(serialNumber?: string): Promise<void> {
     args.push("-USB", serialNumber);
   }
 
-  log(`Reset device: JLinkExe ${args.join(" ")}`);
+  // Honor logscope.jlink.path if the user has set it. Falls back to plain
+  // "JLinkExe" (PATH lookup) if the setting is empty or the path doesn't
+  // exist. Without this, users with custom SEGGER installs (e.g., older
+  // version pinned for compatibility) saw their reset action silently use
+  // a different binary than their connect path.
+  const fsForJLink = await import("node:fs");
+  const userJlinkPath = vscode.workspace.getConfiguration("logscope").get<string>("jlink.path", "").trim();
+  const jlinkBin = userJlinkPath && fsForJLink.existsSync(userJlinkPath) ? userJlinkPath : "JLinkExe";
 
-  execFile("JLinkExe", args, { timeout: 10_000 }, (err) => {
+  log(`Reset device: ${jlinkBin} ${args.join(" ")}`);
+
+  execFile(jlinkBin, args, { timeout: 10_000 }, (err) => {
     try { fs.unlinkSync(cmdFile); } catch { /* ignore */ }
     if (err) {
       logError("Reset device failed", err);
@@ -1535,6 +1544,12 @@ export function activate(context: vscode.ExtensionContext) {
       case "clear": {
         ringBuffer?.clear();
         watchMatcher.resetCounters();
+        // Clear stale modules from the session — the entries those modules
+        // were derived from were just deleted. Without this, the module
+        // dropdown in the toolbar keeps showing modules that no longer have
+        // matching entries until the user reconnects.
+        session?.modules.clear();
+        panel?.updateModules([]);
         panel?.clear();
         break;
       }

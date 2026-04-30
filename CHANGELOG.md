@@ -2,6 +2,14 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.5.15] — 2026-04-30
+
+Two edge-case fixes from the 2026-04-17 audit.
+
+### Fixed
+- **Stale modules in the toolbar dropdown after Clear.** Clicking Clear emptied the log viewer and ring buffer but left `session.modules` populated, so the All modules dropdown kept listing modules whose entries had been deleted. Now the session's module set and the webview's dropdown are both reset on Clear; new entries repopulate them as they arrive.
+- **`Reset Device` now honors `logscope.jlink.path`.** The reset action shelled out via `JLinkExe` from PATH regardless of the user's configured path, which silently used a different SEGGER binary than the connect path. Now reads the setting and falls back to `JLinkExe` only if it's empty or invalid.
+
 ## [0.5.14] — 2026-04-30
 
 Two bug fixes. Resolves [#17](https://github.com/NovelBits/logscope/issues/17).
