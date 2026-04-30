@@ -2,6 +2,38 @@
 
 Running list of deferred work — items that are well-understood and ready to pick up but not the highest priority right now. New entries go at the top within each section.
 
+## UX / Connect-flow
+
+### Guided-connect: avoid orphan sidebar state when wizard is abandoned
+**Origin:** audit finding #8 (Important) in `docs/research/logscope-edge-cases-audit-2026-04-17.md`. Considered for the 2026-04-30 audit batch alongside #13/#8.1/#8.2/#4.2/#7.3, **implemented and reverted** because the fix-as-shipped removed mid-wizard sidebar feedback.
+
+**The bug:** during the RTT guided-connect wizard, the sidebar's `selectedDevice`/`selectedDeviceLabel` are committed at step 3 (after device pick) before step 4 (target-device picker) completes. If the user abandons at step 4 (Esc, click away, or Back-too-far), the sidebar is left showing a probe they never actually connected to. Worse: the next time they look at the sidebar they may see a Reconnect button for that orphan probe.
+
+**The reverted fix (commit lost; was in `extension.ts` `guidedConnect()` step 3 RTT branch):**
+- Removed the `sidebarProvider.updateState({ transport: "rtt", selectedDevice, selectedDeviceLabel })` call at line ~796
+- Re-added it at line ~846, just before `await doConnect()`, so sidebar only commits on success
+
+**Why it was reverted:** the simple form removes mid-wizard sidebar feedback. While the user is on the target-device picker (step 4), the sidebar still shows their previous state — which feels like "did my pick register?" The QuickPick itself is the primary feedback, but the sidebar is also a visible surface and going stale in the middle of a flow is jarring.
+
+**Better approach (for next attempt):** snapshot the previous sidebar state at wizard start, write the in-progress state mid-wizard for visual feedback, and roll back to the snapshot on abandonment. Pseudocode:
+```typescript
+const snapshot = sidebarProvider.snapshot();
+try {
+  // ... guided wizard, may write intermediate state ...
+  await doConnect();  // commits permanently
+} catch (BackError or undefined return) {
+  sidebarProvider.restore(snapshot);
+}
+```
+
+Requires adding `snapshot()` / `restore()` methods to `SidebarProvider`. Not a huge change but more invasive than the simple defer.
+
+**Pickup notes:**
+- Add snapshot/restore methods to `src/ui/sidebar-provider.ts`
+- Wrap `guidedConnect()` body in try/finally with snapshot capture and restore-on-abandon
+- Verify the UART branch (step 4 baud rate) doesn't have the same issue — looks like it commits state right before doConnect already, but check
+- Telemetry abandonment events (`trackConnectFlowAbandoned`) are the natural restore points
+
 ## Hardening / Tests
 
 ### Python helper output contract test (pytest)

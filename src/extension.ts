@@ -123,7 +123,11 @@ function handleChunk(chunk: Buffer): void {
   if (segments.length === 0) return;
 
   const completeText = segments.join("\n") + "\n";
-  if (completeText.includes("*** Booting")) {
+  // Anchor at line start so a log line that quotes "*** Booting" in its
+  // body (e.g., a developer note in the firmware, or a previously-captured
+  // boot banner being replayed verbatim) doesn't trigger a false reset
+  // detection. Real Zephyr boot banners always sit at the start of a line.
+  if (/(^|\n)\*\*\* Booting/.test(completeText)) {
     if (bootDetected) {
       panel?.sendReset();
     }
@@ -893,9 +897,14 @@ async function pickSerialPort(showBack = false, step?: number, totalSteps?: numb
   }
   qp.show();
 
+  // Gate against rapid Rescan clicks (see notes in pickJlinkDevice).
+  let scanning = false;
   const scanPorts = async () => {
+    if (scanning) return;
+    scanning = true;
     qp.busy = true;
     qp.items = [{ label: "Scanning..." }];
+    try {
     const ports = await discoverSerialPorts();
     if (ports.length === 0) {
       const error = classifyError("No serial ports found");
@@ -925,6 +934,9 @@ async function pickSerialPort(showBack = false, step?: number, totalSteps?: numb
       { label: "$(refresh) Rescan", _rescan: true },
     ];
     qp.busy = false;
+    } finally {
+      scanning = false;
+    }
   };
 
   return new Promise<{ path: string; label: string } | undefined>((resolve, reject) => {
@@ -970,9 +982,17 @@ async function pickJlinkDevice(showBack = false, step?: number, totalSteps?: num
   }
   qp.show();
 
+  // Gate against rapid Rescan clicks: while a scan is in flight, ignore
+  // subsequent invocations. Without this, double-clicking Rescan can spawn
+  // overlapping helper subprocesses and the picker items can be overwritten
+  // out of order.
+  let scanning = false;
   const scanDevices = async () => {
+    if (scanning) return;
+    scanning = true;
     qp.busy = true;
     qp.items = [{ label: "Scanning..." }];
+    try {
     const { devices, error: discoverErr } = await discoverDevices();
     lastDiscoveredDevices = devices;
     if (devices.length === 0) {
@@ -998,6 +1018,9 @@ async function pickJlinkDevice(showBack = false, step?: number, totalSteps?: num
       { label: "$(refresh) Rescan", _rescan: true },
     ];
     qp.busy = false;
+    } finally {
+      scanning = false;
+    }
   };
 
   return new Promise<(DiscoveredDevice & { targetName?: string }) | undefined>((resolve, reject) => {
@@ -1477,6 +1500,14 @@ export function activate(context: vscode.ExtensionContext) {
         loadWatchPatterns();
         sidebarProvider.updateState({ watchCounters: watchMatcher.getCounters() });
       }
+      // Live-propagate display settings to an open webview. Previously these
+      // only took effect on the next panel show, so editing settings.json
+      // mid-session looked like the change "didn't take" until the user
+      // toggled the panel visibility.
+      if (e.affectsConfiguration("logscope.timeFormat") || e.affectsConfiguration("logscope.logWrap")) {
+        const cfg = getConfig();
+        panel?.sendInit(cfg.logWrap, cfg.timeFormat);
+      }
     }),
   );
 
@@ -1625,6 +1656,21 @@ export function activate(context: vscode.ExtensionContext) {
       "Forget Device",
     );
     if (choice !== "Forget Device") return;
+
+    // Also drop the per-probe J-Link target override for the device being
+    // forgotten — without this, reconnecting to the same probe later
+    // silently picks up a stale override the user no longer remembers
+    // setting, which can cause confusing "wrong target" errors.
+    const lastDevice = sidebarProvider.currentDevice;
+    if (lastDevice && /^\d+$/.test(lastDevice)) {
+      const cfg = vscode.workspace.getConfiguration("logscope");
+      const overrides = { ...cfg.get<Record<string, string>>("jlink.deviceOverrides", {}) };
+      if (overrides[lastDevice] !== undefined) {
+        delete overrides[lastDevice];
+        await saveSetting("jlink.deviceOverrides", overrides);
+      }
+    }
+
     await saveSetting("lastDevice", "");
     await saveSetting("uart.lastPort", "");
     sidebarProvider.updateState({
