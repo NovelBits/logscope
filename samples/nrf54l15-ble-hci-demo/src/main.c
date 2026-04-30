@@ -15,6 +15,20 @@
  *   Button 2: Flash corruption and recovery sequence
  *   Button 3: Stress burst (50 rapid-fire messages)
  *
+ * What HCI traffic to expect (so the LogScope HCI decoder always has
+ * something to show):
+ *   - Init burst (~1s at boot): bt_enable + advertising start emit
+ *     several HCI commands and complete events.
+ *   - Idle advertising (every 20s): the demo refreshes advertising data
+ *     periodically, which emits "LE Set Advertising Data" + complete
+ *     event. Without this, BLE peripherals are HCI-quiet between
+ *     connections — the controller is just radio-advertising in the
+ *     background, which doesn't generate HCI per advertising event.
+ *   - Connection: when a central connects (use nRF Connect Mobile to
+ *     scan for "LogScope Demo"), connection events flow through HCI.
+ *   - Button presses: trigger advertising toggle / disconnect / GATT
+ *     activity, all of which generate HCI traffic.
+ *
  * Suggested watch patterns for LogScope:
  *   { "name": "BLE State",       "pattern": "Connected|Disconnected|Advertising", "regex": true, "color": "#4caf50" }
  *   { "name": "Errors",          "pattern": "failed|error|fault|CRC|timeout",     "regex": true, "color": "#f44336" }
@@ -290,6 +304,22 @@ int main(void)
 			} else {
 				LOG_INF("Heartbeat %d: advertising, uptime %lld ms",
 					cycle, k_uptime_get());
+			}
+		}
+
+		/* Periodic advertising data refresh (every 20 seconds when not
+		 * connected). Emits an HCI "LE Set Advertising Data" command +
+		 * complete event so the LogScope HCI decoder always has fresh
+		 * traffic to display, even when nothing else is happening. Without
+		 * this, BLE peripherals are HCI-quiet between connections. */
+		if (cycle % 20 == 0 && !ble_mgr_get_conn()) {
+			int ret = bt_le_adv_update_data(ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+			if (ret == 0) {
+				LOG_INF("Advertising data refreshed (HCI demo cycle %d)", cycle);
+			} else if (ret == -EAGAIN) {
+				/* Common: controller is busy switching state. Not an error. */
+			} else {
+				LOG_WRN("Advertising data refresh failed (err %d)", ret);
 			}
 		}
 
