@@ -53,6 +53,7 @@ function getConfig() {
     nrfutilPath: cfg.get<string>("nrfutil.path", "nrfutil"),
     rttPollInterval: cfg.get<number>("rtt.pollInterval", 50),
     rttSearchRanges: cfg.get<string>("jlink.rttSearchRanges", "0x20000000 0x80000"),
+    rttSilenceThresholdSec: cfg.get<number>("rtt.silenceThreshold", 30),
     logWrap: cfg.get<boolean>("logWrap", false),
     timeFormat: cfg.get<string>("timeFormat", "24h"),
   };
@@ -376,6 +377,7 @@ async function connectRtt(device: string, pollInterval: number, serialNumber?: s
       pollIntervalMs: pollInterval,
       nrfutilPath: cfg.nrfutilPath,
       rttSearchRanges: cfg.rttSearchRanges,
+      silenceThresholdSec: cfg.rttSilenceThresholdSec,
     });
     transport = rttTransport;
     wireTransportEvents(rttTransport);

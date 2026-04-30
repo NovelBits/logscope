@@ -39,6 +39,12 @@ The USB serial device was unplugged or the port became unavailable.
 - For RTT: check if a J-Link GDB server is running and occupying the probe
 - Try disconnecting and reconnecting the USB cable
 
+### Quiet RTT device keeps disconnecting / reconnecting
+
+If you're connected to a quiet device (BLE peripheral waiting for connections, sensor logging once a minute, etc.) and LogScope keeps disconnecting and reconnecting on its own, that's the silence-timeout recovery firing on a device that simply has nothing to log.
+
+**Fix:** raise [`logscope.rtt.silenceThreshold`](/logscope/reference/settings/) above your typical quiet window (default is 30 seconds). Set it to `0` to disable silence-based recovery entirely — LogScope will still recover from real RTT errors via a separate path.
+
 ## Display Issues
 
 ### Logs appear but aren't parsed (everything shows as raw text)

@@ -214,10 +214,22 @@ def run_pylink(device_or_addr, poll_ms, serial_no=None):
     poll_interval = poll_ms / 1000.0
     consecutive_errors = 0
     last_data_time = time.monotonic()
-    SILENCE_THRESHOLD = 3.0  # seconds of no data before RTT restart
-    reconnect_stage = 0  # 0=normal, 1=tried RTT restart, 2=tried full reconnect
+    # Silence-based recovery: triggers a host-side RTT restart when no data
+    # has been received for this many seconds. Quiet devices (BLE peripherals
+    # advertising and waiting for connections, sensors logging once a minute,
+    # etc.) routinely go 30s+ without logs, so the default is generous. Set
+    # via LOGSCOPE_RTT_SILENCE_THRESHOLD env var; pass 0 to disable entirely.
+    # Issue #17: prior 3.0s default caused continuous reconnect loops on
+    # quiet devices because we used to escalate silence → full_reconnect()
+    # (which halts the target). Now we only ever do restart_rtt() on silence
+    # — full_reconnect() is reserved for actual RTT read errors.
+    try:
+        SILENCE_THRESHOLD = float(os.environ.get("LOGSCOPE_RTT_SILENCE_THRESHOLD", "30"))
+    except ValueError:
+        SILENCE_THRESHOLD = 30.0
+    reconnect_stage = 0  # 0=normal, 1=tried RTT restart (silence path stops here)
     reconnect_attempts = 0
-    MAX_RECONNECT_ATTEMPTS = 3  # exit after this many failed full reconnects
+    MAX_RECONNECT_ATTEMPTS = 3  # exit after this many failed full reconnects (read-error path only)
 
     def write_frame(channel, data):
         """Write framed data: [channel:1][length:4 LE][data:N]"""
@@ -317,38 +329,30 @@ def run_pylink(device_or_addr, poll_ms, serial_no=None):
             pass  # can't check — fall through to reconnect logic
 
     def handle_silence(silence, stage):
-        """Handle silence timeout by escalating reconnect strategy. Returns new stage."""
-        nonlocal reconnect_attempts
-        if silence <= SILENCE_THRESHOLD:
+        """Handle silence timeout by attempting a host-side RTT restart.
+        Returns new stage.
+
+        Silence is NOT a signal of failure — it's a signal that the device
+        has nothing to log. So this path never escalates to full_reconnect()
+        (which halts the target and breaks active BLE connections, sensor
+        timing, etc.). Real RTT failures are caught by handle_read_error()
+        below, which is the appropriate place for destructive recovery.
+
+        See issue #17 for the original report.
+        """
+        if silence <= SILENCE_THRESHOLD or SILENCE_THRESHOLD <= 0:
             return stage
 
-        # Check if probe is still physically connected before trying to reconnect
-        check_probe_connected()
-
+        # One lightweight host-side restart per silence window. If the
+        # control block moved (e.g., firmware update mid-session), this
+        # picks it up. Doesn't touch the target.
         if stage == 0:
-            # Stage 1: try lightweight RTT restart
+            check_probe_connected()  # cheap unplug check, doesn't touch target
             restart_rtt()
             return 1
-        if stage == 1:
-            # Stage 2: RTT restart didn't help, try full reconnect
-            if full_reconnect():
-                reconnect_attempts = 0
-            else:
-                reconnect_attempts += 1
-            return 2
-        # Stage 3+: full reconnect didn't help either, retry with limit
-        if full_reconnect():
-            reconnect_attempts = 0
-        else:
-            reconnect_attempts += 1
-        if reconnect_attempts >= MAX_RECONNECT_ATTEMPTS:
-            print("ERROR: Device disconnected — too many failed reconnect attempts", file=sys.stderr)
-            sys.stderr.flush()
-            try:
-                jlink.close()
-            except Exception:
-                pass
-            sys.exit(4)
+
+        # Already restarted this silence window — wait for data instead of
+        # spamming restarts. Stage resets to 0 once any data arrives.
         return stage
 
     def handle_read_error(err, error_count):
@@ -399,7 +403,12 @@ def run_pylink(device_or_addr, poll_ms, serial_no=None):
             else:
                 silence = time.monotonic() - last_data_time
                 new_stage = handle_silence(silence, reconnect_stage)
-                if new_stage != reconnect_stage or silence > SILENCE_THRESHOLD:
+                # Only reset the silence counter when we actually took an
+                # action (stage advanced). If we're already at stage 1 and
+                # the device stays quiet, we want last_data_time to stay
+                # put — we don't want to keep firing restart_rtt on a
+                # device that's legitimately silent for an extended period.
+                if new_stage != reconnect_stage:
                     last_data_time = time.monotonic()
                 reconnect_stage = new_stage
 

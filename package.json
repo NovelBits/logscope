@@ -2,7 +2,7 @@
   "name": "novelbits-logscope",
   "displayName": "LogScope — Embedded Log Viewer",
   "description": "Real-time embedded log viewer — Zephyr, nRF5 SDK, and raw mode with Bluetooth LE HCI decoding, filtering, search, fault detection, and Wireshark export",
-  "version": "0.5.13",
+  "version": "0.5.14",
   "publisher": "novelbits",
   "author": {
     "name": "Novel Bits"
@@ -259,6 +259,11 @@
           "type": "number",
           "default": 19021,
           "description": "J-Link RTT telnet server port (jlink-telnet transport only)"
+        },
+        "logscope.rtt.silenceThreshold": {
+          "type": "number",
+          "default": 30,
+          "description": "Seconds of RTT silence before LogScope attempts a host-side RTT restart. Quiet devices (BLE peripherals waiting for connections, sensors logging once a minute) commonly go 30s+ without logs, so the default is generous. Set to 0 to disable silence-based recovery entirely. Real RTT errors (read failures, dropped probe) are still recovered separately."
         },
         "logscope.uart.baudRate": {
           "type": "number",

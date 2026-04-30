@@ -2,6 +2,15 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.5.14] — 2026-04-30
+
+Two bug fixes. Resolves [#17](https://github.com/NovelBits/logscope/issues/17).
+
+### Fixed
+- **Quiet RTT devices no longer hit a destructive reconnect loop** ([#17](https://github.com/NovelBits/logscope/issues/17)). LogScope's silence-recovery path used to escalate from a host-side `restart_rtt()` (non-destructive) to `full_reconnect()` after only 6 seconds of silence — and `full_reconnect()` halts the target via `jlink.connect()`, breaking active BLE connections, sensor timing, and any in-flight work. For genuinely quiet devices (BLE peripherals advertising and waiting for connections, sensors logging once a minute, etc.) this fired continuously and held the device in a reset loop. Two changes: silence now caps at the lightweight `restart_rtt()` (stage 0 → stage 1, then stays put until data arrives — never escalates to `full_reconnect()`); the default silence threshold is raised from 3s to 30s. The destructive `full_reconnect()` still runs on real RTT errors via `handle_read_error()`, which is the appropriate trigger.
+- **New setting `logscope.rtt.silenceThreshold`** (default `30`) lets users tune the silence window or disable silence-based recovery entirely (set to `0`).
+- **Wrap toggle now applies retroactively to all log rows.** The `.msg` flex item had `flex: 0 0 auto`, which sized it to content's natural width — so even when wrap-mode flipped `white-space: normal`, there was nothing to wrap *within*. Now uses `flex: 1 1 0; min-width: 0` in wrap-mode so the row's available width constrains the message and text wraps cleanly.
+
 ## [0.5.13] — 2026-04-29
 
 UX patch — copy-from-log-rows now produces usable output.

@@ -280,6 +280,8 @@ export interface RttTransportConfig {
   nrfutilPath?: string;
   /** RTT search ranges (e.g., "0x20000000 0x80000") passed to J-Link SetRTTSearchRanges */
   rttSearchRanges?: string;
+  /** Seconds of silence before host-side RTT restart. 0 disables silence-based recovery. Default 30. */
+  silenceThresholdSec?: number;
 }
 
 export class NrfutilRttTransport extends EventEmitter implements Transport {
@@ -295,6 +297,7 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
   private readonly pollIntervalMs: number;
   private readonly nrfutilPath: string;
   private readonly rttSearchRanges: string;
+  private readonly silenceThresholdSec: number;
 
   constructor(config: RttTransportConfig) {
     super();
@@ -303,6 +306,7 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
     this.pollIntervalMs = config.pollIntervalMs ?? 50;
     this.nrfutilPath = config.nrfutilPath ?? "nrfutil";
     this.rttSearchRanges = config.rttSearchRanges ?? "0x20000000 0x80000";
+    this.silenceThresholdSec = config.silenceThresholdSec ?? 30;
   }
 
   get connected(): boolean {
@@ -329,10 +333,15 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
       }
       log(`Spawning: ${pythonPath} ${args.map(a => a.includes(" ") ? `"${a}"` : a).join(" ")}`);
       log(`LOGSCOPE_RTT_SEARCH_RANGES="${this.rttSearchRanges}"`);
+      log(`LOGSCOPE_RTT_SILENCE_THRESHOLD="${this.silenceThresholdSec}"`);
 
       const proc = spawn(pythonPath, args, {
         stdio: ["pipe", "pipe", "pipe"],
-        env: { ...process.env, LOGSCOPE_RTT_SEARCH_RANGES: this.rttSearchRanges },
+        env: {
+          ...process.env,
+          LOGSCOPE_RTT_SEARCH_RANGES: this.rttSearchRanges,
+          LOGSCOPE_RTT_SILENCE_THRESHOLD: String(this.silenceThresholdSec),
+        },
       });
 
       this.helper = proc;
