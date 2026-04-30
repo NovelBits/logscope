@@ -373,8 +373,22 @@ body { display: flex; flex-direction: column; }
 #viewer.no-device-ts .log-row .ts { display: none; }
 
 /* ── Wrap mode ──────────────────────────────────────────── */
+/* For text to actually wrap inside a flex item, the item must be allowed to
+   shrink narrower than its natural content width. The default flex:0 0 auto
+   on .msg sizes it to content, so white-space:normal alone has nothing to
+   wrap within. flex:1 1 0 + min-width:0 lets the row's available width
+   constrain the message and the text wraps as expected. Applies retroactively
+   to all rows (existing + incoming) because the rule targets the parent
+   class. */
 #timeline.wrap-mode .log-row { white-space: normal; }
-#timeline.wrap-mode .log-row .msg { white-space: normal; word-break: break-word; overflow: visible; text-overflow: unset; }
+#timeline.wrap-mode .log-row .msg {
+  white-space: normal;
+  word-break: break-word;
+  overflow: visible;
+  text-overflow: unset;
+  flex: 1 1 0;
+  min-width: 0;
+}
 
 /* ── Status bar ─────────────────────────────────────────── */
 #status-bar {
