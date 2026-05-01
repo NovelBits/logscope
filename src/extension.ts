@@ -1159,17 +1159,16 @@ async function pickFromList<T extends string | number>(
   current: T,
   placeholder: string,
 ): Promise<T | undefined> {
-  const items = options.map(o => ({
+  const items: (vscode.QuickPickItem & { _value: T })[] = options.map(o => ({
     label: o.label,
     description: o.value === current ? "(current)" : "",
     _value: o.value,
   }));
   const pick = await showStepQuickPick(
-    items as (vscode.QuickPickItem & { _value: T })[],
+    items,
     { placeholder, title: "Connection Settings", showBack: true },
   );
-  if (!pick) return undefined;
-  return (pick as { _value: T })._value;
+  return pick?._value;
 }
 
 async function changeDataBits(): Promise<void> {

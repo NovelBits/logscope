@@ -385,7 +385,7 @@ function getRowText(row: HTMLElement): string {
 const COPYABLE_SELECTOR = ".log-row, .reset-separator";
 
 document.addEventListener("copy", (e: ClipboardEvent) => {
-  const selection = window.getSelection();
+  const selection = globalThis.getSelection();
   if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
 
   // Collect every .log-row or .reset-separator that intersects the selection.
@@ -406,8 +406,8 @@ document.addEventListener("copy", (e: ClipboardEvent) => {
   while (cur) { rows.add(cur as HTMLElement); cur = walker.nextNode(); }
 
   for (const node of [range.startContainer, range.endContainer]) {
-    const el = (node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement) as HTMLElement | null;
-    const rowEl = el?.closest(COPYABLE_SELECTOR) as HTMLElement | null;
+    const el = node instanceof Element ? node : node.parentElement;
+    const rowEl = el?.closest<HTMLElement>(COPYABLE_SELECTOR);
     if (rowEl) rows.add(rowEl);
   }
 
@@ -415,8 +415,11 @@ document.addEventListener("copy", (e: ClipboardEvent) => {
   // probably grabbing a substring, not a full row. Multi-row: reformat.
   if (rows.size <= 1) return;
 
+  // compareDocumentPosition() returns a bitmask. The explicit `!== 0` makes it
+  // clear we're testing a flag rather than a typo of `&&` — this is what
+  // SonarCloud's S1529 check is asking us to disambiguate.
   const sorted = Array.from(rows).sort((a, b) =>
-    a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
+    (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0 ? -1 : 1,
   );
   const text = sorted.map(getRowText).join("\n");
   e.preventDefault();
