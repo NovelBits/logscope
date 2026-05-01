@@ -50,7 +50,7 @@ function sanitizeErrorDetail(message: string): string {
   // Collapse newlines so a leaked Python traceback or multi-line pylink
   // exception doesn't blow up the error card layout. Each line break
   // becomes " | " so the structure is still readable but the text fits.
-  sanitized = sanitized.replace(/\r\n|\r|\n/g, " | ");
+  sanitized = sanitized.replaceAll(/\r\n|\r|\n/g, " | ");
   if (sanitized.length > 250) {
     sanitized = sanitized.substring(0, 250) + "...";
   }
