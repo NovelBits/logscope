@@ -61,7 +61,7 @@ let autoScroll = true;
 let timestampsVisible = true;
 let dateVisible = false;
 const activeSeverities = new Set(["hci", "err", "wrn", "inf", "dbg"]);
-let selectedModule = ""; // "" means all modules
+const selectedModules = new Set<string>(); // empty = all modules
 let searchText = "";
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 let wrapEnabled = false;
@@ -434,7 +434,7 @@ function shouldShow(entry: SerializedEntry): boolean {
   if (entry.source === "hci" && !activeSeverities.has("hci")) return false;
   // Log entries: check severity toggle
   if (entry.source !== "hci" && !activeSeverities.has(entry.severity)) return false;
-  if (selectedModule && entry.module !== selectedModule) return false;
+  if (selectedModules.size > 0 && !selectedModules.has(entry.module)) return false;
   if (searchText) {
     const lower = searchText.toLowerCase();
     const levelLabel = entry.source === "hci" ? "hci" : entry.severity.toLowerCase();
@@ -552,12 +552,6 @@ document.querySelectorAll(".severity-btn").forEach((btn) => {
 });
 
 // Module dropdown
-moduleSelect.addEventListener("change", () => {
-  selectedModule = moduleSelect.value;
-  refilterTimeline();
-
-});
-
 // Module custom picker
 modulePickerBtn.addEventListener("click", () => {
   const isHidden = modulePickerList.classList.toggle("hidden");
@@ -569,39 +563,82 @@ document.addEventListener("click", (e) => {
     modulePickerBtn.setAttribute("aria-expanded", "false");
   }
 });
-function selectModule(value: string, label: string) {
-  selectedModule = value;
-  moduleSelect.value = value;
-  modulePickerText.textContent = label;
-  modulePickerList.classList.add("hidden");
-  modulePickerBtn.setAttribute("aria-expanded", "false");
-  refilterTimeline();
 
-  const items = modulePickerList.querySelectorAll(".picker-option");
-  items.forEach(item => {
-    (item as HTMLElement).classList.toggle("selected", (item as HTMLElement).dataset.value === value);
-  });
+function updateModulePickerBtn() {
+  if (selectedModules.size === 0) {
+    modulePickerText.textContent = "All modules";
+  } else if (selectedModules.size === 1) {
+    modulePickerText.textContent = [...selectedModules][0];
+  } else {
+    modulePickerText.textContent = `${selectedModules.size} modules`;
+  }
 }
+
 function rebuildModulePicker() {
   while (modulePickerList.firstChild) modulePickerList.firstChild.remove();
+
   const allItem = document.createElement("div");
-  allItem.className = "picker-option" + (selectedModule === "" ? " selected" : "");
-  allItem.dataset.value = "";
+  allItem.className = "picker-option" + (selectedModules.size === 0 ? " checked" : "");
+  allItem.dataset.action = "all";
   allItem.setAttribute("role", "option");
-  allItem.textContent = "All modules";
-  allItem.addEventListener("click", () => selectModule("", "All modules"));
+  const allCheck = document.createElement("span");
+  allCheck.className = "picker-check";
+  allCheck.textContent = "✓";
+  const allLabel = document.createElement("span");
+  allLabel.textContent = "All modules";
+  allItem.appendChild(allCheck);
+  allItem.appendChild(allLabel);
   modulePickerList.appendChild(allItem);
+
   for (let i = 1; i < moduleSelect.options.length; i++) {
     const mod = moduleSelect.options[i].value;
     const item = document.createElement("div");
-    item.className = "picker-option" + (selectedModule === mod ? " selected" : "");
-    item.dataset.value = mod;
+    item.className = "picker-option" + (selectedModules.has(mod) ? " checked" : "");
+    item.dataset.action = "toggle";
+    item.dataset.mod = mod;
     item.setAttribute("role", "option");
-    item.textContent = mod;
-    item.addEventListener("click", () => selectModule(mod, mod));
+    const check = document.createElement("span");
+    check.className = "picker-check";
+    check.textContent = "✓";
+    const label = document.createElement("span");
+    label.className = "picker-label";
+    label.textContent = mod;
+    const onlyBtn = document.createElement("button");
+    onlyBtn.className = "picker-only-btn";
+    onlyBtn.dataset.action = "only";
+    onlyBtn.dataset.mod = mod;
+    onlyBtn.textContent = "Only";
+    item.appendChild(check);
+    item.appendChild(label);
+    item.appendChild(onlyBtn);
     modulePickerList.appendChild(item);
   }
 }
+
+modulePickerList.addEventListener("click", (e: MouseEvent) => {
+  const target = (e.target as HTMLElement).closest<HTMLElement>("[data-action]");
+  if (!target) return;
+  const action = target.dataset.action;
+  const mod = target.dataset.mod ?? "";
+
+  if (action === "all") {
+    selectedModules.clear();
+    modulePickerList.classList.add("hidden");
+    modulePickerBtn.setAttribute("aria-expanded", "false");
+  } else if (action === "toggle") {
+    if (selectedModules.has(mod)) selectedModules.delete(mod);
+    else selectedModules.add(mod);
+  } else if (action === "only") {
+    selectedModules.clear();
+    selectedModules.add(mod);
+    modulePickerList.classList.add("hidden");
+    modulePickerBtn.setAttribute("aria-expanded", "false");
+  }
+
+  updateModulePickerBtn();
+  rebuildModulePicker();
+  refilterTimeline();
+});
 
 // Search input with 150ms debounce
 searchInput.addEventListener("input", () => {
@@ -861,7 +898,6 @@ function handleStatusMessage(msg: { connected: boolean; entryCount: number; evic
 
 function handleModulesMessage(msg: { modules: string[] }): void {
   const modules = msg.modules;
-  const currentValue = moduleSelect.value;
 
   while (moduleSelect.options.length > 1) {
     moduleSelect.remove(1);
@@ -874,9 +910,11 @@ function handleModulesMessage(msg: { modules: string[] }): void {
     moduleSelect.appendChild(option);
   }
 
-  if (currentValue && modules.includes(currentValue)) {
-    moduleSelect.value = currentValue;
+  for (const mod of selectedModules) {
+    if (!modules.includes(mod)) selectedModules.delete(mod);
   }
+
+  updateModulePickerBtn();
   rebuildModulePicker();
 }
 
