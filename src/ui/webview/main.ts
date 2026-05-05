@@ -1005,9 +1005,10 @@ window.addEventListener("message", (event) => {
         }
       }
       if (lastMatch) {
-        lastMatch.scrollIntoView({ behavior: "smooth", block: "center" });
-        lastMatch.classList.add("watch-highlight");
-        setTimeout(() => lastMatch!.classList.remove("watch-highlight"), 1500);
+        const target = lastMatch;
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        target.classList.add("watch-highlight");
+        setTimeout(() => target.classList.remove("watch-highlight"), 1500);
       }
       break;
     }
