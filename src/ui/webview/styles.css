@@ -1,5 +1,12 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+:root {
+  --col-time-w: 100px;
+  --col-ts-w: 100px;
+  --col-sev-w: 32px;
+  --col-mod-w: 90px;
+}
+
 html, body {
   height: 100%; overflow: hidden;
   font-family: var(--vscode-font-family, var(--vscode-editor-font-family, "Consolas, monospace"));
@@ -220,14 +227,19 @@ body { display: flex; flex-direction: column; }
   white-space: nowrap;
 }
 /* Default: time only (no date) */
-#column-headers .col-time { min-width: 100px; margin-right: 10px; padding-right: 10px; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
+#column-headers .col-time { position: relative; width: var(--col-time-w); min-width: 100px; flex-shrink: 0; margin-right: 10px; padding-right: 10px; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
 /* With date visible */
 #viewer.show-date #column-headers .col-time { min-width: 155px; }
 #viewer.show-date.time-12h #column-headers .col-time { min-width: 185px; }
-#column-headers .col-ts { min-width: 100px; margin-right: 10px; padding-right: 10px; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
-#column-headers .col-sev { min-width: 32px; margin-right: 8px; padding-right: 8px; text-align: center; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
-#column-headers .col-mod { min-width: 90px; margin-right: 10px; padding-right: 10px; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
+#column-headers .col-ts { position: relative; width: var(--col-ts-w); min-width: 100px; flex-shrink: 0; margin-right: 10px; padding-right: 10px; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
+#column-headers .col-sev { position: relative; width: var(--col-sev-w); min-width: 32px; flex-shrink: 0; margin-right: 8px; padding-right: 8px; text-align: center; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
+#column-headers .col-mod { position: relative; width: var(--col-mod-w); min-width: 90px; flex-shrink: 0; margin-right: 10px; padding-right: 10px; border-right: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1)); }
 #column-headers .col-msg { flex: 1; }
+
+.col-resize-handle {
+  position: absolute; right: -4px; top: 0; width: 8px; height: 100%;
+  cursor: col-resize; z-index: 1;
+}
 /* Hide timestamp column header when timestamps are hidden */
 #viewer.hide-timestamps #column-headers .col-ts { display: none; }
 /* Raw mode: hide timestamp, level, module column headers */
@@ -283,16 +295,16 @@ body { display: flex; flex-direction: column; }
 .log-row { display: flex; padding: 1px 10px; line-height: 1.4; white-space: nowrap; }
 .log-row:hover { background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.04)); }
 /* Default: time only (no date) */
-.log-row .time { color: var(--vscode-descriptionForeground, #888); opacity: 0.6; margin-right: 10px; flex-shrink: 0; min-width: 100px; }
+.log-row .time { color: var(--vscode-descriptionForeground, #888); opacity: 0.6; margin-right: 10px; flex-shrink: 0; width: var(--col-time-w); min-width: 100px; }
 .log-row .time .time-date { display: none; }
 .log-row .time .time-clock { }
 /* With date visible */
 #viewer.show-date .log-row .time { min-width: 155px; }
 #viewer.show-date .log-row .time .time-date { display: inline; opacity: 0.6; margin-right: 8px; font-size: 0.9em; }
 #viewer.show-date.time-12h .log-row .time { min-width: 185px; }
-.log-row .ts { color: var(--vscode-descriptionForeground, #888); margin-right: 10px; flex-shrink: 0; min-width: 100px; }
-.log-row .sev { font-weight: 700; margin-right: 8px; flex-shrink: 0; min-width: 32px; text-align: center; }
-.log-row .mod { color: var(--vscode-textLink-foreground, #3794ff); margin-right: 10px; flex-shrink: 0; min-width: 90px; overflow: hidden; text-overflow: ellipsis; }
+.log-row .ts { color: var(--vscode-descriptionForeground, #888); margin-right: 10px; flex-shrink: 0; width: var(--col-ts-w); min-width: 100px; }
+.log-row .sev { font-weight: 700; margin-right: 8px; flex-shrink: 0; width: var(--col-sev-w); min-width: 32px; text-align: center; }
+.log-row .mod { color: var(--vscode-textLink-foreground, #3794ff); margin-right: 10px; flex-shrink: 0; width: var(--col-mod-w); min-width: 90px; overflow: hidden; text-overflow: ellipsis; }
 .log-row .msg { font-family: var(--vscode-editor-font-family); flex: 0 0 auto; white-space: nowrap; }
 
 .log-row.hci .sev { color: #c586c0; }

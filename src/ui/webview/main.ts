@@ -908,6 +908,34 @@ vscode.postMessage({ type: "ready" });
 
 // ── Message handler ─────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// ── Column resize ───────────────────────────────────────────────
+(function setupColumnResize() {
+  const root = document.documentElement;
+  document.querySelectorAll<HTMLElement>(".col-resize-handle").forEach(handle => {
+    const col = handle.closest<HTMLElement>("[data-col]")!;
+    const cssVar = `--col-${col.dataset.col}-w`;
+    handle.addEventListener("mousedown", (e: MouseEvent) => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startW = col.getBoundingClientRect().width;
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+      const onMove = (ev: MouseEvent) => {
+        const w = Math.max(24, startW + ev.clientX - startX);
+        root.style.setProperty(cssVar, `${w}px`);
+      };
+      const onUp = () => {
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    });
+  });
+})();
+
 window.addEventListener("message", (event) => {
   if (!event.isTrusted || !event.origin.startsWith("vscode-webview://")) return;
 
