@@ -2,7 +2,7 @@
   "name": "novelbits-logscope",
   "displayName": "LogScope — Embedded Log Viewer",
   "description": "Real-time embedded log viewer — Zephyr, nRF5 SDK, and raw mode with Bluetooth LE HCI decoding, filtering, search, fault detection, and Wireshark export",
-  "version": "0.5.16",
+  "version": "0.5.17",
   "publisher": "novelbits",
   "author": {
     "name": "Novel Bits"
@@ -235,11 +235,6 @@
           ],
           "description": "Transport mode for reading log data."
         },
-        "logscope.rtt.address": {
-          "type": "string",
-          "default": "auto",
-          "description": "RTT control block address (hex, e.g. 0x20004050). Set to 'auto' to detect from Zephyr ELF automatically."
-        },
         "logscope.rtt.pollInterval": {
           "type": "number",
           "default": 50,
@@ -249,16 +244,6 @@
           "type": "string",
           "default": "nrfutil",
           "description": "Path to nrfutil binary. Leave as 'nrfutil' if it's on your PATH."
-        },
-        "logscope.rtt.host": {
-          "type": "string",
-          "default": "localhost",
-          "description": "J-Link RTT telnet server host (jlink-telnet transport only)"
-        },
-        "logscope.rtt.port": {
-          "type": "number",
-          "default": 19021,
-          "description": "J-Link RTT telnet server port (jlink-telnet transport only)"
         },
         "logscope.rtt.silenceThreshold": {
           "type": "number",
@@ -358,24 +343,10 @@
           "default": {},
           "description": "Per-probe J-Link device overrides. Maps probe serial number to target device name (e.g., {\"777195662\": \"STM32F401RE\"}). Set automatically via Change Settings."
         },
-        "logscope.jlink.interface": {
+        "logscope.jlink.remoteHost": {
           "type": "string",
-          "default": "SWD",
-          "enum": [
-            "SWD",
-            "JTAG"
-          ],
-          "description": "Debug interface type"
-        },
-        "logscope.jlink.speed": {
-          "type": "number",
-          "default": 4000,
-          "description": "J-Link connection speed in kHz"
-        },
-        "logscope.jlink.autoStart": {
-          "type": "boolean",
-          "default": true,
-          "description": "Automatically start J-Link when connecting. Disable to connect to an existing RTT server."
+          "default": "",
+          "description": "Host or IP of a remote J-Link server (J-Link Remote Server) to connect to instead of a locally-attached probe. Leave empty for local probes. Experimental; full UI for remote-RTT is in progress."
         },
         "logscope.jlink.rttSearchRanges": {
           "type": "string",

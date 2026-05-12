@@ -22,3 +22,6 @@ jobs:
       - run: npm run build
 
       - run: npm test
+
+      - name: Verify config-key parity (package.json declarations vs runtime reads)
+        run: node scripts/check-runtime-config-keys.mjs

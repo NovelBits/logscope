@@ -2,6 +2,24 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.5.17] - 2026-05-12
+
+Parity cleanup release: every setting in `package.json` is now actually consumed by the code, and every setting consumed by the code is declared. Pairs with a new CI guard so this contract stays true going forward.
+
+### Added
+- **Column-width persistence.** Resizable log-viewer column widths now survive panel closes and VS Code restarts via the new `logscope.columnWidths` setting (set automatically when you drag a column edge).
+- **Double-click a column edge to auto-fit** the column to the widest visible content. Useful after applying a filter, or whenever a long module name or message is being clipped.
+- **`logscope.jlink.remoteHost` setting** is now declared in `package.json`. The remote-RTT plumbing for connecting to a J-Link Remote Server was already in the code (read via `-ip <host>` arg in the helper), but the setting was not surfaced in the VS Code Settings UI. Marked experimental; full UI for remote-RTT is in progress on a worktree.
+- **CI parity check** (`scripts/check-runtime-config-keys.mjs`) uses the TypeScript compiler API to verify every `logscope.*` setting declared in `package.json` is actually read at runtime, and every runtime read corresponds to a declared setting. Wired into `.github/workflows/ci.yml`; PRs that drift either direction now fail.
+- **Privacy & Telemetry docs page** at `docs.novelbits.io/logscope/reference/privacy-telemetry/`. Documents the eight event types LogScope reports to Application Insights, the anonymous install ID model, what is never collected, and how to opt out via VS Code's `telemetry.telemetryLevel` setting.
+
+### Removed
+- **Six dead settings** that were declared in `package.json` but never consumed in code: `logscope.rtt.address` (its "auto" Zephyr-ELF detection module was never wired in), `logscope.rtt.host`, `logscope.rtt.port` (referenced a "jlink-telnet" transport that does not exist), `logscope.jlink.interface`, `logscope.jlink.speed`, `logscope.jlink.autoStart` (their only consumer was a `JLinkManager` class that was never imported anywhere). Users who set these previously saw no behavior change. The default debug interface remains hardcoded SWD in `rtt-helper.py`, which is what every shipped version has always used.
+- **Two dead source modules:** `src/rtt-detect.ts` (orphan Zephyr ELF auto-detection helper) and `src/transport/jlink-manager.ts` (orphan J-Link manager class). Combined ~350 lines of code that no production code path imported.
+
+### Fixed
+- `reference/settings.md` docs page now matches `package.json` exactly. The three high-severity "documented but not real" entries flagged in the 2026-05-12 parity audit are gone.
+
 ## [0.5.16] - 2026-05-12
 
 Telemetry pipeline repair after a 25-day silent outage. No user-facing functionality changes.
