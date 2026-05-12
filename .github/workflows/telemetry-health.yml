@@ -1,0 +1,125 @@
+name: Telemetry Health Check
+
+# Daily synthetic test of the Azure Application Insights ingestion endpoint
+# that LogScope's @vscode/extension-telemetry reporter writes to.
+#
+# Why this exists: On 2026-04-17 ingestion silently stopped for 25 days. The
+# old resource entered a "silent-drop" state — the endpoint returned HTTP 200
+# with itemsAccepted:1, but the workspace routing layer dropped events on
+# the floor. HTTP-only checks would miss this. So this workflow does both:
+#
+#   1. POST a synthetic event → expect HTTP 200 + itemsAccepted: 1
+#   2. Wait for ingestion latency, then query the App Insights API to
+#      verify the event actually landed in the workspace
+#
+# Step 2 requires a read-side API key in the APPINSIGHTS_API_KEY repo
+# secret. If the secret is missing, step 2 is skipped with a warning
+# (HTTP check still runs and fails the workflow if write side breaks).
+#
+# The instrumentation key is write-only and ships publicly in every VSIX,
+# so it is safe to inline here.
+
+on:
+  schedule:
+    # 13:00 UTC daily = 9 AM ET. Workflow failure auto-emails repo admins.
+    - cron: '0 13 * * *'
+  workflow_dispatch:
+
+jobs:
+  ingestion-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST synthetic event to App Insights
+        id: post
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -eu
+
+          marker="health-check-${RUN_ID}-${RUN_ATTEMPT}"
+          echo "marker=$marker" >> "$GITHUB_OUTPUT"
+
+          payload=$(cat <<EOF
+          {
+            "name": "Microsoft.ApplicationInsights.Event",
+            "time": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)",
+            "iKey": "5a47be12-de3a-4301-ba9a-82fcbdc2d4b5",
+            "tags": {
+              "ai.cloud.role": "logscope-health-check",
+              "ai.session.id": "${RUN_ID}"
+            },
+            "data": {
+              "baseType": "EventData",
+              "baseData": {
+                "ver": 2,
+                "name": "${marker}",
+                "properties": {
+                  "source": "github-actions",
+                  "workflow_run_id": "${RUN_ID}",
+                  "workflow_run_attempt": "${RUN_ATTEMPT}"
+                }
+              }
+            }
+          }
+          EOF
+          )
+
+          response=$(curl -sS -w "\n%{http_code}" -X POST \
+            -H "Content-Type: application/json" \
+            -d "$payload" \
+            "https://eastus-8.in.applicationinsights.azure.com/v2.1/track")
+
+          body=$(echo "$response" | head -n -1)
+          status=$(echo "$response" | tail -n 1)
+
+          echo "HTTP status: $status"
+          echo "Response body: $body"
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Ingestion endpoint returned HTTP $status. Azure App Insights may be misconfigured or the iKey may have been rotated."
+            exit 1
+          fi
+
+          accepted=$(echo "$body" | jq -r '.itemsAccepted // 0')
+
+          if [ "$accepted" != "1" ]; then
+            echo "::error::Endpoint returned HTTP 200 but rejected the event (itemsAccepted=$accepted). Response: $body"
+            exit 1
+          fi
+
+          echo "::notice::Ingestion endpoint accepted: HTTP $status, itemsAccepted=$accepted, marker=$marker"
+
+      - name: Verify event landed in workspace (query API)
+        env:
+          APP_ID: a9761017-50c1-414c-8d63-e74901ae9204
+          API_KEY: ${{ secrets.APPINSIGHTS_API_KEY }}
+          MARKER: ${{ steps.post.outputs.marker }}
+        run: |
+          set -eu
+
+          if [ -z "${API_KEY:-}" ]; then
+            echo "::warning::APPINSIGHTS_API_KEY repo secret not set. Skipping workspace verification. To catch silent-drop ingestion failures (the 2026-04-17 fault mode), set the secret to the read key from ~/.claude/credentials/api-keys.env."
+            exit 0
+          fi
+
+          # Ingestion latency on App Insights is typically 2-5 minutes. Poll
+          # for up to 8 minutes before declaring the silent-drop fault mode.
+          deadline=$(( $(date +%s) + 480 ))
+          while [ $(date +%s) -lt "$deadline" ]; do
+            result=$(curl -sS \
+              -H "x-api-key: $API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{\"query\":\"customEvents | where name == '$MARKER' | take 1 | project name\"}" \
+              "https://api.applicationinsights.io/v1/apps/$APP_ID/query")
+
+            rows=$(echo "$result" | jq -r '.tables[0].rows | length // 0')
+            if [ "$rows" -ge "1" ]; then
+              echo "::notice::Verified ingestion end-to-end: event '$MARKER' is queryable in the workspace."
+              exit 0
+            fi
+            sleep 30
+          done
+
+          echo "::error::SILENT-DROP DETECTED. Endpoint returned HTTP 200 + itemsAccepted:1 for marker '$MARKER', but the event never appeared in the workspace after 8 minutes. This is the exact fault mode that caused the 2026-04-17 outage. The Log Analytics workspace routing is degraded; the resource likely needs to be recreated or routed through a fresh workspace."
+          exit 1

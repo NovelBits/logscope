@@ -2,15 +2,17 @@
 
 import { TelemetryReporter } from "@vscode/extension-telemetry";
 import * as vscode from "vscode";
+import { log, logError } from "./logger";
 
 const CONNECTION_STRING =
-  "InstrumentationKey=c75e4caf-ea88-4564-b348-93d44f623849;IngestionEndpoint=https://eastus-8.in.applicationinsights.azure.com/;LiveEndpoint=https://eastus.livediagnostics.monitor.azure.com/;ApplicationId=38b06cd0-bdf6-46ea-a405-46e82f454745";
+  "InstrumentationKey=5a47be12-de3a-4301-ba9a-82fcbdc2d4b5;IngestionEndpoint=https://eastus-8.in.applicationinsights.azure.com/;LiveEndpoint=https://eastus.livediagnostics.monitor.azure.com/;ApplicationId=a9761017-50c1-414c-8d63-e74901ae9204";
 
 export class TelemetryService {
   private reporter: TelemetryReporter | undefined;
   private installId: string = "";
   private sessionStartTime: number = 0;
   private activationTime: number = 0;
+  private warnedOnSendFailure: boolean = false;
 
   /**
    * Initialize telemetry. Call once in activate().
@@ -30,8 +32,14 @@ export class TelemetryService {
       context.globalState.update("logscope.installDate", Date.now());
     }
 
-    this.reporter = new TelemetryReporter(CONNECTION_STRING);
-    context.subscriptions.push(this.reporter);
+    try {
+      this.reporter = new TelemetryReporter(CONNECTION_STRING);
+      context.subscriptions.push(this.reporter);
+      log("Telemetry reporter initialized");
+    } catch (err) {
+      logError("Telemetry reporter failed to initialize (telemetry disabled this session)", err);
+      this.reporter = undefined;
+    }
     this.activationTime = Date.now();
   }
 
@@ -157,8 +165,15 @@ export class TelemetryService {
         { installId: this.installId, ...properties },
         measurements
       );
-    } catch {
-      // Telemetry must never crash the extension
+    } catch (err) {
+      // Only catches synchronous errors here. Silent HTTP failures inside the
+      // @vscode/extension-telemetry package don't reach this catch — the
+      // upstream daily GitHub Action (.github/workflows/telemetry-health.yml)
+      // is the canonical detector for ingestion-side outages.
+      if (!this.warnedOnSendFailure) {
+        this.warnedOnSendFailure = true;
+        logError(`Telemetry send failed for event '${eventName}' (will not warn again this session)`, err);
+      }
     }
   }
 }
