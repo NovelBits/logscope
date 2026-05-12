@@ -51,10 +51,10 @@ export class LogScopePanel {
   }
 
   /** Show or reveal the panel. Always opens in viewer mode. */
-  show(wrapEnabled = false, timeFormat = "24h"): void {
+  show(wrapEnabled = false, timeFormat = "24h", columnWidths: Record<string, number> = {}): void {
     if (this.panel) {
       this.panel.reveal(vscode.ViewColumn.Two);
-      this.sendInit(wrapEnabled, timeFormat);
+      this.sendInit(wrapEnabled, timeFormat, columnWidths);
       return;
     }
 
@@ -104,7 +104,7 @@ export class LogScopePanel {
     });
 
     // Queue init message; it will be delivered once the webview posts "ready"
-    this.sendInit(wrapEnabled, timeFormat);
+    this.sendInit(wrapEnabled, timeFormat, columnWidths);
   }
 
   /** Queue entries for batched delivery to the WebView */
@@ -199,9 +199,9 @@ export class LogScopePanel {
 
   // ── Connection state messages ─────────────────────────────────
 
-  /** Bootstrap the WebView with wrap setting */
-  sendInit(wrapEnabled: boolean, timeFormat = "24h"): void {
-    this.postMessageQueued({ type: "init", wrapEnabled, timeFormat });
+  /** Bootstrap the WebView with wrap setting + persisted column widths */
+  sendInit(wrapEnabled: boolean, timeFormat = "24h", columnWidths: Record<string, number> = {}): void {
+    this.postMessageQueued({ type: "init", wrapEnabled, timeFormat, columnWidths });
   }
 
   /** Notify WebView that connection attempt started */

@@ -319,6 +319,12 @@
           "default": "",
           "description": "Last connected device (used for auto-connect). Set automatically."
         },
+        "logscope.columnWidths": {
+          "type": "object",
+          "default": {},
+          "description": "Persisted log-viewer column widths in pixels (keys: time, ts, sev, mod). Set automatically when columns are resized.",
+          "additionalProperties": { "type": "number" }
+        },
         "logscope.logWrap": {
           "type": "boolean",
           "default": false,

@@ -30,6 +30,7 @@ const timeline = document.getElementById("timeline")!;
 const moduleSelect = document.getElementById("module-select") as HTMLSelectElement;
 const modulePickerBtn = document.getElementById("module-picker-btn")!;
 const modulePickerText = document.getElementById("module-picker-text")!;
+const modulePickerClear = document.getElementById("module-picker-clear")!;
 const modulePickerList = document.getElementById("module-picker-list")!;
 const searchInput = document.getElementById("search-input") as HTMLInputElement;
 const autoScrollBtn = document.getElementById("auto-scroll-btn")!;
@@ -572,7 +573,31 @@ function updateModulePickerBtn() {
   } else {
     modulePickerText.textContent = `${selectedModules.size} modules`;
   }
+  // Show inline clear (×) only when a filter is active. Click handler is
+  // installed once below; we toggle visibility here whenever the selection
+  // changes.
+  modulePickerClear.classList.toggle("hidden", selectedModules.size === 0);
 }
+
+modulePickerClear.addEventListener("click", (e: MouseEvent) => {
+  // Stop the click bubbling up to the picker button (which would toggle
+  // the dropdown). Clearing should NOT open the picker.
+  e.stopPropagation();
+  selectedModules.clear();
+  updateModulePickerBtn();
+  rebuildModulePicker();
+  refilterTimeline();
+});
+modulePickerClear.addEventListener("keydown", (e: KeyboardEvent) => {
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    e.stopPropagation();
+    selectedModules.clear();
+    updateModulePickerBtn();
+    rebuildModulePicker();
+    refilterTimeline();
+  }
+});
 
 function rebuildModulePicker() {
   while (modulePickerList.firstChild) modulePickerList.firstChild.remove();
@@ -713,12 +738,22 @@ function clearTimeline(): void {
 }
 
 // ── Message handler helpers ──────────────────────────────────────
-function handleInitMessage(msg: { wrapEnabled?: boolean; timeFormat?: string }): void {
+function handleInitMessage(msg: { wrapEnabled?: boolean; timeFormat?: string; columnWidths?: Record<string, number> }): void {
   wrapEnabled = msg.wrapEnabled ?? false;
   wrapBtn.classList.toggle("active", wrapEnabled);
   timeline.classList.toggle("wrap-mode", wrapEnabled);
   use12HourTime = msg.timeFormat === "12h";
   viewerEl.classList.toggle("time-12h", use12HourTime);
+  // Apply persisted column widths. Missing keys leave the CSS default
+  // from :root in styles.css. Validates each value is a finite positive
+  // number so a corrupt setting can't break the layout.
+  if (msg.columnWidths) {
+    for (const [key, value] of Object.entries(msg.columnWidths)) {
+      if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+        document.documentElement.style.setProperty(`--col-${key}-w`, `${value}px`);
+      }
+    }
+  }
 }
 
 function handleConnectingMessage(): void {
@@ -947,8 +982,124 @@ vscode.postMessage({ type: "ready" });
 // ── Message handler ─────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 // ── Column resize ───────────────────────────────────────────────
+const COL_KEYS = ["time", "ts", "sev", "mod"] as const;
+
+/**
+ * Read the current column widths off the inline style on <html>. Skips
+ * keys that were never set (which means the CSS default is in effect —
+ * we only persist user-modified widths so the default can change in the
+ * future without locking older sessions to old values).
+ */
+function readColumnWidths(): Record<string, number> {
+  const widths: Record<string, number> = {};
+  for (const key of COL_KEYS) {
+    const raw = document.documentElement.style.getPropertyValue(`--col-${key}-w`).trim();
+    if (!raw) continue;
+    const num = parseFloat(raw);
+    if (Number.isFinite(num) && num > 0) widths[key] = num;
+  }
+  return widths;
+}
+
+function persistColumnWidths(): void {
+  vscode.postMessage({ type: "saveColumnWidths", widths: readColumnWidths() });
+}
+
 (function setupColumnResize() {
   const root = document.documentElement;
+
+  /**
+   * Auto-fit a column to its widest visible content. Measures the header
+   * plus every visible row's matching cell via scrollWidth (which returns
+   * the natural content width even when the cell is constrained or has
+   * overflow:hidden). Skips rows hidden by filters (display:none cells
+   * report scrollWidth=0). Adds a small padding so the text doesn't sit
+   * flush against the right edge.
+   *
+   * Bounded between 24px (minimum) and 50% of the viewport width (cap, so
+   * a runaway 5000-char log line can't push every other column off-screen).
+   */
+  function autoFitColumn(col: HTMLElement): void {
+    const colKey = col.dataset.col;
+    if (!colKey) return;
+    const cssVar = `--col-${colKey}-w`;
+
+    let max = col.scrollWidth;
+    const cells = timeline.querySelectorAll<HTMLElement>(`.log-row .${colKey}`);
+    for (const cell of cells) {
+      if (cell.scrollWidth > max) max = cell.scrollWidth;
+    }
+
+    const padding = 16;
+    const cap = Math.floor(window.innerWidth * 0.5);
+    const newWidth = Math.min(cap, Math.max(24, max + padding));
+    root.style.setProperty(cssVar, `${newWidth}px`);
+    persistColumnWidths();
+  }
+
+  /**
+   * Reset a single column to its CSS-default width. Removing the inline
+   * custom property causes the rule from `:root` in styles.css to apply
+   * again (e.g., --col-time-w: 100px).
+   */
+  function resetColumn(colKey: string): void {
+    root.style.removeProperty(`--col-${colKey}-w`);
+    persistColumnWidths();
+  }
+
+  function resetAllColumns(): void {
+    for (const k of COL_KEYS) {
+      root.style.removeProperty(`--col-${k}-w`);
+    }
+    persistColumnWidths();
+  }
+
+  /**
+   * Show the column context menu (Reset column / Reset all) at the
+   * cursor position. Dismisses on any subsequent click outside the menu.
+   */
+  function showColumnContextMenu(e: MouseEvent, col: HTMLElement): void {
+    document.querySelectorAll(".col-context-menu").forEach(m => m.remove());
+
+    const menu = document.createElement("div");
+    menu.className = "col-context-menu";
+    menu.style.left = `${e.clientX}px`;
+    menu.style.top = `${e.clientY}px`;
+
+    const resetThis = document.createElement("div");
+    resetThis.className = "col-context-item";
+    resetThis.textContent = "Reset column width";
+    resetThis.addEventListener("click", () => {
+      const key = col.dataset.col;
+      if (key) resetColumn(key);
+      menu.remove();
+    });
+
+    const resetAll = document.createElement("div");
+    resetAll.className = "col-context-item";
+    resetAll.textContent = "Reset all columns";
+    resetAll.addEventListener("click", () => {
+      resetAllColumns();
+      menu.remove();
+    });
+
+    menu.appendChild(resetThis);
+    menu.appendChild(resetAll);
+    document.body.appendChild(menu);
+
+    // Dismiss on next outside click. Defer so the contextmenu's own
+    // event doesn't immediately close the menu we just opened.
+    setTimeout(() => {
+      const dismiss = (ev: MouseEvent) => {
+        if (!menu.contains(ev.target as Node)) {
+          menu.remove();
+          document.removeEventListener("click", dismiss);
+        }
+      };
+      document.addEventListener("click", dismiss);
+    }, 0);
+  }
+
   document.querySelectorAll<HTMLElement>(".col-resize-handle").forEach(handle => {
     const col = handle.closest<HTMLElement>("[data-col]")!;
     const cssVar = `--col-${col.dataset.col}-w`;
@@ -967,9 +1118,29 @@ vscode.postMessage({ type: "ready" });
         document.body.style.userSelect = "";
         document.removeEventListener("mousemove", onMove);
         document.removeEventListener("mouseup", onUp);
+        // Persist after the drag ends — saving on every mousemove would
+        // hammer settings.json. One write per resize gesture is plenty.
+        persistColumnWidths();
       };
       document.addEventListener("mousemove", onMove);
       document.addEventListener("mouseup", onUp);
+    });
+
+    handle.addEventListener("dblclick", (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      autoFitColumn(col);
+    });
+  });
+
+  // Right-click on a column header opens the reset context menu. Bound
+  // to the header itself (not just the resize handle, which is only 8px
+  // wide and hard to target). The handle's own contextmenu is captured
+  // first via stopPropagation on its parent listener.
+  document.querySelectorAll<HTMLElement>("#column-headers [data-col]").forEach(col => {
+    col.addEventListener("contextmenu", (e: MouseEvent) => {
+      e.preventDefault();
+      showColumnContextMenu(e, col);
     });
   });
 })();

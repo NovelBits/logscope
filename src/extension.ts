@@ -56,6 +56,7 @@ function getConfig() {
     rttSilenceThresholdSec: cfg.get<number>("rtt.silenceThreshold", 30),
     logWrap: cfg.get<boolean>("logWrap", false),
     timeFormat: cfg.get<string>("timeFormat", "24h"),
+    columnWidths: cfg.get<Record<string, number>>("columnWidths", {}),
   };
 }
 
@@ -445,7 +446,7 @@ async function connectAndShowUart(device: string, baudRate: number, parserMode: 
   await saveSetting("transport", "uart");
 
   const cfg = getConfig();
-  panel?.show(cfg.logWrap, cfg.timeFormat);
+  panel?.show(cfg.logWrap, cfg.timeFormat, cfg.columnWidths);
   panel?.sendConnected("Serial UART", device, parserMode);
   sidebarProvider.updateState({
     connected: true, connecting: false,
@@ -476,7 +477,7 @@ async function connectAndShowRtt(device: string, parserMode: string): Promise<vo
   await saveSetting("lastDevice", device);
   await saveSetting("transport", "rtt");
 
-  panel?.show(cfg.logWrap, cfg.timeFormat);
+  panel?.show(cfg.logWrap, cfg.timeFormat, cfg.columnWidths);
   panel?.sendConnected("J-Link RTT", displayName, parserMode);
   sidebarProvider.updateState({
     connected: true, connecting: false,
@@ -511,7 +512,7 @@ async function doConnect(): Promise<void> {
       const serials = probes.map(p => String(p.serial));
       if (!serials.includes(device)) {
         const error = classifyError(`Probe SN ${device} no longer connected`, undefined, device);
-        panel?.show(getConfig().logWrap, getConfig().timeFormat);
+        panel?.show(getConfig().logWrap, getConfig().timeFormat, getConfig().columnWidths);
         panel?.sendConnectError(error);
         sidebarProvider.updateState({ connected: false, connecting: false });
         return;
@@ -553,7 +554,7 @@ async function doConnect(): Promise<void> {
 
     // Always show the panel when connecting — it shows connecting state and error cards
     const cfgConnect = getConfig();
-    panel?.show(cfgConnect.logWrap, cfgConnect.timeFormat);
+    panel?.show(cfgConnect.logWrap, cfgConnect.timeFormat, cfgConnect.columnWidths);
     sidebarProvider.updateState({ connecting: true });
     statusBar?.setConnecting();
     panel?.sendConnecting();
@@ -1571,6 +1572,17 @@ export function activate(context: vscode.ExtensionContext) {
         break;
       }
 
+      case "saveColumnWidths": {
+        // Persist the user-modified column widths so they survive panel
+        // disposal, window reload, and tab moves to other windows. The
+        // webview only sends keys that deviate from the CSS defaults.
+        const widths = msg.widths as Record<string, number> | undefined;
+        if (widths && typeof widths === "object") {
+          await saveSetting("columnWidths", widths);
+        }
+        break;
+      }
+
       case "clear": {
         ringBuffer?.clear();
         watchMatcher.resetCounters();
@@ -1608,7 +1620,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   const openCmd = vscode.commands.registerCommand("logscope.open", () => {
     const cfg = getConfig();
-    panel?.show(cfg.logWrap, cfg.timeFormat);
+    panel?.show(cfg.logWrap, cfg.timeFormat, cfg.columnWidths);
     // If connected, send state to the (possibly fresh) webview
     if (transport?.connected) {
       const currentParser = vscode.workspace.getConfiguration("logscope").get<string>("parser", "zephyr");
@@ -1818,7 +1830,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   const scrollToWatchCmd = vscode.commands.registerCommand("logscope.scrollToWatchMatch", (patternName: string) => {
     const cfg = getConfig();
-    panel?.show(cfg.logWrap, cfg.timeFormat);
+    panel?.show(cfg.logWrap, cfg.timeFormat, cfg.columnWidths);
     panel?.postMessage({ type: "scrollToWatch", patternName });
   });
 

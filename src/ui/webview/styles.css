@@ -168,6 +168,18 @@ body { display: flex; flex-direction: column; }
 }
 .mini-picker-btn:hover { border-color: var(--vscode-focusBorder, #007fd4); }
 .mini-picker-btn .chevron { font-size: 8px; opacity: 0.5; }
+/* Inline clear button — visible only when a filter is active. The hidden
+   class on .picker-clear sets display:none via the global .hidden rule. */
+.picker-clear {
+  font-size: 10px;
+  padding: 0 4px;
+  margin-left: 2px;
+  border-radius: 2px;
+  cursor: pointer;
+  opacity: 0.6;
+  color: var(--vscode-descriptionForeground, #888);
+}
+.picker-clear:hover { opacity: 1; background: var(--vscode-list-hoverBackground, rgba(255,255,255,0.06)); }
 .mini-picker-list {
   position: absolute; top: 100%; left: 0; min-width: 140px; margin-top: 2px; z-index: 100;
   background: var(--vscode-dropdown-background, #3c3c3c);
@@ -252,6 +264,29 @@ body { display: flex; flex-direction: column; }
 .col-resize-handle {
   position: absolute; right: -4px; top: 0; width: 8px; height: 100%;
   cursor: col-resize; z-index: 1;
+}
+
+/* Mini context menu for column header right-click (Reset column width /
+   Reset all columns). Styled to match VS Code's native menus. */
+.col-context-menu {
+  position: fixed;
+  background: var(--vscode-menu-background, #252526);
+  color: var(--vscode-menu-foreground, #ccc);
+  border: 1px solid var(--vscode-menu-border, #454545);
+  border-radius: 3px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  padding: 4px 0;
+  z-index: 200;
+  min-width: 160px;
+  font-size: 12px;
+}
+.col-context-item {
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.col-context-item:hover {
+  background: var(--vscode-menu-selectionBackground, #094771);
+  color: var(--vscode-menu-selectionForeground, #fff);
 }
 /* Hide timestamp column header when timestamps are hidden */
 #viewer.hide-timestamps #column-headers .col-ts { display: none; }
