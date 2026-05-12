@@ -4,7 +4,12 @@ All notable changes to LogScope will be documented in this file.
 
 ## [0.5.17] - 2026-05-12
 
-Parity cleanup release: every setting in `package.json` is now actually consumed by the code, and every setting consumed by the code is declared. Pairs with a new CI guard so this contract stays true going forward.
+Parity cleanup release plus three multi-probe / device-switch UX fixes from the 2026-05-11 capture session. Every setting in `package.json` is now actually consumed by the code, every setting consumed by the code is declared, and the sidebar finally tells you which probe is talking.
+
+### Fixed
+- **Search filter no longer carries over to a new connection.** Disconnecting from board A and connecting to board B used to keep the previous search filter active, hiding entries on the new board (the status bar would say "4 entries" while only 1 was visible). The webview now clears its search state on every new `connected` message, so filters are scoped to the current session.
+- **No more fake "Device Reset Detected" banner on initial connect to a long-running board.** The Python helper's first successful attach goes through `full_reconnect()` and emits "Reconnected OK" before any user data has flowed, which was being treated as a reset event. `NrfutilRttTransport` now gates the `reset` event behind a `firstDataReceived` flag that flips true only after the first chunk of log data is parsed. Mid-session resets still fire correctly.
+- **Sidebar now shows the active probe serial when connected via J-Link RTT.** Multi-probe workflows (Bluetooth LE central+peripheral, mesh, board farms) previously had no way to tell from the sidebar which of several attached probes the current session was talking to: the "Device" row showed the chip name (`nRF54L15`) only. A new "Probe" row sits next to "J-Link Device" and shows the probe serial.
 
 ### Added
 - **Column-width persistence.** Resizable log-viewer column widths now survive panel closes and VS Code restarts via the new `logscope.columnWidths` setting (set automatically when you drag a column edge).

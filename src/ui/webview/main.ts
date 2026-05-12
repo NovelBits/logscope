@@ -767,6 +767,16 @@ function handleConnectingMessage(): void {
 
 function handleConnectedMessage(msg: { address?: string; transport?: string; parserMode?: string }): void {
   isConnected = true;
+
+  // Clear any search filter from a previous session. The filter is user intent
+  // about what to surface in the *current* session's logs; carrying it over to
+  // a new connection hides entries the user didn't intend to filter.
+  if (searchText) {
+    searchText = "";
+    searchInput.value = "";
+    refilterTimeline();
+  }
+
   connDevice.textContent = msg.address ? "\u00B7 " + msg.address : "";
   connStatusDot.className = "dot green";
   const transportLabel = msg.transport || "J-Link RTT";

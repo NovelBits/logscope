@@ -290,6 +290,13 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
       const probeSerial = this.state.selectedDevice;
       const override = overrides[probeSerial];
       items.push(SidebarItem.info("J-Link Device", "chip", override || "Auto"));
+
+      // Probe serial — important for multi-probe workflows (BLE central+peripheral,
+      // mesh, board farms) where the chip name alone doesn't tell the user which
+      // physical board this session is talking to.
+      if (probeSerial) {
+        items.push(SidebarItem.info("Probe", "circuit-board", probeSerial));
+      }
     }
 
     const parserLabels: Record<string, string> = { zephyr: "Zephyr", nrf5: "nRF5 SDK", raw: "Raw" };

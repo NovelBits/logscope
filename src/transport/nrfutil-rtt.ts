@@ -288,6 +288,13 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
   private _connected = false;
   private helper: ChildProcess | null = null;
   private lastErrorLine = "";
+  // Gates the "reset" event. The Python helper's first successful attach goes
+  // through full_reconnect() and emits "Reconnected OK" before any user data
+  // has flowed — without this gate we'd misclassify every first-connect to a
+  // long-running board as a reset event. Flips true once the first byte of
+  // log data is parsed off the framed-stdout protocol; from then on,
+  // subsequent "Reconnected OK" lines really are mid-session recoveries.
+  private firstDataReceived = false;
 
   /** The device name actually used (may differ from config if auto-detected) */
   detectedDevice: string | null = null;
@@ -364,9 +371,12 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
           if (trimmed) {
             logFromHelper("rtt-helper", trimmed);
           }
-          // Detect board reset recovery — only on full reconnect, not lightweight RTT restart
+          // Detect board reset recovery — only on full reconnect, not lightweight RTT restart.
+          // Suppress until the first data chunk has flowed: the helper's first successful
+          // attach also emits "Reconnected OK", which would otherwise show a fake reset
+          // banner on every initial connect to a long-running board.
           if (trimmed.startsWith("Reconnected OK")) {
-            if (resolved) {
+            if (resolved && this.firstDataReceived) {
               this.emit("reset");
             }
           }
@@ -417,8 +427,10 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
           frameBuf = frameBuf.subarray(5 + length);
 
           if (channel === 0) {
+            this.firstDataReceived = true;
             this.emit("data", payload);
           } else if (channel === 1) {
+            this.firstDataReceived = true;
             this.emit("hci", payload);
           }
         }
