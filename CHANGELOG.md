@@ -2,13 +2,22 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.5.18] - 2026-05-12
+
+Critical fix for an orphan-helper bug that left LogScope appearing connected with zero entries after a VS Code window reload.
+
+### Fixed
+- **Reloading VS Code while LogScope is connected no longer leaves an orphan helper holding the J-Link probe.** When VS Code reloads its window, the extension host is torn down immediately. Previously, `disconnect()` queued the force-kill of the Python helper subprocess via a 500ms `setTimeout` — which never fired because the event loop was already dead. The helper survived as an orphan re-parented to init (PID 1), kept polling RTT, and silently drained log data away from any subsequent LogScope session. The next "Connect" looked successful (probe is multiplexed across processes by SEGGER's J-Link service) but no entries ever appeared because the orphan was reading the RTT buffer first. Fix: two layers of defense.
+  - **Layer 1 (extension):** `disconnect()` now kills the helper synchronously instead of via `setTimeout`. The graceful `quit\n` message still goes out first (best-effort), but a SIGTERM follows immediately on the same tick. `disconnectAll()` also now cleans up mid-connect transports (helper spawned but RTT_READY not yet seen), which had the same orphan risk.
+  - **Layer 2 (Python helper):** `rtt-helper.py` now installs a SIGTERM handler that exits cleanly via `os._exit(0)`, and a daemon thread that polls `os.getppid()` every 2 seconds. If our parent process dies (PID changes, or becomes 1 on Unix), the helper bails immediately, releasing the J-Link probe. This catches edge cases where Layer 1's signal never arrives (extension host crashed, etc.). Windows orphan detection works differently and is tracked as future work.
+
 ## [0.5.17] - 2026-05-12
 
 Parity cleanup release plus three multi-probe / device-switch UX fixes from the 2026-05-11 capture session. Every setting in `package.json` is now actually consumed by the code, every setting consumed by the code is declared, and the sidebar finally tells you which probe is talking.
 
 ### Fixed
 - **Search filter no longer carries over to a new connection.** Disconnecting from board A and connecting to board B used to keep the previous search filter active, hiding entries on the new board (the status bar would say "4 entries" while only 1 was visible). The webview now clears its search state on every new `connected` message, so filters are scoped to the current session.
-- **No more fake "Device Reset Detected" banner on initial connect to a long-running board.** The Python helper's first successful attach goes through `full_reconnect()` and emits "Reconnected OK" before any user data has flowed, which was being treated as a reset event. `NrfutilRttTransport` now gates the `reset` event behind a `firstDataReceived` flag that flips true only after the first chunk of log data is parsed. Mid-session resets still fire correctly.
+- **No more fake "Device Reset Detected" banner on initial connect via the `Reconnected OK` path.** The Python helper's `full_reconnect()` recovery routine emits "Reconnected OK" when it completes, and on a first-attach scenario this could fire before any user data has flowed. `NrfutilRttTransport` now gates the `reset` event behind a `firstDataReceived` flag that flips true only after the first chunk of log data is parsed. A second path (the parser's `*** Booting` detection firing on historical RTT buffer drain) is tracked in TODO.md as a follow-up.
 - **Sidebar now shows the active probe serial when connected via J-Link RTT.** Multi-probe workflows (Bluetooth LE central+peripheral, mesh, board farms) previously had no way to tell from the sidebar which of several attached probes the current session was talking to: the "Device" row showed the chip name (`nRF54L15`) only. A new "Probe" row sits next to "J-Link Device" and shows the probe serial.
 
 ### Added

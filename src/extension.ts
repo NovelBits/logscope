@@ -241,7 +241,11 @@ function disconnectAll(): void {
       evictedCount: ringBuffer?.evictedCount ?? 0,
     });
   }
-  if (transport?.connected) {
+  // Disconnect any live OR mid-connect transport. Mid-connect helpers (helper
+  // process spawned but RTT_READY not yet seen) must also be killed: otherwise
+  // they survive as orphans holding the J-Link probe when the extension host
+  // is torn down (e.g., on window reload).
+  if (transport) {
     transport.disconnect();
   }
   transport = null;

@@ -2,6 +2,41 @@
 
 Running list of deferred work — items that are well-understood and ready to pick up but not the highest priority right now. New entries go at the top within each section.
 
+## Transport / RTT
+
+### Helper doesn't re-sync RTT control block after a target reset
+**Origin:** observed 2026-05-12 while testing the orphan-helper fix in v0.5.18. With a live connection, pressing the board reset button does NOT make the new boot banner appear in the LogScope viewer. The new boot lines are stuck "in the buffer" and only show up after a disconnect → reconnect cycle (which forces a full RTT re-init).
+
+**The bug:** Zephyr's RTT control block has internal read/write offsets. After a firmware reset, those offsets reset to zero in the new control block in the firmware. The Python helper's pylink-side state still has its stale "last read offset" from before the reset, so subsequent `jlink.rtt_read(0, 4096)` calls see "no new data" relative to the helper's tracked offset (or read garbage from buffer slots that are now 0). The helper has no path to detect "the target just reset, my offsets are stale, I need to re-sync."
+
+**Why this matters:** every user who connects to a long-running board and resets the firmware sees zero feedback in real time. Disconnect/reconnect works around it but is friction. This is also what's behind the "stuck in buffer" symptom users hit when debugging boot sequences.
+
+**Suggested fix:** in `read_channels()` or the main loop, detect a stale-offset condition. Several signals to choose from:
+- Read offset regressed (current offset < last known offset) → target reset.
+- All-zeros reads for several consecutive polls when there should be data → control block was reinitialized.
+- An explicit `jlink.target_connected()` flap that indicates a CPU reset.
+
+On detection: call `jlink.rtt_stop()` + `jlink.rtt_start()` + `_wait_for_rtt_control_block()` to fully re-sync. This is what `restart_rtt()` already does for the silence-recovery path — the same routine can serve here, triggered by a different signal.
+
+**Pickup notes:**
+- The signal-from-target-state path: pylink exposes `target.connected()` / `target.halted()` flags. Compare across polls.
+- The offset-regression path: track the last-read-offset from the helper's view via `jlink.rtt_get_status(0)` or by comparing the bytes returned across polls.
+- Tie this in carefully with the existing silence-recovery path so we don't trigger restart_rtt() on every single reset (we already have the silence threshold).
+- Test scenarios: (a) firmware in tight loop emitting logs continuously → reset mid-stream; (b) silent demo → reset and see boot banner immediately; (c) reset multiple times in quick succession.
+
+### Fake "Device Reset Detected" banner on initial connect to long-running board
+**Origin:** observed 2026-05-11 during the LinkedIn carousel capture session. Initial fix attempted in v0.5.17 (boot-detection grace window in `extension.ts`) got reverted during the orphan-helper-bug investigation. With v0.5.18's orphan fix in place, the grace-window approach is safe to re-apply.
+
+**The bug:** when LogScope attaches to a board that has been running for a while, the J-Link first drains the RTT control block's historical contents — which typically includes the firmware's original boot banner from when it was first powered on. The parser at `extension.ts` line 140 sees `*** Booting` in the drained text and fires `panel?.sendReset()`, producing a "Device Reset Detected" separator even though no reset has actually happened.
+
+**Suggested fix (same approach as the reverted v0.5.17 attempt, now safe):** add a 2-second grace window after each connect. Boot banners during the initial drain quietly update `bootDetected` but do not fire the reset banner. Any boot banner past the grace window IS a real reset and fires.
+
+**Pickup notes:**
+- Track `connectStartedAt: number | null = null` at module level.
+- Set in `doConnect()` alongside `bootDetected = true`.
+- Gate `panel?.sendReset()` in `handleChunk()` on `Date.now() - connectStartedAt > BOOT_RESET_GRACE_MS` (2000ms is fine).
+- This is independent of the RTT-resync work above — both fixes are needed for a clean reset-detection story.
+
 ## UX / Connect-flow
 
 ### Guided-connect: avoid orphan sidebar state when wizard is abandoned

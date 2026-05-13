@@ -489,18 +489,21 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
 
   disconnect(): void {
     if (this.helper) {
-      // Send "quit" to stdin for graceful shutdown (rtt_stop + jlink.close)
-      // before killing the process, so the J-Link probe is released cleanly.
+      const proc = this.helper;
+      // Send "quit" to stdin so the helper can do its own graceful cleanup
+      // (rtt_stop + jlink.close releases the SEGGER J-Link probe). Best effort.
       try {
-        this.helper.stdin?.write("quit\n");
+        proc.stdin?.write("quit\n");
       } catch {
         // stdin may already be closed
       }
-      // Give the helper a moment to clean up, then force-kill
-      const proc = this.helper;
-      setTimeout(() => {
-        try { proc.kill(); } catch { /* already exited */ }
-      }, 500);
+      // SIGTERM the helper synchronously. We can't use setTimeout for a
+      // delayed force-kill: when VS Code reloads the window, deactivate() is
+      // called and the extension host is torn down immediately after — any
+      // pending setTimeout never fires, leaving an orphan helper that still
+      // holds the J-Link probe open. Python's SIGTERM handler in rtt-helper.py
+      // handles graceful shutdown on the helper side.
+      try { proc.kill(); } catch { /* already exited */ }
       this.helper = null;
     }
     this._connected = false;

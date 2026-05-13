@@ -8,10 +8,78 @@ Fallback: nrfutil CLI (nRF devices only, slower, some packet loss)
 
 Usage: python3 rtt-helper.py <device_name_or_rtt_address> [poll_interval_ms] [nrfutil_path]
 """
+import signal
 import struct
+import threading
 import time
 import sys
 import os
+
+
+def _install_orphan_watcher():
+    """Start a daemon thread that exits this process if our parent dies.
+
+    When VS Code reloads its window, the extension host is torn down. The
+    extension's disconnect() tries to send SIGTERM to this helper, but on
+    rare paths that signal doesn't arrive (extension host crashed, kill
+    queued but never delivered, etc.). When that happens, this helper is
+    re-parented to init (PID 1 on Unix) and silently continues holding the
+    SEGGER J-Link probe, blocking any subsequent LogScope session from
+    reading log data.
+
+    Defense-in-depth: poll our parent PID every 2 seconds. If it changes
+    (or becomes 1), we've been orphaned — exit immediately so the J-Link
+    is released.
+
+    Windows note: process reparenting works differently on Windows
+    (orphaned children don't get a stable PID 1 parent), so this watcher
+    is a no-op there. Windows orphan cleanup is tracked as future work.
+    """
+    if sys.platform == "win32":
+        return
+
+    initial_ppid = os.getppid()
+
+    def _watch():
+        while True:
+            time.sleep(2)
+            try:
+                current_ppid = os.getppid()
+            except Exception:
+                continue
+            if current_ppid != initial_ppid or current_ppid == 1:
+                # Re-parented to init — extension host is gone. Bail out.
+                # Skip cleanup (calling jlink.close() from a daemon thread
+                # while the main thread is mid-rtt_read can deadlock); the
+                # OS releases USB handles on process exit.
+                print(f"Parent process died (ppid {initial_ppid} -> {current_ppid}); exiting", file=sys.stderr)
+                try:
+                    sys.stderr.flush()
+                except Exception:
+                    pass
+                os._exit(0)
+
+    t = threading.Thread(target=_watch, daemon=True, name="logscope-orphan-watcher")
+    t.start()
+
+
+def _install_sigterm_handler():
+    """Exit cleanly on SIGTERM so the extension's disconnect() path produces
+    a fast, deterministic shutdown without leaving the J-Link held."""
+
+    def _handler(signum, frame):
+        try:
+            print(f"Received signal {signum}; exiting", file=sys.stderr)
+            sys.stderr.flush()
+        except Exception:
+            pass
+        os._exit(0)
+
+    try:
+        signal.signal(signal.SIGTERM, _handler)
+    except Exception:
+        # Some Python builds restrict signal registration; not fatal.
+        pass
 
 
 def _wait_for_rtt_control_block(jlink):
@@ -743,10 +811,16 @@ def main():
 
     device_or_addr = sys.argv[1]
 
-    # Discovery mode — just list connected probes and exit
+    # Discovery mode — just list connected probes and exit. Short-lived, no
+    # orphan risk; skip the watcher.
     if device_or_addr == "discover":
         run_discover()
         return
+
+    # Long-lived helper. Install defense-in-depth cleanup so we always release
+    # the J-Link probe even when our parent extension host dies unexpectedly.
+    _install_sigterm_handler()
+    _install_orphan_watcher()
 
     poll_ms = int(sys.argv[2]) if len(sys.argv) > 2 else 20
     nrfutil_path = sys.argv[3] if len(sys.argv) > 3 else "nrfutil"
