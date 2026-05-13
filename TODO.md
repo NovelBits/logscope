@@ -5,24 +5,15 @@ Running list of deferred work — items that are well-understood and ready to pi
 ## Transport / RTT
 
 ### Helper doesn't re-sync RTT control block after a target reset
-**Origin:** observed 2026-05-12 while testing the orphan-helper fix in v0.5.18. With a live connection, pressing the board reset button does NOT make the new boot banner appear in the LogScope viewer. The new boot lines are stuck "in the buffer" and only show up after a disconnect → reconnect cycle (which forces a full RTT re-init).
+**Origin:** observed 2026-05-12 while testing the orphan-helper fix in v0.5.18. With a live connection, pressing the board reset button does NOT make the new boot banner appear in the LogScope viewer. The new boot lines stay invisible until a disconnect/reconnect cycle, which forces a full RTT re-init by spawning a fresh helper process.
 
-**The bug:** Zephyr's RTT control block has internal read/write offsets. After a firmware reset, those offsets reset to zero in the new control block in the firmware. The Python helper's pylink-side state still has its stale "last read offset" from before the reset, so subsequent `jlink.rtt_read(0, 4096)` calls see "no new data" relative to the helper's tracked offset (or read garbage from buffer slots that are now 0). The helper has no path to detect "the target just reset, my offsets are stale, I need to re-sync."
+**The bug:** after a firmware reset the target's RTT control block has fresh offsets (WrOff=0, RdOff=0 if SRAM was cleared) but libjlinkarm's host-side cached `tracked_RdOff` is stale from before the reset. `jlink.rtt_read()` returns 0 bytes because libjlinkarm thinks it has already consumed everything past the new buffer's WrOff.
+
+**What does NOT work (verified empirically 2026-05-12):** periodic `rtt_stop()` + `rtt_start()` from within the same pylink session. Despite SEGGER docs implying this re-syncs, libjlinkarm caches the host-side `tracked_RdOff` across stop/start in the same process. Only a full close-and-reopen of the J-Link probe (essentially `full_reconnect()` or a fresh helper subprocess) clears the cache — and `full_reconnect()` halts the target CPU on `jlink.connect()`, which reintroduces the issue #17 regression.
 
 **Why this matters:** every user who connects to a long-running board and resets the firmware sees zero feedback in real time. Disconnect/reconnect works around it but is friction. This is also what's behind the "stuck in buffer" symptom users hit when debugging boot sequences.
 
-**Suggested fix:** in `read_channels()` or the main loop, detect a stale-offset condition. Several signals to choose from:
-- Read offset regressed (current offset < last known offset) → target reset.
-- All-zeros reads for several consecutive polls when there should be data → control block was reinitialized.
-- An explicit `jlink.target_connected()` flap that indicates a CPU reset.
-
-On detection: call `jlink.rtt_stop()` + `jlink.rtt_start()` + `_wait_for_rtt_control_block()` to fully re-sync. This is what `restart_rtt()` already does for the silence-recovery path — the same routine can serve here, triggered by a different signal.
-
-**Pickup notes:**
-- The signal-from-target-state path: pylink exposes `target.connected()` / `target.halted()` flags. Compare across polls.
-- The offset-regression path: track the last-read-offset from the helper's view via `jlink.rtt_get_status(0)` or by comparing the bytes returned across polls.
-- Tie this in carefully with the existing silence-recovery path so we don't trigger restart_rtt() on every single reset (we already have the silence threshold).
-- Test scenarios: (a) firmware in tight loop emitting logs continuously → reset mid-stream; (b) silent demo → reset and see boot banner immediately; (c) reset multiple times in quick succession.
+**The right fix (v0.6.0 candidate):** implement RTT on top of direct target memory reads, bypassing libjlinkarm's high-level `JLINK_RTTERMINAL_*` API entirely. This is what RTT Viewer (SEGGER), probe-rs (Rust open source), OpenOCD, and Nordic's nrfutil all do. The control block layout is public (SEGGER's open-source `SEGGER_RTT.h`). Full implementation spec: `docs/session-handoff-2026-05-12-logscope-rtt.md` in the brain repo.
 
 ### Fake "Device Reset Detected" banner on initial connect to long-running board
 **Origin:** observed 2026-05-11 during the LinkedIn carousel capture session. Initial fix attempted in v0.5.17 (boot-detection grace window in `extension.ts`) got reverted during the orphan-helper-bug investigation. With v0.5.18's orphan fix in place, the grace-window approach is safe to re-apply.
