@@ -86,7 +86,7 @@ describe("Security: serial number validation", () => {
 
 describe("Security: action command allowlist", () => {
   it("only known action commands exist in error objects", () => {
-    const ALLOWED = ["rescan", "reconnect", "retry", "resetDevice", "downloadPython"];
+    const ALLOWED = ["rescan", "reconnect", "retry", "resetDevice", "downloadPython", "downloadSegger", "setJlinkDevice"];
     const testMessages = [
       "Python 3 not found",
       "Failed to install",
@@ -107,7 +107,7 @@ describe("Security: action command allowlist", () => {
   });
 
   it("exit code paths also use only allowed commands", () => {
-    const ALLOWED = ["rescan", "reconnect", "retry", "resetDevice", "downloadPython"];
+    const ALLOWED = ["rescan", "reconnect", "retry", "resetDevice", "downloadPython", "downloadSegger", "setJlinkDevice"];
     for (const code of [2, 3, 4]) {
       const error = classifyError("unknown", code);
       for (const action of error.actions) {
