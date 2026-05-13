@@ -1034,24 +1034,40 @@ function persistColumnWidths(): void {
     if (!colKey) return;
     const cssVar = `--col-${colKey}-w`;
 
-    // Measure the header's text content directly via a Range, not the
-    // header element's scrollWidth. The .col-resize-handle child is
-    // position:absolute with right:-4px (it protrudes 4px past the
-    // parent's right edge). col.scrollWidth includes that overhang, so
-    // using it as the baseline made every double-click grow the column
-    // by the handle overhang + padding instead of fitting to content.
-    let max = 0;
-    for (const node of Array.from(col.childNodes)) {
-      if (node.nodeType === Node.TEXT_NODE) {
-        const range = document.createRange();
+    // Measure natural content width via Range. element.scrollWidth would
+    // be wrong for two reasons:
+    //   - When the cell has explicit width and no overflow:hidden, content
+    //     that fits gives scrollWidth == clientWidth (current column width).
+    //   - Absolutely-positioned children (.col-resize-handle on the header,
+    //     .expand-icon on HCI-expandable .mod cells) get pinned to the
+    //     cell's right edge, so any measurement that includes them reads
+    //     back ~the current column width.
+    // We take the union of bounding rects of each NON-absolute child.
+    const range = document.createRange();
+    const measureContent = (el: HTMLElement): number => {
+      let left = Infinity;
+      let right = -Infinity;
+      let hasContent = false;
+      for (const node of Array.from(el.childNodes)) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const pos = getComputedStyle(node as HTMLElement).position;
+          if (pos === "absolute" || pos === "fixed") continue;
+        }
         range.selectNodeContents(node);
-        max = Math.max(max, range.getBoundingClientRect().width);
+        const rect = range.getBoundingClientRect();
+        if (rect.width === 0 && rect.height === 0) continue;
+        if (rect.left < left) left = rect.left;
+        if (rect.right > right) right = rect.right;
+        hasContent = true;
       }
-    }
+      return hasContent ? right - left : 0;
+    };
 
+    let max = measureContent(col);
     const cells = timeline.querySelectorAll<HTMLElement>(`.log-row .${colKey}`);
     for (const cell of cells) {
-      if (cell.scrollWidth > max) max = cell.scrollWidth;
+      const w = measureContent(cell);
+      if (w > max) max = w;
     }
 
     const padding = 16;

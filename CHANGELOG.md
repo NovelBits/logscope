@@ -2,10 +2,15 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.6.3] - 2026-05-13
+
+### Fixed
+- Column auto-fit (double-click the resize handle) now correctly fits the **Module** column too. v0.6.2's fix used `cell.scrollWidth`, which equals the cell's clientWidth when content fits inside the box, causing each double-click to read the column's current width back and grow it by the padding constant. v0.6.3 replaces every width measurement with `Range.getBoundingClientRect()` and filters out absolutely-positioned children (the `.col-resize-handle` on headers and the `.expand-icon` on HCI-expandable Module cells), so the function measures only the natural inline content.
+
 ## [0.6.2] - 2026-05-13
 
 ### Fixed
-- Double-clicking the resize handle on a column header now correctly auto-fits the column to its widest visible content. In v0.5.17 through v0.6.1 the auto-fit measured the header's `scrollWidth`, which included the 4 px overhang of the absolutely-positioned `.col-resize-handle` child. Each double-click added that overhang plus the 16 px padding constant to the column width, so the column grew monotonically instead of fitting. The fix measures the header's text content directly via a `Range`, which excludes the handle's bounding box. Reported during v0.6.1 hardware testing.
+- Double-clicking the resize handle on a column header now correctly auto-fits the column to its widest visible content. In v0.5.17 through v0.6.1 the auto-fit measured the header's `scrollWidth`, which included the 4 px overhang of the absolutely-positioned `.col-resize-handle` child. Each double-click added that overhang plus the 16 px padding constant to the column width, so the column grew monotonically instead of fitting. The fix measures the header's text content directly via a `Range`, which excludes the handle's bounding box. Reported during v0.6.1 hardware testing. (Partial fix; completed in v0.6.3.)
 
 ## [0.6.1] - 2026-05-13
 
