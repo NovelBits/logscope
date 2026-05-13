@@ -837,7 +837,7 @@ def run_pylink_direct(device_or_addr, poll_ms, serial_no=None):
 
     jlink = _create_jlink()
 
-    # Check for connected probes BEFORE opening — otherwise the J-Link SDK
+    # Check for connected probes BEFORE opening: otherwise the J-Link SDK
     # pops up a native dialog asking about TCP/IP connection.
     if not jlink.connected_emulators():
         print("ERROR: No J-Link probes found. Connect a device via USB and try again.", file=sys.stderr)
@@ -938,6 +938,7 @@ def run_pylink_direct(device_or_addr, poll_ms, serial_no=None):
     num_up = session.channel_count()
     has_hci = num_up >= 2
     print(f"RTT_READY buffers={num_up} hci={'yes' if has_hci else 'no'}", file=sys.stderr)
+    sys.stderr.flush()
 
     # Surface channel names for the UI. Task 6 consumes CHANNEL_NAME on the TS side.
     for ch in session.channels:
@@ -959,6 +960,39 @@ def run_pylink_direct(device_or_addr, poll_ms, serial_no=None):
     def write_frame(channel, data):
         """Write framed data: [channel:1][length:4 LE][data:N]"""
         stdout.write(bytes([channel]) + struct.pack('<I', len(data)) + data)
+
+    reconnect_attempts = 0
+    MAX_RECONNECT_ATTEMPTS = 3
+
+    def full_reconnect():
+        """Close + reopen the J-Link probe, then re-attach the session.
+        Mirrors run_pylink_classic's full_reconnect() for transient USB/SWD glitches.
+        """
+        print("Full J-Link reconnect...", file=sys.stderr)
+        sys.stderr.flush()
+        try:
+            jlink.close()
+        except Exception:
+            pass
+        time.sleep(0.5)
+        try:
+            _open_jlink(jlink, serial_no=serial_no)
+            jlink.connect(device)
+            if jlink.halted():
+                jlink.restart()
+        except Exception as reconnect_err:
+            print(f"Reconnect failed: {reconnect_err}", file=sys.stderr)
+            sys.stderr.flush()
+            return False
+        try:
+            session.attach(search_ranges)
+        except Exception as attach_err:
+            print(f"Reconnect re-attach failed: {attach_err}", file=sys.stderr)
+            sys.stderr.flush()
+            return False
+        print(f"Reconnected OK, buffers={session.channel_count()}", file=sys.stderr)
+        sys.stderr.flush()
+        return True
 
     quit_requested = threading.Event()
 
@@ -1013,13 +1047,21 @@ def run_pylink_direct(device_or_addr, poll_ms, serial_no=None):
             print(f"RTT read error #{consecutive_errors}: {e}", file=sys.stderr)
             sys.stderr.flush()
             if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
-                print("ERROR: too many read errors; giving up", file=sys.stderr)
-                sys.stderr.flush()
-                try:
-                    jlink.close()
-                except Exception:
-                    pass
-                sys.exit(4)
+                if not full_reconnect():
+                    reconnect_attempts += 1
+                    if reconnect_attempts >= MAX_RECONNECT_ATTEMPTS:
+                        print("ERROR: full reconnect failed repeatedly; giving up", file=sys.stderr)
+                        sys.stderr.flush()
+                        try:
+                            jlink.close()
+                        except Exception:
+                            pass
+                        sys.exit(4)
+                else:
+                    reconnect_attempts = 0
+                consecutive_errors = 0
+                last_data_time = time.monotonic()
+                continue
             time.sleep(poll_interval * 2)
             continue
 
