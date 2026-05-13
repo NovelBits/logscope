@@ -137,6 +137,11 @@ const GENERATIONS: GenSpec[] = [
         "SMP Pairing Failed Reason Codes (returned in the Reason field of SMP Pairing Failed PDUs)."
       ),
   },
+  {
+    yamlFile: "company_identifiers.yaml",
+    outFile: "company-ids.ts",
+    render: (raw) => renderCompanyIdsModule(raw),
+  },
 ];
 
 function main() {
