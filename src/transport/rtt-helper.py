@@ -998,6 +998,7 @@ def run_pylink_direct(device_or_addr, poll_ms, serial_no=None):
             return False
         print(f"Reconnected OK, buffers={session.channel_count()}", file=sys.stderr)
         sys.stderr.flush()
+        emit_channel_names()
         return True
 
     quit_requested = threading.Event()
