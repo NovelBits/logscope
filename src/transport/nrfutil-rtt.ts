@@ -282,6 +282,8 @@ export interface RttTransportConfig {
   rttSearchRanges?: string;
   /** Seconds of silence before host-side RTT restart. 0 disables silence-based recovery. Default 30. */
   silenceThresholdSec?: number;
+  /** Use legacy libjlinkarm RTT path (pre-v0.6.0). Default false. */
+  legacyMode?: boolean;
 }
 
 export class NrfutilRttTransport extends EventEmitter implements Transport {
@@ -305,6 +307,7 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
   private readonly nrfutilPath: string;
   private readonly rttSearchRanges: string;
   private readonly silenceThresholdSec: number;
+  private readonly legacyMode: boolean;
 
   constructor(config: RttTransportConfig) {
     super();
@@ -314,10 +317,46 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
     this.nrfutilPath = config.nrfutilPath ?? "nrfutil";
     this.rttSearchRanges = config.rttSearchRanges ?? "0x20000000 0x80000";
     this.silenceThresholdSec = config.silenceThresholdSec ?? 30;
+    this.legacyMode = config.legacyMode ?? false;
   }
 
   get connected(): boolean {
     return this._connected;
+  }
+
+  /**
+   * Process a single line of stderr from the helper.
+   * Public to enable unit testing; invoked from the proc.stderr listener
+   * inside connect() for each non-empty line.
+   *
+   * Chunk-level pattern detection (RTT_READY, ERROR:, DEVICE_DETECTED) stays
+   * inline in connect() because those markers may arrive split across chunks,
+   * relying on the accumulated stderrBuf.
+   */
+  public _handleStderrLine(line: string): void {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    logFromHelper("rtt-helper", trimmed);
+
+    // Detect board reset recovery — only on full reconnect, not lightweight RTT restart.
+    // Suppress until the first data chunk has flowed: the helper's first successful
+    // attach also emits "Reconnected OK", which would otherwise show a fake reset
+    // banner on every initial connect to a long-running board.
+    if (trimmed.startsWith("Reconnected OK")) {
+      if (this._connected && this.firstDataReceived) {
+        this.emit("reset");
+      }
+      return;
+    }
+
+    // Channel name from helper: "CHANNEL_NAME <idx> <name>". Name may contain spaces.
+    const channelNameMatch = /^CHANNEL_NAME (\d+) (.+)$/.exec(trimmed);
+    if (channelNameMatch) {
+      const index = parseInt(channelNameMatch[1], 10);
+      const name = channelNameMatch[2];
+      this.emit("channelName", { index, name });
+      return;
+    }
   }
 
   async connect(): Promise<void> {
@@ -348,6 +387,7 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
           ...process.env,
           LOGSCOPE_RTT_SEARCH_RANGES: this.rttSearchRanges,
           LOGSCOPE_RTT_SILENCE_THRESHOLD: String(this.silenceThresholdSec),
+          LOGSCOPE_RTT_LEGACY: this.legacyMode ? "1" : "0",
         },
       });
 
@@ -367,18 +407,8 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
         stderrBuf += text;
 
         for (const line of text.split("\n")) {
-          const trimmed = line.trim();
-          if (trimmed) {
-            logFromHelper("rtt-helper", trimmed);
-          }
-          // Detect board reset recovery — only on full reconnect, not lightweight RTT restart.
-          // Suppress until the first data chunk has flowed: the helper's first successful
-          // attach also emits "Reconnected OK", which would otherwise show a fake reset
-          // banner on every initial connect to a long-running board.
-          if (trimmed.startsWith("Reconnected OK")) {
-            if (resolved && this.firstDataReceived) {
-              this.emit("reset");
-            }
+          if (line.trim()) {
+            this._handleStderrLine(line);
           }
         }
 

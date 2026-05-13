@@ -54,6 +54,7 @@ function getConfig() {
     rttPollInterval: cfg.get<number>("rtt.pollInterval", 50),
     rttSearchRanges: cfg.get<string>("jlink.rttSearchRanges", "0x20000000 0x80000"),
     rttSilenceThresholdSec: cfg.get<number>("rtt.silenceThreshold", 30),
+    rttLegacyMode: cfg.get<boolean>("rtt.legacyMode", false),
     logWrap: cfg.get<boolean>("logWrap", false),
     timeFormat: cfg.get<string>("timeFormat", "24h"),
     columnWidths: cfg.get<Record<string, number>>("columnWidths", {}),
@@ -176,6 +177,10 @@ function wireTransportEvents(t: Transport): void {
 
   t.on("reset", () => {
     panel?.sendReset();
+  });
+
+  t.on("channelName", (info: { index: number; name: string }) => {
+    sidebarProvider.setChannelName(info.index, info.name);
   });
 
   t.on("disconnected", (info?: { reason?: string; message?: string }) => {
@@ -396,6 +401,7 @@ async function connectRtt(device: string, pollInterval: number, serialNumber?: s
       nrfutilPath: cfg.nrfutilPath,
       rttSearchRanges: cfg.rttSearchRanges,
       silenceThresholdSec: cfg.rttSilenceThresholdSec,
+      legacyMode: cfg.rttLegacyMode,
     });
     transport = rttTransport;
     wireTransportEvents(rttTransport);

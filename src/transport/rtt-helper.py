@@ -14,6 +14,394 @@ import threading
 import time
 import sys
 import os
+from dataclasses import dataclass, field
+from typing import List
+
+
+RTT_MAGIC = b"SEGGER RTT\x00\x00\x00\x00\x00\x00"
+assert len(RTT_MAGIC) == 16
+
+# SEGGER RTT control-block layout constants (from SEGGER_RTT.h).
+# Header: magic (16 bytes) + MaxNumUpBuffers (u32) + MaxNumDownBuffers (u32).
+CB_HEADER_SIZE = 24
+# Each SEGGER_RTT_BUFFER_UP/DOWN descriptor: sName + pBuffer + size + WrOff
+# + RdOff + Flags, each a little-endian u32.
+BUFFER_DESC_SIZE = 24
+
+# Field offsets in SEGGER_RTT_BUFFER_UP used by the direct-memory session
+# (Task 4) to compute target addresses for WrOff (read) and RdOff (write).
+# The full descriptor layout is documented by the struct format string used
+# in _parse_cb below.
+BUFFER_DESC_WROFF_OFFSET = 12
+BUFFER_DESC_RDOFF_OFFSET = 16
+
+# probe-rs sanity cap; SEGGER spec uses u32 but real firmware never goes above 4.
+MAX_BUFFERS = 255
+
+# probe-rs cap on sName length when dereferencing the name pointer; bounds
+# runaway memory reads if the pointer is garbage or the string is unterminated.
+CHANNEL_NAME_MAX_LEN = 128
+
+
+# pylink JLinkException codes (from pylink.enums.JLinkGlobalErrors).
+# Transient: J-Link DLL exhausted its WAIT retries but the failure is likely
+# a multi-hundred-ms SWD glitch (typically: target reset window, low-power
+# transition). The outer poll loop is the retry mechanism; a time-based
+# grace window decides when to escalate.
+JLINK_TRANSIENT_CODES = frozenset({
+    -1,    # UNSPECIFIED_ERROR (J-Link DLL catch-all; SWD glitch lands here)
+    -264,  # TIF_STATUS_ERROR
+})
+
+# Fatal at probe level: the J-Link itself is gone or our handle is dead.
+# Escalate to full_reconnect immediately (no grace).
+JLINK_PROBE_FATAL_CODES = frozenset({
+    -256,  # EMU_NO_CONNECTION
+    -257,  # EMU_COMM_ERROR
+    -258,  # DLL_NOT_OPEN
+    -260,  # INVALID_HANDLE
+})
+
+# Target-state errors: the probe is fine but the target isn't responsive.
+# Surface to the user; auto-reconnect won't help.
+JLINK_TARGET_STATE_CODES = frozenset({
+    -259,  # VCC_FAILURE
+    -261,  # NO_CPU_FOUND
+    -273,  # NO_TARGET_DEVICE_SELECTED
+    -274,  # CPU_IN_LOW_POWER_MODE
+})
+
+
+def _classify_jlink_error(exc):
+    """Classify a pylink exception as 'transient', 'probe_fatal', 'target_state',
+    or 'unknown'. Drives recovery decisions in the RTT read loop.
+    """
+    code = getattr(exc, "code", None)
+    if code in JLINK_PROBE_FATAL_CODES:
+        return "probe_fatal"
+    if code in JLINK_TARGET_STATE_CODES:
+        return "target_state"
+    if code in JLINK_TRANSIENT_CODES or code is None:
+        return "transient"
+    return "unknown"
+
+
+@dataclass
+class ChannelDesc:
+    index: int              # 0-based index within the up-buffers array
+    desc_addr: int          # absolute address of this descriptor in target memory
+    name_ptr: int
+    p_buffer: int
+    size: int
+    initial_wr_off: int
+    initial_rd_off: int
+    flags_mode: int         # Flags & 0x3 (0=NoBlockSkip, 1=NoBlockTrim, 2=BlockIfFull)
+
+
+@dataclass
+class ParsedCB:
+    cb_addr: int
+    max_up_buffers: int
+    max_down_buffers: int
+    up_buffers: List[ChannelDesc] = field(default_factory=list)
+    # down_buffers intentionally omitted; LogScope does not write to the target.
+
+
+def _scan_for_magic(buf, magic=RTT_MAGIC):
+    """Find all occurrences of the RTT magic string in a byte buffer.
+
+    Returns a list of byte offsets where the magic begins. Uses byte-windowed
+    search (no alignment requirement), matching probe-rs's approach. The magic
+    can appear in firmware .rodata as a literal string in addition to the
+    actual CB, so callers must treat multiple matches as ambiguous rather than
+    silently picking the first one.
+    """
+    if not magic:
+        return []
+    offsets = []
+    start = 0
+    while True:
+        idx = buf.find(magic, start)
+        if idx < 0:
+            break
+        offsets.append(idx)
+        start = idx + 1
+    return offsets
+
+
+def _parse_cb(buf, base_addr):
+    """Parse a SEGGER RTT control block from a memory snapshot.
+
+    Args:
+        buf: bytes whose offset 0 is the first byte of the RTT magic. Caller is
+             responsible for slicing buf before invoking this function; base_addr
+             must correspond to buf[0] in target memory.
+        base_addr: target memory address corresponding to buf[0].
+
+    Returns:
+        ParsedCB with validated up-buffer descriptors. Channels with
+        pBuffer == 0 are skipped silently (uninitialized).
+
+    Raises:
+        ValueError on any validation failure. Callers should surface as
+        "control block corrupted; check firmware RTT initialization."
+    """
+    if len(buf) < CB_HEADER_SIZE:
+        raise ValueError(
+            f"CB truncated: need {CB_HEADER_SIZE} header bytes, got {len(buf)}")
+
+    if buf[:16] != RTT_MAGIC:
+        raise ValueError("CB magic mismatch")
+
+    max_up, max_down = struct.unpack_from("<II", buf, 16)
+
+    if max_up > MAX_BUFFERS:
+        raise ValueError(
+            f"max_up_buffers={max_up} exceeds {MAX_BUFFERS} (CB corrupt?)")
+    if max_down > MAX_BUFFERS:
+        raise ValueError(
+            f"max_down_buffers={max_down} exceeds {MAX_BUFFERS} (CB corrupt?)")
+
+    expected_len = CB_HEADER_SIZE + (max_up + max_down) * BUFFER_DESC_SIZE
+    if len(buf) < expected_len:
+        raise ValueError(
+            f"CB truncated: need {expected_len} bytes, got {len(buf)}")
+
+    up_buffers = []
+    for i in range(max_up):
+        desc_offset = CB_HEADER_SIZE + i * BUFFER_DESC_SIZE
+        name_ptr, p_buffer, size, wr_off, rd_off, flags = struct.unpack_from(
+            "<IIIIII", buf, desc_offset)
+
+        # Uninitialized slot: SEGGER zeroes pBuffer until the channel is set up.
+        # Some firmware writes the magic LAST during init, so this is expected
+        # for channels above the firmware's actual configured count.
+        if p_buffer == 0:
+            continue
+
+        if size == 0:
+            raise ValueError(
+                f"channel {i}: size=0 with pBuffer=0x{p_buffer:08x}")
+        if wr_off >= size:
+            raise ValueError(f"channel {i}: WrOff={wr_off} >= size={size}")
+        if rd_off >= size:
+            raise ValueError(f"channel {i}: RdOff={rd_off} >= size={size}")
+
+        mode = flags & 0x3
+        if mode == 3:
+            raise ValueError(
+                f"channel {i}: invalid mode bits (Flags=0x{flags:08x})")
+
+        up_buffers.append(ChannelDesc(
+            index=i,
+            desc_addr=base_addr + desc_offset,
+            name_ptr=name_ptr,
+            p_buffer=p_buffer,
+            size=size,
+            initial_wr_off=wr_off,
+            initial_rd_off=rd_off,
+            flags_mode=mode,
+        ))
+
+    return ParsedCB(
+        cb_addr=base_addr,
+        max_up_buffers=max_up,
+        max_down_buffers=max_down,
+        up_buffers=up_buffers,
+    )
+
+
+def _compute_ring_read(wr_off, rd_off, size):
+    """Compute the byte slices to read from a SEGGER RTT ring buffer.
+
+    Returns a list of (offset, length) tuples ordered for sequential reads.
+    At most 2 entries; one before wrap, one after. Empty list means no data.
+
+    SEGGER ring semantics: WrOff == RdOff means empty (one byte is reserved
+    to disambiguate full vs empty). Callers never see "full buffer" when
+    wr == rd; they see "no data" and skip the writeback.
+    """
+    if wr_off == rd_off:
+        return []
+    if wr_off > rd_off:
+        return [(rd_off, wr_off - rd_off)]
+    # Wrapped: tail of buffer first, then head from 0.
+    tail = (rd_off, size - rd_off)
+    if wr_off == 0:
+        return [tail]
+    return [tail, (0, wr_off)]
+
+
+class TargetResetError(Exception):
+    """Raised when the target's RdOff no longer matches our tracked value.
+
+    Signal to the caller that the target has been reset (or another tool
+    wrote RdOff externally). The session must be torn down and a fresh
+    attach() performed to pick up the new RTT control block state.
+    """
+    def __init__(self, channel_index, expected, actual):
+        super().__init__(
+            f"channel {channel_index}: RdOff mismatch: expected {expected}, "
+            f"target reports {actual}. Target reset detected."
+        )
+        self.channel_index = channel_index
+        self.expected = expected
+        self.actual = actual
+
+
+class TransientSwdReadError(Exception):
+    """Raised by read_channel when the J-Link DLL returns a suspicious-success
+    result (out-of-range offsets). The outer loop's classifier treats this as
+    a transient error and applies the time-based grace window before escalating
+    to a full reconnect.
+    """
+    pass
+
+
+class DirectMemoryRttSession:
+    """RTT session via direct target memory reads (no libjlinkarm RTT API).
+
+    Bypasses SEGGER's host-side tracked_RdOff cache. Detects target resets
+    via the last_written_rd_off pattern: after each writeback of RdOff, we
+    remember the value. On the next poll, if the target's RdOff differs from
+    what we wrote, the target reset (firmware re-init zeroed RdOff). We raise
+    TargetResetError and the caller re-attaches.
+    """
+
+    def __init__(self, jlink):
+        self._jlink = jlink
+        self.cb_addr = None
+        self.channels = []                  # list[ChannelDesc]
+        self._last_written_rd_off = {}      # channel_index -> int
+
+    def attach(self, search_ranges):
+        """Scan target memory for the RTT control block and parse it.
+
+        Args:
+            search_ranges: list of (start_addr, length) tuples bounding the
+                RAM regions to scan for the SEGGER RTT magic.
+
+        Raises:
+            ValueError if the magic is not found, or if multiple matches are
+            present (caller must tighten the search range). Also reraises
+            validation errors from _parse_cb.
+        """
+        all_matches = []
+        for start, length in search_ranges:
+            buf = bytes(self._jlink.memory_read(start, length))
+            for offset in _scan_for_magic(buf):
+                all_matches.append(start + offset)
+
+        if not all_matches:
+            raise ValueError(
+                f"RTT control block not found in scanned ranges: {search_ranges}")
+        if len(all_matches) > 1:
+            addrs = [hex(a) for a in all_matches]
+            raise ValueError(
+                f"multiple RTT control block matches at {addrs}. "
+                f"Set logscope.jlink.rttSearchRanges to a tighter range."
+            )
+
+        cb_addr = all_matches[0]
+
+        header = bytes(self._jlink.memory_read(cb_addr, CB_HEADER_SIZE))
+        max_up, max_down = struct.unpack_from("<II", header, 16)
+        if max_up > MAX_BUFFERS or max_down > MAX_BUFFERS:
+            raise ValueError(
+                f"CB at 0x{cb_addr:08x} has implausible buffer counts "
+                f"(max_up={max_up}, max_down={max_down}); cap is {MAX_BUFFERS}."
+            )
+
+        full_size = CB_HEADER_SIZE + (max_up + max_down) * BUFFER_DESC_SIZE
+        full_buf = bytes(self._jlink.memory_read(cb_addr, full_size))
+        parsed = _parse_cb(full_buf, base_addr=cb_addr)
+
+        self.cb_addr = parsed.cb_addr
+        self.channels = parsed.up_buffers
+
+        # Reset and seed the writeback tracker from parsed initial values.
+        # Seeding from initial_rd_off (rather than 0) avoids false-positive
+        # reset detection on the very first poll, and seeding fresh each call
+        # ensures a re-attach after a real reset starts from the new state.
+        self._last_written_rd_off = {}
+        for ch in self.channels:
+            self._last_written_rd_off[ch.index] = ch.initial_rd_off
+
+    def channel_count(self):
+        """Return the number of usable up-channels (skips pBuffer=0 slots)."""
+        return len(self.channels)
+
+    def channel_name(self, channel_index):
+        """Dereference sName pointer; returns the string or None if unavailable."""
+        ch = self._find_channel(channel_index)
+        if ch.name_ptr == 0:
+            return None
+        try:
+            buf = bytes(self._jlink.memory_read(ch.name_ptr, CHANNEL_NAME_MAX_LEN))
+        except Exception as e:
+            print(f"channel_name({channel_index}): memory_read failed: {e}", file=sys.stderr)
+            return None
+        nul = buf.find(b"\x00")
+        if nul <= 0:
+            return None
+        return buf[:nul].decode("utf-8", errors="replace")
+
+    def read_channel(self, channel_index):
+        """Read all available data from the given up-channel.
+
+        A single memory_read32 call to fetch (WrOff, RdOff); any exception
+        propagates to the caller. The outer poll loop is the retry mechanism:
+        on a transient SWD glitch we keep polling, and a time-based grace
+        window decides when to escalate to a full reconnect. This mirrors
+        probe-rs's approach and avoids burning a fixed retry budget during
+        the multi-second SWD downtime that follows an nRF54L15 hardware reset.
+
+        The suspicious-success guard still applies: when the J-Link DLL returns
+        out-of-range offsets without raising (a behavior observed during reset
+        windows), we surface TransientSwdReadError so the outer loop's
+        classifier treats it as transient.
+        """
+        ch = self._find_channel(channel_index)
+        wr_rd_addr = ch.desc_addr + BUFFER_DESC_WROFF_OFFSET
+
+        wr_off, rd_off = self._jlink.memory_read32(wr_rd_addr, 2)
+
+        # Suspicious-success guard: the J-Link DLL sometimes returns zero-
+        # filled or stale buffer data during the reset window without raising.
+        # Raise TransientSwdReadError so the outer loop treats this as a
+        # transient error subject to the time-based grace window.
+        if wr_off >= ch.size or rd_off >= ch.size:
+            raise TransientSwdReadError(
+                f"channel {channel_index}: offsets out of range "
+                f"(wr={wr_off}, rd={rd_off}, size={ch.size})"
+            )
+
+        # Reset detection: did the target overwrite our last RdOff?
+        expected = self._last_written_rd_off.get(ch.index, ch.initial_rd_off)
+        if rd_off != expected:
+            raise TargetResetError(ch.index, expected, rd_off)
+
+        slices = _compute_ring_read(wr_off, rd_off, ch.size)
+        if not slices:
+            return b""
+
+        data = bytearray()
+        for offset, length in slices:
+            chunk = bytes(self._jlink.memory_read(ch.p_buffer + offset, length))
+            data.extend(chunk)
+
+        new_rd_off = (rd_off + len(data)) % ch.size
+        rd_off_addr = ch.desc_addr + BUFFER_DESC_RDOFF_OFFSET
+        self._jlink.memory_write32(rd_off_addr, [new_rd_off])
+        self._last_written_rd_off[ch.index] = new_rd_off
+
+        return bytes(data)
+
+    def _find_channel(self, channel_index):
+        for ch in self.channels:
+            if ch.index == channel_index:
+                return ch
+        raise ValueError(f"no channel with index {channel_index}")
 
 
 def _install_orphan_watcher():
@@ -165,7 +553,7 @@ def _open_jlink(jlink, serial_no=None):
     jlink.disable_dialog_boxes()
 
 
-def run_pylink(device_or_addr, poll_ms, serial_no=None):
+def run_pylink_classic(device_or_addr, poll_ms, serial_no=None):
     """Fast path: native J-Link RTT via pylink. Works with any J-Link device."""
     import pylink
 
@@ -493,6 +881,378 @@ def run_pylink(device_or_addr, poll_ms, serial_no=None):
 
     jlink.rtt_stop()
     jlink.close()
+
+
+def run_pylink_direct(device_or_addr, poll_ms, serial_no=None):
+    """Direct-memory RTT path. Bypasses libjlinkarm's tracked_RdOff cache.
+
+    Mirrors run_pylink_classic's external contract: same RTT_READY line,
+    same framed-stdout protocol, same silence/quit/error semantics. Detects
+    target resets via the DirectMemoryRttSession's last_written_rd_off
+    tracking and transparently re-attaches without halting the CPU.
+    """
+    import pylink
+
+    # Pre-check: SEGGER J-Link Software must be installed for libjlinkarm to load.
+    if sys.platform in ("darwin", "win32") and _find_newest_jlink_dll() is None:
+        install_path = "/Applications/SEGGER/" if sys.platform == "darwin" else r"C:\Program Files\SEGGER\\"
+        print(
+            f"ERROR: SEGGER J-Link Software not found at {install_path}. "
+            f"Install the J-Link Software and Documentation Pack from "
+            f"https://www.segger.com/downloads/jlink and restart VS Code.",
+            file=sys.stderr,
+        )
+        sys.stderr.flush()
+        sys.exit(5)
+
+    jlink = _create_jlink()
+
+    # Check for connected probes BEFORE opening: otherwise the J-Link SDK
+    # pops up a native dialog asking about TCP/IP connection.
+    if not jlink.connected_emulators():
+        print("ERROR: No J-Link probes found. Connect a device via USB and try again.", file=sys.stderr)
+        sys.stderr.flush()
+        sys.exit(3)
+
+    if serial_no:
+        print(f"Opening J-Link probe SN: {serial_no}", file=sys.stderr)
+        sys.stderr.flush()
+    _open_jlink(jlink, serial_no=serial_no)
+
+    # If it looks like a hex address, it's the nrfutil fallback format.
+    # For pylink, we need a device name. Default to Cortex-M33 if address given.
+    if device_or_addr.startswith("0x"):
+        device = "Cortex-M33"
+    else:
+        device = device_or_addr
+
+    # Explicitly configure SWD interface and a safe default speed before connect.
+    try:
+        jlink.set_tif(pylink.enums.JLinkInterfaces.SWD)
+        print("Interface: SWD", file=sys.stderr)
+        sys.stderr.flush()
+    except Exception as e:
+        print(f"Warning: could not set SWD interface: {e}", file=sys.stderr)
+        sys.stderr.flush()
+
+    try:
+        jlink.set_speed(4000)
+        print("Speed: 4000 kHz", file=sys.stderr)
+        sys.stderr.flush()
+    except Exception as e:
+        print(f"Warning: could not set speed: {e}", file=sys.stderr)
+        sys.stderr.flush()
+
+    try:
+        jlink.connect(device)
+    except Exception as e:
+        print(f"ERROR: J-Link connect to '{device}' failed: {e}", file=sys.stderr)
+        print(f"Hint: If your board uses a specific chip (e.g., STM32H743II, nRF54L15), set", file=sys.stderr)
+        print(f"  \"logscope.jlink.device\" in VS Code settings to the exact chip name.", file=sys.stderr)
+        sys.stderr.flush()
+        sys.exit(1)
+
+    if not jlink.target_connected():
+        print(f"ERROR: J-Link reports no target connection after connect('{device}').", file=sys.stderr)
+        print(f"  Possible causes:", file=sys.stderr)
+        print(f"  1. Device name '{device}' doesn't match your target chip. Try the exact", file=sys.stderr)
+        print(f"     part number (e.g., STM32H743II) in \"logscope.jlink.device\".", file=sys.stderr)
+        print(f"  2. Target board is not powered or is held in reset.", file=sys.stderr)
+        print(f"  3. SWD/SWO pins are not connected to the J-Link probe.", file=sys.stderr)
+        sys.stderr.flush()
+        sys.exit(1)
+
+    print(f"J-Link connected to {device}, CPU halted: {jlink.halted()}", file=sys.stderr)
+
+    if jlink.halted():
+        jlink.restart()
+        print("Resumed CPU", file=sys.stderr)
+    sys.stderr.flush()
+
+    # Parse search ranges from env (format: "<addr> <len> [<addr> <len> ...]")
+    raw_ranges = os.environ.get("LOGSCOPE_RTT_SEARCH_RANGES", "0x20000000 0x80000")
+    parts = raw_ranges.split()
+    search_ranges = []
+    try:
+        for i in range(0, len(parts), 2):
+            search_ranges.append((int(parts[i], 16), int(parts[i + 1], 16)))
+    except (ValueError, IndexError):
+        print(f"ERROR: Invalid LOGSCOPE_RTT_SEARCH_RANGES: '{raw_ranges}'", file=sys.stderr)
+        sys.stderr.flush()
+        try:
+            jlink.close()
+        except Exception:
+            pass
+        sys.exit(1)
+    print(f"RTT search range: {raw_ranges}", file=sys.stderr)
+    sys.stderr.flush()
+
+    # Attach with retry (firmware may not have called SEGGER_RTT_Init yet).
+    session = DirectMemoryRttSession(jlink)
+    attach_deadline = time.monotonic() + 5.0
+    while True:
+        try:
+            session.attach(search_ranges)
+            break
+        except ValueError as e:
+            if time.monotonic() >= attach_deadline:
+                print(f"ERROR: No RTT control block found: {e}", file=sys.stderr)
+                sys.stderr.flush()
+                try:
+                    jlink.close()
+                except Exception:
+                    pass
+                sys.exit(2)
+            time.sleep(0.1)
+
+    num_up = session.channel_count()
+    has_hci = num_up >= 2
+    print(f"RTT_READY buffers={num_up} hci={'yes' if has_hci else 'no'}", file=sys.stderr)
+    sys.stderr.flush()
+
+    def emit_channel_names():
+        """Emit CHANNEL_NAME lines for the current session. Called on initial
+        attach and after re-attach so the sidebar reflects post-reset firmware.
+        """
+        for ch in session.channels:
+            name = session.channel_name(ch.index)
+            if name:
+                print(f"CHANNEL_NAME {ch.index} {name}", file=sys.stderr)
+        sys.stderr.flush()
+
+    # Surface channel names for the UI. Task 6 consumes CHANNEL_NAME on the TS side.
+    emit_channel_names()
+
+    stdout = os.fdopen(sys.stdout.fileno(), "wb", 0)
+    poll_interval = poll_ms / 1000.0
+    last_data_time = time.monotonic()
+    try:
+        SILENCE_THRESHOLD = float(os.environ.get("LOGSCOPE_RTT_SILENCE_THRESHOLD", "30"))
+    except ValueError:
+        SILENCE_THRESHOLD = 30.0
+
+    # Time-based grace before escalating transient SWD errors to a full
+    # reconnect. Hardware testing on nRF54L15 showed the SWD bus stays
+    # glitched for ~1 second after a hardware reset, so a count-based or
+    # short-budget retry escalates prematurely. Mirrors probe-rs's pattern:
+    # let the poll cadence be the retry, only escalate if errors persist.
+    SEVERE_ERROR_GRACE_SEC = 0.3
+
+    def write_frame(channel, data):
+        """Write framed data: [channel:1][length:4 LE][data:N]"""
+        stdout.write(bytes([channel]) + struct.pack('<I', len(data)) + data)
+
+    reconnect_attempts = 0
+    MAX_RECONNECT_ATTEMPTS = 3
+
+    def full_reconnect():
+        """Close + reopen the J-Link probe, then re-attach the session.
+        Mirrors run_pylink_classic's full_reconnect() for transient USB/SWD glitches.
+        """
+        print("Full J-Link reconnect...", file=sys.stderr)
+        sys.stderr.flush()
+        t0 = time.monotonic()
+        try:
+            jlink.close()
+        except Exception:
+            pass
+        time.sleep(0.5)
+        try:
+            _open_jlink(jlink, serial_no=serial_no)
+            jlink.connect(device)
+            if jlink.halted():
+                jlink.restart()
+        except Exception as reconnect_err:
+            elapsed_ms = int((time.monotonic() - t0) * 1000)
+            print(f"Reconnect failed after {elapsed_ms} ms: {reconnect_err}", file=sys.stderr)
+            sys.stderr.flush()
+            return False
+        try:
+            session.attach(search_ranges)
+        except Exception as attach_err:
+            elapsed_ms = int((time.monotonic() - t0) * 1000)
+            print(f"Reconnect re-attach failed after {elapsed_ms} ms: {attach_err}", file=sys.stderr)
+            sys.stderr.flush()
+            return False
+        elapsed_ms = int((time.monotonic() - t0) * 1000)
+        print(f"Reconnected OK in {elapsed_ms} ms, buffers={session.channel_count()}", file=sys.stderr)
+        sys.stderr.flush()
+        emit_channel_names()
+        return True
+
+    def cheap_reinit():
+        """Re-init SWD by re-running jlink.connect(device) without closing the
+        J-Link USB handle. Faster than full_reconnect (no close+reopen).
+        Returns True if SWD is responsive after the re-init and session.attach
+        succeeds. Logs elapsed time so we can compare against full_reconnect on
+        real hardware.
+        """
+        print("Cheap re-init (jlink.connect without close)...", file=sys.stderr)
+        sys.stderr.flush()
+        t0 = time.monotonic()
+        try:
+            jlink.connect(device)
+            if jlink.halted():
+                jlink.restart()
+        except Exception as e:
+            elapsed_ms = int((time.monotonic() - t0) * 1000)
+            print(f"Cheap re-init connect() failed after {elapsed_ms} ms: {e}",
+                  file=sys.stderr)
+            sys.stderr.flush()
+            return False
+        try:
+            session.attach(search_ranges)
+        except Exception as e:
+            elapsed_ms = int((time.monotonic() - t0) * 1000)
+            print(f"Cheap re-init session.attach() failed after {elapsed_ms} ms: {e}",
+                  file=sys.stderr)
+            sys.stderr.flush()
+            return False
+        elapsed_ms = int((time.monotonic() - t0) * 1000)
+        print(f"Cheap re-init OK in {elapsed_ms} ms, buffers={session.channel_count()}",
+              file=sys.stderr)
+        sys.stderr.flush()
+        emit_channel_names()
+        return True
+
+    quit_requested = threading.Event()
+
+    def _watch_stdin():
+        try:
+            for line in sys.stdin:
+                if line.strip() == "quit":
+                    quit_requested.set()
+                    return
+        except Exception:
+            pass
+
+    stdin_thread = threading.Thread(target=_watch_stdin, daemon=True)
+    stdin_thread.start()
+
+    # Time-based recovery state. first_error_time is set on the FIRST error
+    # in a streak (and cleared on any successful read or successful recovery);
+    # only escalate to full_reconnect when the streak exceeds the grace window.
+    first_error_time = None
+
+    while not quit_requested.is_set():
+        got_data = False
+        try:
+            for ch in session.channels:
+                data = session.read_channel(ch.index)
+                if data:
+                    write_frame(ch.index, data)
+                    got_data = True
+        except TargetResetError as e:
+            # Cheap path: read succeeded but RdOff diverged from our tracked
+            # value. Re-attach without halting the CPU; the CB is in BSS so
+            # the address is stable, but re-scan to be safe.
+            print(f"Target reset detected: {e}", file=sys.stderr)
+            sys.stderr.flush()
+            try:
+                session.attach(search_ranges)
+                print(f"Reconnected OK, buffers={session.channel_count()}", file=sys.stderr)
+                sys.stderr.flush()
+                emit_channel_names()
+                first_error_time = None
+                last_data_time = time.monotonic()
+                reconnect_attempts = 0
+            except Exception as reattach_err:
+                print(f"Re-attach after reset failed: {reattach_err}", file=sys.stderr)
+                sys.stderr.flush()
+                # Don't immediately reset first_error_time; let the next
+                # poll's exception path apply the time-based grace.
+            continue
+        except BrokenPipeError:
+            break
+        except Exception as e:
+            kind = _classify_jlink_error(e)
+
+            if kind == "probe_fatal":
+                print(f"Probe error ({type(e).__name__}): {e}; reconnecting...", file=sys.stderr)
+                sys.stderr.flush()
+                if not full_reconnect():
+                    reconnect_attempts += 1
+                    if reconnect_attempts >= MAX_RECONNECT_ATTEMPTS:
+                        print("ERROR: full reconnect failed repeatedly; giving up", file=sys.stderr)
+                        sys.stderr.flush()
+                        try:
+                            jlink.close()
+                        except Exception:
+                            pass
+                        sys.exit(4)
+                else:
+                    reconnect_attempts = 0
+                    last_data_time = time.monotonic()
+                    first_error_time = None
+                continue
+
+            if kind == "target_state":
+                # Surface but don't auto-recover; sleep extra and continue
+                # polling. Only log the first occurrence so we don't spam.
+                if first_error_time is None:
+                    print(f"Target-state error: {e}", file=sys.stderr)
+                    sys.stderr.flush()
+                    first_error_time = time.monotonic()
+                time.sleep(poll_interval * 2)
+                continue
+
+            # Transient (default): keep polling; only escalate after the
+            # grace window expires. Log only the first error in the streak
+            # to avoid 50+ "RTT read error" lines during a 1-second SWD
+            # downtime on nRF54L15-style hardware resets.
+            now = time.monotonic()
+            if first_error_time is None:
+                first_error_time = now
+                print(f"RTT read error: {e}", file=sys.stderr)
+                sys.stderr.flush()
+            elif now - first_error_time > SEVERE_ERROR_GRACE_SEC:
+                print(
+                    f"Read errors persisted >{SEVERE_ERROR_GRACE_SEC}s; "
+                    f"trying cheap re-init...",
+                    file=sys.stderr,
+                )
+                sys.stderr.flush()
+                if cheap_reinit():
+                    reconnect_attempts = 0
+                    last_data_time = time.monotonic()
+                else:
+                    print("Cheap re-init failed; escalating to full reconnect...", file=sys.stderr)
+                    sys.stderr.flush()
+                    if not full_reconnect():
+                        reconnect_attempts += 1
+                        if reconnect_attempts >= MAX_RECONNECT_ATTEMPTS:
+                            print("ERROR: full reconnect failed repeatedly; giving up", file=sys.stderr)
+                            sys.stderr.flush()
+                            try:
+                                jlink.close()
+                            except Exception:
+                                pass
+                            sys.exit(4)
+                    else:
+                        reconnect_attempts = 0
+                        last_data_time = time.monotonic()
+                first_error_time = None
+            time.sleep(poll_interval)
+            continue
+
+        if got_data:
+            last_data_time = time.monotonic()
+            first_error_time = None
+            reconnect_attempts = 0
+        else:
+            # In direct-memory mode silence is just silence: no host-side
+            # restart is needed (the legacy path had to restart to re-sync
+            # libjlinkarm's tracked_RdOff, which is now bypassed entirely).
+            silence = time.monotonic() - last_data_time
+            if SILENCE_THRESHOLD > 0 and silence > SILENCE_THRESHOLD:
+                last_data_time = time.monotonic()  # reset timer to avoid log spam
+
+        time.sleep(poll_interval)
+
+    try:
+        jlink.close()
+    except Exception:
+        pass
 
 
 def _parse_swd_read_line(line):
@@ -887,9 +1647,15 @@ def main():
     # Try pylink first (native J-Link RTT, works with any J-Link device)
     try:
         import pylink  # noqa: F401
-        print("Using pylink (native J-Link RTT)", file=sys.stderr)
-        sys.stderr.flush()
-        run_pylink(device_or_addr, poll_ms, serial_no=serial_no)
+        use_legacy = os.environ.get("LOGSCOPE_RTT_LEGACY", "0") == "1"
+        if use_legacy:
+            print("Using pylink (legacy libjlinkarm RTT path)", file=sys.stderr)
+            sys.stderr.flush()
+            run_pylink_classic(device_or_addr, poll_ms, serial_no=serial_no)
+        else:
+            print("Using pylink (direct-memory RTT, v0.6.0)", file=sys.stderr)
+            sys.stderr.flush()
+            run_pylink_direct(device_or_addr, poll_ms, serial_no=serial_no)
     except ImportError:
         print("pylink not available, falling back to nrfutil CLI", file=sys.stderr)
         sys.stderr.flush()

@@ -46,6 +46,14 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
   private durationInterval: ReturnType<typeof setInterval> | null = null;
   private lastDurationString = "";
 
+  /**
+   * RTT channel labels resolved by the helper from each channel's sName
+   * pointer (e.g., "Terminal", "SysView"). Falls back to "Channel N" in
+   * the UI when missing. Cleared on disconnect so a fresh attach to a
+   * different target doesn't carry stale names.
+   */
+  private channelNames = new Map<number, string>();
+
   // Cached items for in-place updates (avoids full tree rebuild)
   private cachedEntries: SidebarItem | null = null;
   private cachedHci: SidebarItem | null = null;
@@ -124,6 +132,19 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
 
   // ── State updates ────────────────────────────────────────────
 
+  /**
+   * Record a channel label discovered by the RTT helper. Triggers a tree
+   * rebuild so the new label shows up in the Connected view.
+   */
+  setChannelName(index: number, name: string): void {
+    if (this.channelNames.get(index) === name) return;
+    this.channelNames.set(index, name);
+    if (this.state.connected) {
+      this.clearCachedItems();
+      this._onDidChangeTreeData.fire(undefined);
+    }
+  }
+
   updateState(partial: Partial<SidebarState>): void {
     const prev = { ...this.state };
     Object.assign(this.state, partial);
@@ -136,6 +157,7 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
       this.connectStartTime = null;
       this.stopDurationTimer();
       this.clearCachedItems();
+      this.channelNames.clear();
     }
 
     // Update hasLastSession when device is set
@@ -328,6 +350,15 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
     if (this.state.errorCount > 0) {
       this.cachedErrors = SidebarItem.info("Errors", "warning", this.state.errorCount.toLocaleString());
       items.push(this.cachedErrors);
+    }
+
+    // RTT channel labels (helper-resolved from each control block's sName pointer).
+    // Sorted by index so the order matches the firmware's channel numbering.
+    if (this.state.transport === "rtt" && this.channelNames.size > 0) {
+      const sortedChannels = Array.from(this.channelNames.entries()).sort((a, b) => a[0] - b[0]);
+      for (const [index, name] of sortedChannels) {
+        items.push(SidebarItem.info(`Channel ${index}`, "symbol-event", name));
+      }
     }
 
     // Watch patterns sidebar UI is hidden pending redesign.
