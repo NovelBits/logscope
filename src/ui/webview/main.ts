@@ -1034,7 +1034,21 @@ function persistColumnWidths(): void {
     if (!colKey) return;
     const cssVar = `--col-${colKey}-w`;
 
-    let max = col.scrollWidth;
+    // Measure the header's text content directly via a Range, not the
+    // header element's scrollWidth. The .col-resize-handle child is
+    // position:absolute with right:-4px (it protrudes 4px past the
+    // parent's right edge). col.scrollWidth includes that overhang, so
+    // using it as the baseline made every double-click grow the column
+    // by the handle overhang + padding instead of fitting to content.
+    let max = 0;
+    for (const node of Array.from(col.childNodes)) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        max = Math.max(max, range.getBoundingClientRect().width);
+      }
+    }
+
     const cells = timeline.querySelectorAll<HTMLElement>(`.log-row .${colKey}`);
     for (const cell of cells) {
       if (cell.scrollWidth > max) max = cell.scrollWidth;
@@ -1042,7 +1056,7 @@ function persistColumnWidths(): void {
 
     const padding = 16;
     const cap = Math.floor(window.innerWidth * 0.5);
-    const newWidth = Math.min(cap, Math.max(24, max + padding));
+    const newWidth = Math.min(cap, Math.max(24, Math.ceil(max) + padding));
     root.style.setProperty(cssVar, `${newWidth}px`);
     persistColumnWidths();
   }

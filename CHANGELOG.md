@@ -2,6 +2,11 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.6.2] - 2026-05-13
+
+### Fixed
+- Double-clicking the resize handle on a column header now correctly auto-fits the column to its widest visible content. In v0.5.17 through v0.6.1 the auto-fit measured the header's `scrollWidth`, which included the 4 px overhang of the absolutely-positioned `.col-resize-handle` child. Each double-click added that overhang plus the 16 px padding constant to the column width, so the column grew monotonically instead of fitting. The fix measures the header's text content directly via a `Range`, which excludes the handle's bounding box. Reported during v0.6.1 hardware testing.
+
 ## [0.6.1] - 2026-05-13
 
 Republish of v0.6.0 with a smaller VSIX. v0.6.0 was auto-published by the GitHub Actions release workflow on `v*` tag push, before a `.vscodeignore` fix excluded a stray local indexing database (`.cocoindex_code/`) that had been picked up by the packager. v0.6.1 ships the same code with a clean 679 KB VSIX instead of v0.6.0's 6.4 MB. **Prefer v0.6.1.** No functional or behavioral differences between the two releases.
