@@ -940,12 +940,18 @@ def run_pylink_direct(device_or_addr, poll_ms, serial_no=None):
     print(f"RTT_READY buffers={num_up} hci={'yes' if has_hci else 'no'}", file=sys.stderr)
     sys.stderr.flush()
 
+    def emit_channel_names():
+        """Emit CHANNEL_NAME lines for the current session. Called on initial
+        attach and after re-attach so the sidebar reflects post-reset firmware.
+        """
+        for ch in session.channels:
+            name = session.channel_name(ch.index)
+            if name:
+                print(f"CHANNEL_NAME {ch.index} {name}", file=sys.stderr)
+        sys.stderr.flush()
+
     # Surface channel names for the UI. Task 6 consumes CHANNEL_NAME on the TS side.
-    for ch in session.channels:
-        name = session.channel_name(ch.index)
-        if name:
-            print(f"CHANNEL_NAME {ch.index} {name}", file=sys.stderr)
-    sys.stderr.flush()
+    emit_channel_names()
 
     stdout = os.fdopen(sys.stdout.fileno(), "wb", 0)
     poll_interval = poll_ms / 1000.0
@@ -1024,6 +1030,8 @@ def run_pylink_direct(device_or_addr, poll_ms, serial_no=None):
                 session.attach(search_ranges)
                 print(f"Reconnected OK, buffers={session.channel_count()}", file=sys.stderr)
                 sys.stderr.flush()
+                # Re-emit channel names — firmware may have updated mid-session.
+                emit_channel_names()
                 consecutive_errors = 0
                 last_data_time = time.monotonic()
             except Exception as reattach_err:
