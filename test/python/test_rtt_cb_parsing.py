@@ -1,6 +1,10 @@
 import pytest
 import struct as _struct
-from rtt_helper import _scan_for_magic, _parse_cb, _compute_ring_read, RTT_MAGIC
+import struct
+from rtt_helper import (
+    _scan_for_magic, _parse_cb, _compute_ring_read, RTT_MAGIC,
+    DirectMemoryRttSession, TargetResetError, CB_HEADER_SIZE,
+)
 from fixtures.cb_layouts import (
     cb_one_up, cb_with_hci, cb_zero_pbuffer, build_cb,
     build_buffer_descriptor,
@@ -165,3 +169,140 @@ def test_ring_read_full_minus_one():
     rd=1, wr=0 means buffer is full minus one byte, all size-1 bytes wrap-readable
     in a single slice (no second slice since wr==0)."""
     assert _compute_ring_read(wr_off=0, rd_off=1, size=1024) == [(1, 1023)]
+
+
+class FakeJLink:
+    """Minimal mock of pylink.JLink for direct-memory tests.
+
+    Uses a 64KB scratch buffer based at 0x20000000. memory_read/read32/write32
+    read and write into that buffer; writes are also appended to a log.
+    """
+    def __init__(self, memory=None):
+        self._memory = bytearray(64 * 1024)
+        self._base = 0x20000000
+        if memory:
+            for addr, data in memory.items():
+                offset = addr - self._base
+                self._memory[offset:offset + len(data)] = data
+        self.writes = []
+
+    def memory_read(self, addr, num_bytes):
+        offset = addr - self._base
+        return list(self._memory[offset:offset + num_bytes])
+
+    def memory_read32(self, addr, num_words):
+        offset = addr - self._base
+        return list(struct.unpack_from(f"<{num_words}I", self._memory, offset))
+
+    def memory_write32(self, addr, values):
+        offset = addr - self._base
+        struct.pack_into(f"<{len(values)}I", self._memory, offset, *values)
+        self.writes.append((addr, list(values)))
+
+
+def test_session_attach_finds_cb_in_ram():
+    cb = cb_one_up(p_buffer=0x20001000, size=1024)
+    fake = FakeJLink(memory={0x20000800: cb})
+
+    session = DirectMemoryRttSession(fake)
+    session.attach(search_ranges=[(0x20000000, 0x10000)])
+
+    assert session.cb_addr == 0x20000800
+    assert len(session.channels) == 1
+    assert session.channels[0].p_buffer == 0x20001000
+
+
+def test_session_attach_rejects_multiple_matches():
+    cb = cb_one_up()
+    fake = FakeJLink(memory={
+        0x20000800: cb,
+        0x20002000: cb,  # duplicate (e.g., literal in .rodata)
+    })
+    session = DirectMemoryRttSession(fake)
+    with pytest.raises(ValueError, match="multiple"):
+        session.attach(search_ranges=[(0x20000000, 0x10000)])
+
+
+def test_session_attach_raises_when_no_match():
+    fake = FakeJLink()
+    session = DirectMemoryRttSession(fake)
+    with pytest.raises(ValueError, match="not found"):
+        session.attach(search_ranges=[(0x20000000, 0x10000)])
+
+
+def test_session_read_channel_returns_data_and_advances_rd_off():
+    """Firmware wrote 50 bytes; we read them and write RdOff back."""
+    cb = cb_one_up(p_buffer=0x20001000, size=1024, wr_off=50, rd_off=0)
+    payload = bytes(range(50))
+    fake = FakeJLink(memory={0x20000800: cb, 0x20001000: payload})
+
+    session = DirectMemoryRttSession(fake)
+    session.attach(search_ranges=[(0x20000000, 0x10000)])
+
+    data = session.read_channel(0)
+    assert bytes(data) == payload
+
+    rd_off_addr = 0x20000800 + CB_HEADER_SIZE + 16  # BUFFER_DESC_RDOFF_OFFSET
+    assert (rd_off_addr, [50]) in fake.writes
+    assert session._last_written_rd_off[0] == 50
+
+
+def test_session_read_channel_empty_returns_no_data_no_write():
+    """WrOff == RdOff: no data, no writeback."""
+    cb = cb_one_up(p_buffer=0x20001000, size=1024, wr_off=0, rd_off=0)
+    fake = FakeJLink(memory={0x20000800: cb})
+
+    session = DirectMemoryRttSession(fake)
+    session.attach(search_ranges=[(0x20000000, 0x10000)])
+
+    data = session.read_channel(0)
+    assert data == b""
+    assert fake.writes == []
+
+
+def test_session_detects_target_reset_via_rdoff_mismatch():
+    """After we write RdOff=50, target reset zeroes RdOff; next poll must
+    raise TargetResetError so the caller can re-attach."""
+    cb = cb_one_up(p_buffer=0x20001000, size=1024, wr_off=50, rd_off=0)
+    payload = bytes(range(50))
+    fake = FakeJLink(memory={0x20000800: cb, 0x20001000: payload})
+
+    session = DirectMemoryRttSession(fake)
+    session.attach(search_ranges=[(0x20000000, 0x10000)])
+    session.read_channel(0)  # writes RdOff=50; _last_written_rd_off[0] == 50
+
+    # Simulate target reset: firmware re-init zeroed RdOff.
+    rd_off_addr = 0x20000800 + CB_HEADER_SIZE + 16
+    fake.memory_write32(rd_off_addr, [0])
+    fake.writes.clear()
+
+    with pytest.raises(TargetResetError) as exc_info:
+        session.read_channel(0)
+    err = exc_info.value
+    assert err.channel_index == 0
+    assert err.expected == 50
+    assert err.actual == 0
+
+
+def test_session_dereferences_channel_name():
+    """sName pointer resolves to a NUL-terminated string."""
+    cb = build_cb([build_buffer_descriptor(
+        name_ptr=0x20002000, p_buffer=0x20001000, size=1024,
+        wr_off=0, rd_off=0, flags=0)])
+    fake = FakeJLink(memory={
+        0x20000800: cb,
+        0x20002000: b"Terminal\x00",
+    })
+
+    session = DirectMemoryRttSession(fake)
+    session.attach(search_ranges=[(0x20000000, 0x10000)])
+
+    assert session.channel_name(0) == "Terminal"
+
+
+def test_session_channel_name_returns_none_on_zero_pointer():
+    cb = cb_one_up()  # name_ptr == 0
+    fake = FakeJLink(memory={0x20000800: cb, 0x20001000: b""})
+    session = DirectMemoryRttSession(fake)
+    session.attach(search_ranges=[(0x20000000, 0x10000)])
+    assert session.channel_name(0) is None

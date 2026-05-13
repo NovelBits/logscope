@@ -38,6 +38,10 @@ BUFFER_DESC_RDOFF_OFFSET = 16
 # probe-rs sanity cap; SEGGER spec uses u32 but real firmware never goes above 4.
 MAX_BUFFERS = 255
 
+# probe-rs cap on sName length when dereferencing the name pointer; bounds
+# runaway memory reads if the pointer is garbage or the string is unterminated.
+CHANNEL_NAME_MAX_LEN = 128
+
 
 @dataclass
 class ChannelDesc:
@@ -183,6 +187,150 @@ def _compute_ring_read(wr_off, rd_off, size):
     if wr_off == 0:
         return [tail]
     return [tail, (0, wr_off)]
+
+
+class TargetResetError(Exception):
+    """Raised when the target's RdOff no longer matches our tracked value.
+
+    Signal to the caller that the target has been reset (or another tool
+    wrote RdOff externally). The session must be torn down and a fresh
+    attach() performed to pick up the new RTT control block state.
+    """
+    def __init__(self, channel_index, expected, actual):
+        super().__init__(
+            f"channel {channel_index}: RdOff mismatch: expected {expected}, "
+            f"target reports {actual}. Target reset detected."
+        )
+        self.channel_index = channel_index
+        self.expected = expected
+        self.actual = actual
+
+
+class DirectMemoryRttSession:
+    """RTT session via direct target memory reads (no libjlinkarm RTT API).
+
+    Bypasses SEGGER's host-side tracked_RdOff cache. Detects target resets
+    via the last_written_rd_off pattern: after each writeback of RdOff, we
+    remember the value. On the next poll, if the target's RdOff differs from
+    what we wrote, the target reset (firmware re-init zeroed RdOff). We raise
+    TargetResetError and the caller re-attaches.
+    """
+
+    def __init__(self, jlink):
+        self._jlink = jlink
+        self.cb_addr = None
+        self.channels = []                  # list[ChannelDesc]
+        self._last_written_rd_off = {}      # channel_index -> int
+
+    def attach(self, search_ranges):
+        """Scan target memory for the RTT control block and parse it.
+
+        Args:
+            search_ranges: list of (start_addr, length) tuples bounding the
+                RAM regions to scan for the SEGGER RTT magic.
+
+        Raises:
+            ValueError if the magic is not found, or if multiple matches are
+            present (caller must tighten the search range). Also reraises
+            validation errors from _parse_cb.
+        """
+        all_matches = []
+        for start, length in search_ranges:
+            buf = bytes(self._jlink.memory_read(start, length))
+            for offset in _scan_for_magic(buf):
+                all_matches.append(start + offset)
+
+        if not all_matches:
+            raise ValueError(
+                f"RTT control block not found in scanned ranges: {search_ranges}")
+        if len(all_matches) > 1:
+            addrs = [hex(a) for a in all_matches]
+            raise ValueError(
+                f"multiple RTT control block matches at {addrs}. "
+                f"Set logscope.jlink.rttSearchRanges to a tighter range."
+            )
+
+        cb_addr = all_matches[0]
+
+        header = bytes(self._jlink.memory_read(cb_addr, CB_HEADER_SIZE))
+        max_up, max_down = struct.unpack_from("<II", header, 16)
+        if max_up > MAX_BUFFERS or max_down > MAX_BUFFERS:
+            raise ValueError(
+                f"CB at 0x{cb_addr:08x} has implausible buffer counts "
+                f"(max_up={max_up}, max_down={max_down}); cap is {MAX_BUFFERS}."
+            )
+
+        full_size = CB_HEADER_SIZE + (max_up + max_down) * BUFFER_DESC_SIZE
+        full_buf = bytes(self._jlink.memory_read(cb_addr, full_size))
+        parsed = _parse_cb(full_buf, base_addr=cb_addr)
+
+        self.cb_addr = parsed.cb_addr
+        self.channels = parsed.up_buffers
+
+        # Reset and seed the writeback tracker from parsed initial values.
+        # Seeding from initial_rd_off (rather than 0) avoids false-positive
+        # reset detection on the very first poll, and seeding fresh each call
+        # ensures a re-attach after a real reset starts from the new state.
+        self._last_written_rd_off = {}
+        for ch in self.channels:
+            self._last_written_rd_off[ch.index] = ch.initial_rd_off
+
+    def channel_count(self):
+        """Return the number of usable up-channels (skips pBuffer=0 slots)."""
+        return len(self.channels)
+
+    def channel_name(self, channel_index):
+        """Dereference sName pointer; returns the string or None if unavailable."""
+        ch = self._find_channel(channel_index)
+        if ch.name_ptr == 0:
+            return None
+        try:
+            buf = bytes(self._jlink.memory_read(ch.name_ptr, CHANNEL_NAME_MAX_LEN))
+        except Exception:
+            return None
+        nul = buf.find(b"\x00")
+        if nul <= 0:
+            return None
+        return buf[:nul].decode("utf-8", errors="replace")
+
+    def read_channel(self, channel_index):
+        """Read all available data from the given up-channel.
+
+        Returns the bytes read (possibly empty if no new data). Writes RdOff
+        back to the target if data was consumed. Raises TargetResetError if
+        the target's RdOff does not match what we last wrote.
+        """
+        ch = self._find_channel(channel_index)
+
+        # Single round-trip: WrOff and RdOff are adjacent at offsets 12, 16.
+        wr_rd_addr = ch.desc_addr + BUFFER_DESC_WROFF_OFFSET
+        wr_off, rd_off = self._jlink.memory_read32(wr_rd_addr, 2)
+
+        expected = self._last_written_rd_off.get(ch.index, ch.initial_rd_off)
+        if rd_off != expected:
+            raise TargetResetError(ch.index, expected, rd_off)
+
+        slices = _compute_ring_read(wr_off, rd_off, ch.size)
+        if not slices:
+            return b""
+
+        data = bytearray()
+        for offset, length in slices:
+            chunk = bytes(self._jlink.memory_read(ch.p_buffer + offset, length))
+            data.extend(chunk)
+
+        new_rd_off = (rd_off + len(data)) % ch.size
+        rd_off_addr = ch.desc_addr + BUFFER_DESC_RDOFF_OFFSET
+        self._jlink.memory_write32(rd_off_addr, [new_rd_off])
+        self._last_written_rd_off[ch.index] = new_rd_off
+
+        return bytes(data)
+
+    def _find_channel(self, channel_index):
+        for ch in self.channels:
+            if ch.index == channel_index:
+                return ch
+        raise IndexError(f"no channel with index {channel_index}")
 
 
 def _install_orphan_watcher():
