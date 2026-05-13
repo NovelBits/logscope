@@ -178,6 +178,10 @@ function wireTransportEvents(t: Transport): void {
     panel?.sendReset();
   });
 
+  t.on("channelName", (info: { index: number; name: string }) => {
+    sidebarProvider.setChannelName(info.index, info.name);
+  });
+
   t.on("disconnected", (info?: { reason?: string; message?: string }) => {
     log(`Transport disconnected${info?.reason ? ` (reason: ${info.reason})` : ""}${info?.message ? ` — ${info.message}` : ""}`);
     if (!userDisconnecting) {

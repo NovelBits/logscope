@@ -13,6 +13,7 @@ export interface Transport extends EventEmitter {
 // "disconnected" - connection lost
 // "error" - (err: Error) connection error
 // "reset" - device reset detected
+// "channelName" - ({ index, name }) RTT channel label resolved from sName pointer
 
 export type TransportType = "rtt" | "uart";
 

@@ -15,7 +15,7 @@ jest.mock("fs", () => ({
 
 const mockExecFileSync = execFileSync as jest.MockedFunction<typeof execFileSync>;
 
-import { resolveSystemPython } from "../../src/transport/nrfutil-rtt";
+import { resolveSystemPython, NrfutilRttTransport } from "../../src/transport/nrfutil-rtt";
 
 describe("resolveSystemPython", () => {
   beforeEach(() => {
@@ -165,5 +165,49 @@ describe("device discovery JSON parsing", () => {
       result = [];
     }
     expect(result).toEqual([]);
+  });
+});
+
+describe("_handleStderrLine: CHANNEL_NAME parsing", () => {
+  it("emits channelName event for CHANNEL_NAME 0 Terminal", (done) => {
+    const transport = new NrfutilRttTransport({ device: "Cortex-M33" });
+    transport.on("channelName", ({ index, name }) => {
+      expect(index).toBe(0);
+      expect(name).toBe("Terminal");
+      done();
+    });
+    transport._handleStderrLine("CHANNEL_NAME 0 Terminal");
+  });
+
+  it("emits channelName event for CHANNEL_NAME 1 SysView", (done) => {
+    const transport = new NrfutilRttTransport({ device: "Cortex-M33" });
+    transport.on("channelName", ({ index, name }) => {
+      expect(index).toBe(1);
+      expect(name).toBe("SysView");
+      done();
+    });
+    transport._handleStderrLine("CHANNEL_NAME 1 SysView");
+  });
+
+  it("handles channel names with spaces", (done) => {
+    const transport = new NrfutilRttTransport({ device: "Cortex-M33" });
+    transport.on("channelName", ({ index, name }) => {
+      expect(index).toBe(0);
+      expect(name).toBe("Some Channel With Spaces");
+      done();
+    });
+    transport._handleStderrLine("CHANNEL_NAME 0 Some Channel With Spaces");
+  });
+
+  it("does not emit channelName for non-matching lines", (done) => {
+    const transport = new NrfutilRttTransport({ device: "Cortex-M33" });
+    let emitted = false;
+    transport.on("channelName", () => { emitted = true; });
+    transport._handleStderrLine("RTT_READY buffers=2 hci=yes");
+    transport._handleStderrLine("J-Link connected to nRF54L15_M33");
+    setTimeout(() => {
+      expect(emitted).toBe(false);
+      done();
+    }, 50);
   });
 });
