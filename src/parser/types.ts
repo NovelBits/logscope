@@ -23,7 +23,7 @@ export interface DecodedField {
    * "Core Spec v6.0, Vol 1, Part F, §2.5". Rendered inline next to the
    * value in the HCI decoder panel so the user can see "where in the
    * spec this is defined" without leaving the log viewer. Set by lookups
-   * against src/parser/ble-error-codes.ts and similar reference tables.
+   * against the @novelbits/ble-spec reference tables.
    */
   specRef?: string;
 }

@@ -16,8 +16,7 @@ import {
 } from "./hci-field-types";
 import { commandName } from "./hci-opcodes";
 import { HciConnectionTracker } from "./hci-connection-tracker";
-import { lookupHciError, lookupAttError } from "./ble-error-codes";
-import { lookupCompanyId } from "./ble-company-ids";
+import { lookupHciError, lookupAttError, lookupCompanyId } from "@novelbits/ble-spec";
 
 const COLOR_ERROR = "#f44747";
 const COLOR_ADDRESS = "#3794ff";

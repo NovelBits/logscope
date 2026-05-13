@@ -16,10 +16,3 @@ export interface ErrorCodeEntry {
    */
   specRef: string;
 }
-
-export interface CompanyIdEntry {
-  /** Hex value, e.g. 0x004C */
-  code: number;
-  /** Canonical name as published by Bluetooth SIG, e.g. "Apple, Inc." */
-  name: string;
-}

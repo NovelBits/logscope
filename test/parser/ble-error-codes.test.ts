@@ -5,8 +5,9 @@ import {
   lookupHciError,
   lookupAttError,
   lookupSmpError,
-} from "../../src/parser/ble-error-codes";
-import { lookupCompanyId, BLUETOOTH_COMPANY_IDS } from "../../src/parser/ble-company-ids";
+  lookupCompanyId,
+  BLUETOOTH_COMPANY_IDS,
+} from "@novelbits/ble-spec";
 
 describe("BLE error code tables", () => {
   it("HCI table covers all spec-defined codes through 0x47", () => {

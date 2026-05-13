@@ -75,23 +75,18 @@ function renderCompanyIdsModule(data: CompanyIdYaml): string {
 // Bluetooth SIG Company Identifiers (curated subset).
 // Source: ${data.source}
 // Last updated: ${data.last_updated}
-
-import type { CompanyIdEntry } from "../types";
 `;
 
   const entries = data.entries
-    .map(
-      (e) =>
-        `  ${e.code}: { code: ${e.code}, name: ${JSON.stringify(e.name)} },`
-    )
+    .map((e) => `  ${e.code}: ${JSON.stringify(e.name)},`)
     .join("\n");
 
   return `${header}
-export const BLUETOOTH_COMPANY_IDS: Record<number, CompanyIdEntry> = {
+export const BLUETOOTH_COMPANY_IDS: Record<number, string> = {
 ${entries}
 };
 
-export function lookupCompanyId(code: number): CompanyIdEntry | null {
+export function lookupCompanyId(code: number): string | null {
   return BLUETOOTH_COMPANY_IDS[code] ?? null;
 }
 `;
