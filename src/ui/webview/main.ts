@@ -6,7 +6,7 @@ import { detectFault } from "../../parser/fault-detector";
 
 interface DecodedPacket {
   summary: string;
-  fields: { name: string; value: string; color?: string }[];
+  fields: { name: string; value: string; color?: string; specRef?: string }[];
 }
 
 interface SerializedEntry {

@@ -772,7 +772,7 @@ async function guidedConnect(): Promise<void> {
   let step = 1;
   let transportValue: "rtt" | "uart" = "rtt";
   let parserValue: "zephyr" | "nrf5" | "raw" = "zephyr";
-  let port: { path: string; manufacturer?: string } | undefined;
+  let port: { path: string; label: string } | undefined;
 
   while (step > 0) {
     try {
@@ -786,7 +786,7 @@ async function guidedConnect(): Promise<void> {
               { label: "$(plug) Serial UART", description: "USB CDC ACM or UART bridge", value: "uart" as const },
               { label: "Tip", kind: vscode.QuickPickItemKind.Separator },
               { label: "$(lightbulb) Pick RTT for Zephyr/SEGGER RTT firmware", description: "Pick UART for USB CDC or any serial console", _hint: true },
-            ] as (vscode.QuickPickItem & { value?: "rtt" | "uart" })[],
+            ] as (vscode.QuickPickItem & { value?: "rtt" | "uart"; _hint?: boolean })[],
             { placeholder: "Select transport", step: 1, totalSteps: 4, title: "Connect Device" },
           );
           if (!pick || (pick as { value?: "rtt" | "uart" }).value === undefined) { telemetry.trackConnectFlowAbandoned("transport"); return; }
@@ -806,7 +806,7 @@ async function guidedConnect(): Promise<void> {
               { label: "$(terminal) Raw", description: "Any firmware — displays output as-is, no parsing", value: "raw" as const },
               { label: "Tip", kind: vscode.QuickPickItemKind.Separator },
               { label: "$(lightbulb) Pick Raw for custom log formats", description: "e.g., printf, MCUboot recovery, vendor-specific formats", _hint: true },
-            ] as (vscode.QuickPickItem & { value?: "zephyr" | "nrf5" | "raw" })[],
+            ] as (vscode.QuickPickItem & { value?: "zephyr" | "nrf5" | "raw"; _hint?: boolean })[],
             { placeholder: "Select log format", step: 2, totalSteps: 4, showBack: true, title: "Connect Device" },
           );
           if (!pick || (pick as { value?: "zephyr" | "nrf5" | "raw" }).value === undefined) { telemetry.trackConnectFlowAbandoned("parser"); return; }
@@ -1098,7 +1098,7 @@ async function pickBaudRate(showBack = false, step?: number, totalSteps?: number
   // Settings without a hint. A non-selectable separator at the bottom of the
   // baud rate list is loud enough that users see it without obscuring the
   // primary action (selecting a rate). Placeholder text alone was too subtle.
-  const items: (vscode.QuickPickItem & { value?: number })[] = [
+  const items: (vscode.QuickPickItem & { value?: number; _hint?: boolean })[] = [
     ...rateItems,
     { label: "Tip", kind: vscode.QuickPickItemKind.Separator },
     { label: "$(lightbulb) Need 7E1, 8E1, 8N2, etc.?", description: "Set Data Bits, Stop Bits, Parity in Change Settings", _hint: true },
