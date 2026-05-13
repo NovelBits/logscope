@@ -5,6 +5,11 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "outDir": "out",
     "rootDir": "src",
+    "baseUrl": ".",
+    "paths": {
+      "@novelbits/ble-spec": ["packages/ble-spec/src/index.ts"],
+      "@novelbits/ble-spec/*": ["packages/ble-spec/src/*"]
+    },
     "sourceMap": true,
     "strict": true,
     "esModuleInterop": true,

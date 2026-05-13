@@ -6,6 +6,10 @@ const config: Config = {
   roots: ["<rootDir>/test"],
   testMatch: ["**/*.test.ts"],
   moduleFileExtensions: ["ts", "js", "json"],
+  moduleNameMapper: {
+    "^@novelbits/ble-spec$": "<rootDir>/packages/ble-spec/src/index.ts",
+    "^@novelbits/ble-spec/(.*)$": "<rootDir>/packages/ble-spec/src/$1",
+  },
 };
 
 export default config;
