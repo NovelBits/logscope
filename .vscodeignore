@@ -14,6 +14,7 @@ assets/novelbits-logo.png
 .git/**
 .worktrees/**
 .mapscope/**
+.cocoindex_code/**
 .gitignore
 tsconfig.json
 esbuild.config.mjs
