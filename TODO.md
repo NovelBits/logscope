@@ -4,6 +4,16 @@ Running list of deferred work — items that are well-understood and ready to pi
 
 ## Transport / RTT
 
+### CPUID fallback should hint at setting `logscope.jlink.device` when it can't resolve a chip-specific name
+
+**Origin:** GitHub issue #23 (pfvogel, 2026-05-13). User on Ubuntu VM connecting to a custom nRF54L15 board hit `JLinkReadException: Unspecified error` on the very first `memory_read` of the RTT magic scan in `session.attach()`. Root cause: `nrfutil` was not installed in his VM, so `detect_device()` returned `None, None` and the auto-resolution fell through to the CPUID-based fallback in `main()`. The CPUID fallback only identifies the ARM core (`Cortex-M33`), not the specific chip. libjlinkarm with the generic `Cortex-M33` device profile has no chip-specific memory map, and on this hardware it refuses memory reads from `0x20000000` (the standard ARM SRAM base) with "Unspecified error."
+
+**Why this matters:** any user without `nrfutil` (Linux distros where it isn't packaged, fresh VMs, non-Nordic-development setups) hits this. The error message they see is the truncated Python traceback in the TransportError, which gives no hint that the workaround is to set the device name. JLinkRTTViewer works for the same user because they typed the chip name when they configured the connection there.
+
+**Suggested fix (~10-15 min):** in `rtt-helper.py`, when the CPUID fallback resolves to a generic core name, additionally print a hint to stderr (which surfaces in the LogScope output channel and in the TransportError) suggesting the user set `logscope.jlink.device` to the chip-specific J-Link device name. Optionally, ship a short curated list of common Nordic/STM32/SiLabs/TI chip names in the hint so the user has examples to choose from. Don't fail the connect; just surface guidance.
+
+**Bonus:** consider falling through to a slightly more permissive memory-read approach in `session.attach()` for the generic-core case (smaller initial scan range, or only try `0x20000000` + 0x10000 = 64KB first), so users who DO have RTT at a standard address get a working connection even with a generic device name. Not a hard requirement but would improve out-of-box experience.
+
 ### v0.6.1 follow-ups (post-v0.6.0 direct-memory RTT)
 
 The mid-session-reset bug (originally tracked below as "Helper doesn't re-sync RTT control block after a target reset") was **fixed in v0.6.0** via the direct-memory RTT rewrite. Recovery is now automatic (~2.5 to 3 seconds on nRF54L15). These v0.6.1 items are optimizations and known-limitation follow-ups.
