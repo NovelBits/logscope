@@ -246,6 +246,52 @@ describe("decodeAcl", () => {
     ).toContain("01 00");
   });
 
+  it("decodes ATT Error Response with named error code and spec ref", () => {
+    // Real-world: client Read Request fails with "Insufficient Authentication"
+    const payload = Buffer.from([
+      0x40, 0x00, // handle: 0x0040
+      0x09, 0x00, // ACL data length: 9
+      0x05, 0x00, // L2CAP length: 5
+      0x04, 0x00, // CID: 0x0004 (ATT)
+      0x01,       // ATT opcode: Error Response
+      0x0a,       // Request Opcode In Error: 0x0A (Read Request)
+      0x15, 0x00, // Attribute Handle In Error: 0x0015
+      0x05,       // Error Code: 0x05 (Insufficient Authentication)
+    ]);
+    const result = decodeAcl(payload);
+    expect(result).not.toBeNull();
+    expect(result!.summary).toContain("ATT Error Response");
+    expect(result!.summary).toContain("Read Request");
+    expect(result!.summary).toContain("Insufficient Authentication");
+
+    const reqField = result!.fields.find((f) => f.name === "Request In Error");
+    expect(reqField?.value).toBe("Read Request");
+
+    const handleField = result!.fields.find((f) => f.name === "ATT Handle In Error");
+    expect(handleField?.value).toBe("0x0015");
+
+    const errField = result!.fields.find((f) => f.name === "Error Code");
+    expect(errField?.value).toBe("Insufficient Authentication");
+    expect(errField?.specRef).toMatch(/Vol 3.*Part F/);
+    expect(errField?.color).toBeDefined(); // red for error
+  });
+
+  it("decodes ATT Error Response with unknown error code (graceful fallback)", () => {
+    const payload = Buffer.from([
+      0x40, 0x00, 0x09, 0x00,
+      0x05, 0x00, 0x04, 0x00,
+      0x01,       // Error Response
+      0x0a,       // Request In Error: Read Request
+      0x15, 0x00, // ATT Handle: 0x0015
+      0x99,       // Error Code: 0x99 (reserved / unknown)
+    ]);
+    const result = decodeAcl(payload);
+    expect(result).not.toBeNull();
+    const errField = result!.fields.find((f) => f.name === "Error Code");
+    expect(errField?.value).toContain("0x99");
+    expect(errField?.specRef).toBeUndefined(); // unknown -> no spec ref
+  });
+
   it("decodes ATT Exchange MTU Request", () => {
     const payload = Buffer.from([
       0x40, 0x00, // handle: 0x0040

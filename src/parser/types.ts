@@ -18,6 +18,14 @@ export interface DecodedField {
   name: string;
   value: string;
   color?: string;
+  /**
+   * Optional Bluetooth Core Specification section reference, e.g.
+   * "Core Spec v6.0, Vol 1, Part F, §2.5". Rendered inline next to the
+   * value in the HCI decoder panel so the user can see "where in the
+   * spec this is defined" without leaving the log viewer. Set by lookups
+   * against src/parser/ble-error-codes.ts and similar reference tables.
+   */
+  specRef?: string;
 }
 
 export interface DecodedPacket {

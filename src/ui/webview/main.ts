@@ -268,6 +268,17 @@ function buildDetailDiv(decoded: DecodedPacket, raw?: number[], row?: HTMLElemen
     if (field.color) {
       tdValue.style.color = field.color;
     }
+    // Inline Bluetooth Core Spec reference for spec-defined values
+    // (HCI / ATT / SMP error codes today; more value-types over time).
+    // Rendered as a small dim suffix; if we ever ship a spec lookup
+    // service we can upgrade this to a clickable link.
+    if (field.specRef) {
+      const spec = document.createElement("span");
+      spec.className = "field-spec-ref";
+      spec.textContent = " " + field.specRef;
+      spec.title = field.specRef;
+      tdValue.appendChild(spec);
+    }
     tr.appendChild(tdName);
     tr.appendChild(tdValue);
     table.appendChild(tr);

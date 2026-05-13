@@ -16,6 +16,8 @@ import {
 } from "./hci-field-types";
 import { commandName } from "./hci-opcodes";
 import { HciConnectionTracker } from "./hci-connection-tracker";
+import { lookupHciError, lookupAttError } from "./ble-error-codes";
+import { lookupCompanyId } from "./ble-company-ids";
 
 const COLOR_ERROR = "#f44747";
 const COLOR_ADDRESS = "#3794ff";
@@ -23,6 +25,17 @@ const COLOR_ADDRESS = "#3794ff";
 /** Create a DecodedField, optionally with a color */
 function field(name: string, value: string, color?: string): DecodedField {
   return color ? { name, value, color } : { name, value };
+}
+
+/**
+ * Create a DecodedField with a Bluetooth Core Spec section reference.
+ * Used for status / error codes and similar spec-defined values where
+ * we want the user to see "this is defined in the Core Spec at §X.Y.Z".
+ */
+function fieldWithSpec(name: string, value: string, specRef: string, color?: string): DecodedField {
+  const f: DecodedField = { name, value, specRef };
+  if (color) f.color = color;
+  return f;
 }
 
 /** Format raw bytes as hex + ASCII (e.g., "01 00 48 65  ..He") */
@@ -38,10 +51,24 @@ function fmtHandle(h: number): string {
   return `0x${h.toString(16).toUpperCase().padStart(4, "0")}`;
 }
 
-/** Create a status field with red color for non-zero */
+/**
+ * Create a status field with red color for non-zero codes. For error
+ * codes (non-zero) we also attach a Bluetooth Core Spec section
+ * reference so the user sees where to look up the meaning. The
+ * Success (0x00) case stays clean — no spec ref noise on the happy
+ * path. Falls back gracefully when the code is unknown: renders the
+ * legacy "Unknown (0xNN)" string without a spec ref.
+ */
 function statusField(name: string, code: number): DecodedField {
-  const text = hciErrorCode(code);
-  return code === 0x00 ? field(name, text) : field(name, text, COLOR_ERROR);
+  if (code === 0x00) {
+    const entry = lookupHciError(code);
+    return field(name, entry ? entry.name : hciErrorCode(code));
+  }
+  const entry = lookupHciError(code);
+  if (entry) {
+    return fieldWithSpec(name, entry.name, entry.specRef, COLOR_ERROR);
+  }
+  return field(name, hciErrorCode(code), COLOR_ERROR);
 }
 
 // ---------------------------------------------------------------------------
@@ -107,11 +134,13 @@ function decodeAdManufacturerSpecific(data: Buffer, adDataStart: number, adDataL
   if (adDataLen < 2 || adDataStart + 1 >= data.length) return null;
   const companyId = data.readUInt16LE(adDataStart);
   const companyHex = `0x${companyId.toString(16).toUpperCase().padStart(4, "0")}`;
+  const companyName = lookupCompanyId(companyId);
+  const companyDisplay = companyName ? `${companyName} (${companyHex})` : companyHex;
   const msdEnd = Math.min(adDataStart + adDataLen, data.length);
   const msdData = Array.from(data.subarray(adDataStart + 2, msdEnd))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join(" ");
-  return field("Manufacturer Data", `Company: ${companyHex}, Data: ${msdData || "(empty)"}`);
+  return field("Manufacturer Data", `Company: ${companyDisplay}, Data: ${msdData || "(empty)"}`);
 }
 
 function decodeAdUnknown(data: Buffer, adDataStart: number, adDataLen: number, adType: number): DecodedField {
@@ -630,6 +659,29 @@ function decodeAttOpcode(
   handleStr: string,
   fields: DecodedField[]
 ): DecodedPacket {
+  // ATT Error Response (opcode 0x01): Request Opcode (1B) + Attribute
+  // Handle In Error (2B) + Error Code (1B). Core Spec v6.0 Vol 3 Part F §3.4.1.1.
+  if (attOpcode === 0x01 && payload.length >= 13) {
+    const reqOpcode = payload[9];
+    const reqOpcodeName = attOpcodeName(reqOpcode);
+    const attHandle = payload.readUInt16LE(10);
+    const errCode = payload[12];
+    const errEntry = lookupAttError(errCode);
+    const errText = errEntry
+      ? errEntry.name
+      : `Unknown (0x${errCode.toString(16).toUpperCase().padStart(2, "0")})`;
+    fields.push(field("Request In Error", reqOpcodeName));
+    fields.push(field("ATT Handle In Error", fmtHandle(attHandle)));
+    if (errEntry) {
+      fields.push(fieldWithSpec("Error Code", errEntry.name, errEntry.specRef, COLOR_ERROR));
+    } else {
+      fields.push(field("Error Code", errText, COLOR_ERROR));
+    }
+    return {
+      summary: `handle:${handleStr} ATT Error Response (${reqOpcodeName} -> ${errText})`,
+      fields,
+    };
+  }
   if (attOpcode === 0x0a && payload.length >= 11) {
     const attHandle = payload.readUInt16LE(9);
     fields.push(field("ATT Handle", fmtHandle(attHandle)));
