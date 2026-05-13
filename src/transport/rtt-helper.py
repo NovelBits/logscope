@@ -16,6 +16,30 @@ import sys
 import os
 
 
+RTT_MAGIC = b"SEGGER RTT\x00\x00\x00\x00\x00\x00"
+assert len(RTT_MAGIC) == 16
+
+
+def _scan_for_magic(buf, magic=RTT_MAGIC):
+    """Find all occurrences of the RTT magic string in a byte buffer.
+
+    Returns a list of byte offsets where the magic begins. Uses byte-windowed
+    search (no alignment requirement), matching probe-rs's approach. The magic
+    can appear in firmware .rodata as a literal string in addition to the
+    actual CB, so callers must treat multiple matches as ambiguous rather than
+    silently picking the first one.
+    """
+    offsets = []
+    start = 0
+    while True:
+        idx = buf.find(magic, start)
+        if idx < 0:
+            break
+        offsets.append(idx)
+        start = idx + 1
+    return offsets
+
+
 def _install_orphan_watcher():
     """Start a daemon thread that exits this process if our parent dies.
 
