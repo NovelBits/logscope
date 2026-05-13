@@ -2,6 +2,23 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.6.0] - 2026-05-13
+
+### Architecture
+- Direct-memory RTT path replaces libjlinkarm's high-level RTT API. LogScope now reads the SEGGER RTT control block directly via target memory reads (the approach used by probe-rs, OpenOCD, and Nordic's nrfutil) instead of routing through `JLINK_RTTERMINAL_*`. This bypasses libjlinkarm's host-side `tracked_RdOff` cache.
+- The legacy path remains available via `LOGSCOPE_RTT_LEGACY=1` for one-flip rollback if the new path causes regressions.
+
+### Fixed
+- Mid-session board resets now surface the new boot banner within ~50 ms. Pressing the reset button while LogScope is connected no longer silently drops new boot data: the new code detects target resets via probe-rs's `last_written_rd_off` pattern (write RdOff, remember it, re-attach when the target's RdOff no longer matches what we wrote) and transparently re-attaches without halting the CPU.
+
+### Added
+- Channel names from the SEGGER_RTT control block display in the sidebar (for example, "Terminal" instead of "Channel 0"). Names come from the `sName` pointer in each up-buffer descriptor.
+- Python test suite at `test/python/` covering CB scanning, parsing, ring-buffer read math, and the session state machine including reset detection. Run via `npm run test:python` (34 tests, 0.02s).
+- CI step runs the Python tests on every PR.
+
+### Rollback
+- If you hit a regression, set the `LOGSCOPE_RTT_LEGACY=1` environment variable for the VS Code process to force the old `JLINK_RTTERMINAL_*` path. Please file an issue at https://github.com/NovelBits/logscope/issues with the reproduction details.
+
 ## [0.5.18] - 2026-05-12
 
 Critical fix for an orphan-helper bug that left LogScope appearing connected with zero entries after a VS Code window reload.
