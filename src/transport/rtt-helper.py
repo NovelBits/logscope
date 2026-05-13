@@ -164,6 +164,27 @@ def _parse_cb(buf, base_addr):
     )
 
 
+def _compute_ring_read(wr_off, rd_off, size):
+    """Compute the byte slices to read from a SEGGER RTT ring buffer.
+
+    Returns a list of (offset, length) tuples ordered for sequential reads.
+    At most 2 entries; one before wrap, one after. Empty list means no data.
+
+    SEGGER ring semantics: WrOff == RdOff means empty (one byte is reserved
+    to disambiguate full vs empty). Callers never see "full buffer" when
+    wr == rd; they see "no data" and skip the writeback.
+    """
+    if wr_off == rd_off:
+        return []
+    if wr_off > rd_off:
+        return [(rd_off, wr_off - rd_off)]
+    # Wrapped: tail of buffer first, then head from 0.
+    tail = (rd_off, size - rd_off)
+    if wr_off == 0:
+        return [tail]
+    return [tail, (0, wr_off)]
+
+
 def _install_orphan_watcher():
     """Start a daemon thread that exits this process if our parent dies.
 

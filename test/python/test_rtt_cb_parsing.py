@@ -1,6 +1,6 @@
 import pytest
 import struct as _struct
-from rtt_helper import _scan_for_magic, _parse_cb, RTT_MAGIC
+from rtt_helper import _scan_for_magic, _parse_cb, _compute_ring_read, RTT_MAGIC
 from fixtures.cb_layouts import (
     cb_one_up, cb_with_hci, cb_zero_pbuffer, build_cb,
     build_buffer_descriptor,
@@ -135,3 +135,33 @@ def test_parse_truncated_buffer():
     cb_bytes = RTT_MAGIC + _struct.pack("<II", 5, 0) + b"\x00" * 10
     with pytest.raises(ValueError, match="truncated"):
         _parse_cb(cb_bytes, base_addr=0)
+
+
+def test_ring_read_empty_when_equal_at_zero():
+    assert _compute_ring_read(wr_off=0, rd_off=0, size=1024) == []
+
+
+def test_ring_read_empty_when_equal_mid_buffer():
+    assert _compute_ring_read(wr_off=500, rd_off=500, size=1024) == []
+
+
+def test_ring_read_linear_no_wrap():
+    """wr > rd: single contiguous slice from rd to wr."""
+    assert _compute_ring_read(wr_off=300, rd_off=100, size=1024) == [(100, 200)]
+
+
+def test_ring_read_wraparound():
+    """rd > wr: tail of buffer + head from 0."""
+    assert _compute_ring_read(wr_off=100, rd_off=900, size=1024) == [(900, 124), (0, 100)]
+
+
+def test_ring_read_wraparound_with_zero_wr():
+    """rd > wr with wr == 0: just one slice to end of buffer (no head slice)."""
+    assert _compute_ring_read(wr_off=0, rd_off=500, size=1024) == [(500, 524)]
+
+
+def test_ring_read_full_minus_one():
+    """SEGGER reserves one byte; max usable is size-1.
+    rd=1, wr=0 means buffer is full minus one byte, all size-1 bytes wrap-readable
+    in a single slice (no second slice since wr==0)."""
+    assert _compute_ring_read(wr_off=0, rd_off=1, size=1024) == [(1, 1023)]
