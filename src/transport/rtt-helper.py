@@ -28,12 +28,12 @@ CB_HEADER_SIZE = 24
 # + RdOff + Flags, each a little-endian u32.
 BUFFER_DESC_SIZE = 24
 
-BUFFER_DESC_NAME_OFFSET = 0
-BUFFER_DESC_PBUFFER_OFFSET = 4
-BUFFER_DESC_SIZE_OFFSET = 8
+# Field offsets in SEGGER_RTT_BUFFER_UP used by the direct-memory session
+# (Task 4) to compute target addresses for WrOff (read) and RdOff (write).
+# The full descriptor layout is documented by the struct format string used
+# in _parse_cb below.
 BUFFER_DESC_WROFF_OFFSET = 12
 BUFFER_DESC_RDOFF_OFFSET = 16
-BUFFER_DESC_FLAGS_OFFSET = 20
 
 # probe-rs sanity cap; SEGGER spec uses u32 but real firmware never goes above 4.
 MAX_BUFFERS = 255
@@ -49,7 +49,6 @@ class ChannelDesc:
     initial_wr_off: int
     initial_rd_off: int
     flags_mode: int         # Flags & 0x3 (0=NoBlockSkip, 1=NoBlockTrim, 2=BlockIfFull)
-    flags_raw: int
 
 
 @dataclass
@@ -87,7 +86,9 @@ def _parse_cb(buf, base_addr):
     """Parse a SEGGER RTT control block from a memory snapshot.
 
     Args:
-        buf: bytes containing the CB starting at offset 0.
+        buf: bytes whose offset 0 is the first byte of the RTT magic. Caller is
+             responsible for slicing buf before invoking this function; base_addr
+             must correspond to buf[0] in target memory.
         base_addr: target memory address corresponding to buf[0].
 
     Returns:
@@ -153,7 +154,6 @@ def _parse_cb(buf, base_addr):
             initial_wr_off=wr_off,
             initial_rd_off=rd_off,
             flags_mode=mode,
-            flags_raw=flags,
         ))
 
     return ParsedCB(

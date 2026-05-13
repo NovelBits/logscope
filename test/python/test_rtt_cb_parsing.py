@@ -99,6 +99,18 @@ def test_parse_rejects_max_down_above_255():
         _parse_cb(cb_bytes, base_addr=0)
 
 
+def test_parse_rejects_zero_size_with_valid_pbuffer():
+    """A channel with pBuffer != 0 but size == 0 is corrupt; reject it.
+
+    Distinct from the pBuffer == 0 skip path: this guards against partial
+    initialization where the firmware allocated a buffer pointer but never
+    set the size field.
+    """
+    cb_bytes = build_cb([build_buffer_descriptor(0, 0x1000, 0, 0, 0, 0)])
+    with pytest.raises(ValueError, match="size=0"):
+        _parse_cb(cb_bytes, base_addr=0)
+
+
 def test_parse_rejects_wr_off_at_or_beyond_size():
     cb_bytes = build_cb([build_buffer_descriptor(0, 0x1000, 1024, 1024, 0, 0)])
     with pytest.raises(ValueError, match="WrOff"):
