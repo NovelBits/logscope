@@ -250,6 +250,11 @@
           "default": 30,
           "description": "Seconds of RTT silence before LogScope attempts a host-side RTT restart. Quiet devices (BLE peripherals waiting for connections, sensors logging once a minute) commonly go 30s+ without logs, so the default is generous. Set to 0 to disable silence-based recovery entirely. Real RTT errors (read failures, dropped probe) are still recovered separately."
         },
+        "logscope.rtt.legacyMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use the legacy libjlinkarm RTT API (pre-v0.6.0 code path) instead of the direct-memory RTT implementation. Enable only if you hit a regression in v0.6.0; please file an issue at https://github.com/NovelBits/logscope/issues with a reproduction."
+        },
         "logscope.uart.baudRate": {
           "type": "number",
           "default": 115200,

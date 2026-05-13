@@ -282,6 +282,8 @@ export interface RttTransportConfig {
   rttSearchRanges?: string;
   /** Seconds of silence before host-side RTT restart. 0 disables silence-based recovery. Default 30. */
   silenceThresholdSec?: number;
+  /** Use legacy libjlinkarm RTT path (pre-v0.6.0). Default false. */
+  legacyMode?: boolean;
 }
 
 export class NrfutilRttTransport extends EventEmitter implements Transport {
@@ -305,6 +307,7 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
   private readonly nrfutilPath: string;
   private readonly rttSearchRanges: string;
   private readonly silenceThresholdSec: number;
+  private readonly legacyMode: boolean;
 
   constructor(config: RttTransportConfig) {
     super();
@@ -314,6 +317,7 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
     this.nrfutilPath = config.nrfutilPath ?? "nrfutil";
     this.rttSearchRanges = config.rttSearchRanges ?? "0x20000000 0x80000";
     this.silenceThresholdSec = config.silenceThresholdSec ?? 30;
+    this.legacyMode = config.legacyMode ?? false;
   }
 
   get connected(): boolean {
@@ -383,6 +387,7 @@ export class NrfutilRttTransport extends EventEmitter implements Transport {
           ...process.env,
           LOGSCOPE_RTT_SEARCH_RANGES: this.rttSearchRanges,
           LOGSCOPE_RTT_SILENCE_THRESHOLD: String(this.silenceThresholdSec),
+          LOGSCOPE_RTT_LEGACY: this.legacyMode ? "1" : "0",
         },
       });
 

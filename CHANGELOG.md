@@ -17,7 +17,7 @@ All notable changes to LogScope will be documented in this file.
 - CI step runs the Python tests on every PR.
 
 ### Rollback
-- If you hit a regression, set the `LOGSCOPE_RTT_LEGACY=1` environment variable for the VS Code process to force the old `JLINK_RTTERMINAL_*` path. Please file an issue at https://github.com/NovelBits/logscope/issues with the reproduction details.
+- If you hit a regression, set the `LogScope: Rtt: Legacy Mode` VS Code setting to `true` (or `"logscope.rtt.legacyMode": true` in settings.json) to force the old `JLINK_RTTERMINAL_*` path. Reload the window for the change to take effect. The environment variable `LOGSCOPE_RTT_LEGACY=1` also works for command-line use. Please file an issue at https://github.com/NovelBits/logscope/issues with the reproduction details.
 
 ## [0.5.18] - 2026-05-12
 
