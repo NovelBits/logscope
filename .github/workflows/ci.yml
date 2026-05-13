@@ -23,5 +23,11 @@ jobs:
 
       - run: npm test
 
+      - name: Install Python test dependencies
+        run: python3 -m pip install pytest pylink-square
+
+      - name: Run Python tests
+        run: python3 -m pytest test/python -v
+
       - name: Verify config-key parity (package.json declarations vs runtime reads)
         run: node scripts/check-runtime-config-keys.mjs
