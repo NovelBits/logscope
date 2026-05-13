@@ -35,6 +35,18 @@ cd docs && npm run build                 # production build
 
 Docs deploy to Vercel automatically on push to main. Config in `docs/vercel.json`.
 
+## Release Flow
+
+**`.github/workflows/publish.yml` auto-publishes to the VS Code Marketplace on every `v*` tag push.** Do NOT also run `npx @vscode/vsce publish` locally; that creates a race where one path "wins" the publish and the other fails with "already exists". In v0.6.0 this race shipped a bloated 6.4 MB VSIX from the GHA build (before a late `.vscodeignore` fix landed), forcing a v0.6.1 republish. See the v0.6.1 CHANGELOG entry.
+
+Canonical release flow:
+1. Bump `package.json` and `package-lock.json` to the new version.
+2. Add the CHANGELOG entry for that version.
+3. Verify `.vscodeignore` excludes any stray local state (`.cocoindex_code/`, `.pytest_cache/`, etc.) — packagers walk the whole repo.
+4. Commit the bump + CHANGELOG. Push to main.
+5. `git tag -a vX.Y.Z -m "..." && git push origin vX.Y.Z`. The workflow takes over from there.
+6. After the GHA run reports success, verify with `npx @vscode/vsce show novelbits.novelbits-logscope` that the new version is live.
+
 ## Cross-Repo Maintenance
 
 **After any version bump or release**, update the NovelBits Brain knowledge base:
