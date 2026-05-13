@@ -2,7 +2,9 @@
 
 All notable changes to LogScope will be documented in this file.
 
-## [0.6.0] - 2026-05-13
+## [0.6.1] - 2026-05-13
+
+Version bumped from 0.6.0 to 0.6.1 due to a phantom 0.6.0 entry in the Marketplace publish database that prevented a fresh publish under that version. The changes below are the v0.6.0 work as planned; nothing in the code or behavior changed between the original v0.6.0 build and this v0.6.1 publish.
 
 ### Architecture
 - Direct-memory RTT path replaces libjlinkarm's high-level RTT API. LogScope now reads the SEGGER RTT control block directly via target memory reads (the approach used by probe-rs, OpenOCD, and Nordic's nrfutil) instead of routing through `JLINK_RTTERMINAL_*`. This bypasses libjlinkarm's host-side `tracked_RdOff` cache.
