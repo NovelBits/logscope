@@ -286,7 +286,8 @@ class DirectMemoryRttSession:
             return None
         try:
             buf = bytes(self._jlink.memory_read(ch.name_ptr, CHANNEL_NAME_MAX_LEN))
-        except Exception:
+        except Exception as e:
+            print(f"channel_name({channel_index}): memory_read failed: {e}", file=sys.stderr)
             return None
         nul = buf.find(b"\x00")
         if nul <= 0:
@@ -330,7 +331,7 @@ class DirectMemoryRttSession:
         for ch in self.channels:
             if ch.index == channel_index:
                 return ch
-        raise IndexError(f"no channel with index {channel_index}")
+        raise ValueError(f"no channel with index {channel_index}")
 
 
 def _install_orphan_watcher():

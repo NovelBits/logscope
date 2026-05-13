@@ -306,3 +306,62 @@ def test_session_channel_name_returns_none_on_zero_pointer():
     session = DirectMemoryRttSession(fake)
     session.attach(search_ranges=[(0x20000000, 0x10000)])
     assert session.channel_name(0) is None
+
+
+def test_session_re_attach_after_reset_clears_stale_state():
+    """After a TargetResetError, a fresh attach() must reset
+    _last_written_rd_off so the next read doesn't false-positive.
+    """
+    cb = cb_one_up(p_buffer=0x20001000, size=1024, wr_off=50, rd_off=0)
+    payload = bytes(range(50))
+    fake = FakeJLink(memory={0x20000800: cb, 0x20001000: payload})
+
+    session = DirectMemoryRttSession(fake)
+    session.attach(search_ranges=[(0x20000000, 0x10000)])
+    session.read_channel(0)  # _last_written_rd_off[0] becomes 50
+
+    # Simulate target reset: zero RdOff and reset WrOff (firmware re-init).
+    rd_off_addr = 0x20000800 + CB_HEADER_SIZE + 16
+    wr_off_addr = 0x20000800 + CB_HEADER_SIZE + 12
+    fake.memory_write32(rd_off_addr, [0])
+    fake.memory_write32(wr_off_addr, [0])
+    fake.writes.clear()
+
+    with pytest.raises(TargetResetError):
+        session.read_channel(0)
+
+    # Re-attach must clear stale _last_written_rd_off and re-seed from
+    # the post-reset target state.
+    session.attach(search_ranges=[(0x20000000, 0x10000)])
+    assert session._last_written_rd_off == {0: 0}
+
+    # First read after re-attach must succeed (no false-positive reset).
+    data = session.read_channel(0)
+    assert data == b""  # nothing new since reset
+
+
+def test_session_read_channel_wraparound():
+    """read_channel must correctly assemble bytes across the ring-buffer wrap
+    and update _last_written_rd_off to the modulo-size new offset.
+    """
+    size = 1024
+    # Place wr_off=100, rd_off=900 with payload bytes filling the buffer such
+    # that reading should produce [bytes 900..1023] + [bytes 0..99] = 224 bytes.
+    cb = cb_one_up(p_buffer=0x20001000, size=size, wr_off=100, rd_off=900)
+
+    # Fill the ring buffer with distinguishable bytes: byte at offset N is (N % 256).
+    ring = bytes((i % 256) for i in range(size))
+    fake = FakeJLink(memory={0x20000800: cb, 0x20001000: ring})
+
+    session = DirectMemoryRttSession(fake)
+    session.attach(search_ranges=[(0x20000000, 0x10000)])
+
+    data = session.read_channel(0)
+
+    # Expected: tail from rd_off=900 to end (124 bytes) + head from 0 to wr_off=100 (100 bytes)
+    expected = ring[900:1024] + ring[0:100]
+    assert data == expected
+    assert len(data) == 224
+
+    # new_rd_off should be (900 + 224) % 1024 = 100
+    assert session._last_written_rd_off[0] == 100
