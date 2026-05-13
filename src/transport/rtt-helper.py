@@ -43,6 +43,49 @@ MAX_BUFFERS = 255
 CHANNEL_NAME_MAX_LEN = 128
 
 
+# pylink JLinkException codes (from pylink.enums.JLinkGlobalErrors).
+# Transient: J-Link DLL exhausted its WAIT retries but the failure is likely
+# a multi-hundred-ms SWD glitch (typically: target reset window, low-power
+# transition). The outer poll loop is the retry mechanism; a time-based
+# grace window decides when to escalate.
+JLINK_TRANSIENT_CODES = frozenset({
+    -1,    # UNSPECIFIED_ERROR (J-Link DLL catch-all; SWD glitch lands here)
+    -264,  # TIF_STATUS_ERROR
+})
+
+# Fatal at probe level: the J-Link itself is gone or our handle is dead.
+# Escalate to full_reconnect immediately (no grace).
+JLINK_PROBE_FATAL_CODES = frozenset({
+    -256,  # EMU_NO_CONNECTION
+    -257,  # EMU_COMM_ERROR
+    -258,  # DLL_NOT_OPEN
+    -260,  # INVALID_HANDLE
+})
+
+# Target-state errors: the probe is fine but the target isn't responsive.
+# Surface to the user; auto-reconnect won't help.
+JLINK_TARGET_STATE_CODES = frozenset({
+    -259,  # VCC_FAILURE
+    -261,  # NO_CPU_FOUND
+    -273,  # NO_TARGET_DEVICE_SELECTED
+    -274,  # CPU_IN_LOW_POWER_MODE
+})
+
+
+def _classify_jlink_error(exc):
+    """Classify a pylink exception as 'transient', 'probe_fatal', 'target_state',
+    or 'unknown'. Drives recovery decisions in the RTT read loop.
+    """
+    code = getattr(exc, "code", None)
+    if code in JLINK_PROBE_FATAL_CODES:
+        return "probe_fatal"
+    if code in JLINK_TARGET_STATE_CODES:
+        return "target_state"
+    if code in JLINK_TRANSIENT_CODES or code is None:
+        return "transient"
+    return "unknown"
+
+
 @dataclass
 class ChannelDesc:
     index: int              # 0-based index within the up-buffers array
@@ -206,6 +249,15 @@ class TargetResetError(Exception):
         self.actual = actual
 
 
+class TransientSwdReadError(Exception):
+    """Raised by read_channel when the J-Link DLL returns a suspicious-success
+    result (out-of-range offsets). The outer loop's classifier treats this as
+    a transient error and applies the time-based grace window before escalating
+    to a full reconnect.
+    """
+    pass
+
+
 class DirectMemoryRttSession:
     """RTT session via direct target memory reads (no libjlinkarm RTT API).
 
@@ -297,16 +349,34 @@ class DirectMemoryRttSession:
     def read_channel(self, channel_index):
         """Read all available data from the given up-channel.
 
-        Returns the bytes read (possibly empty if no new data). Writes RdOff
-        back to the target if data was consumed. Raises TargetResetError if
-        the target's RdOff does not match what we last wrote.
+        A single memory_read32 call to fetch (WrOff, RdOff); any exception
+        propagates to the caller. The outer poll loop is the retry mechanism:
+        on a transient SWD glitch we keep polling, and a time-based grace
+        window decides when to escalate to a full reconnect. This mirrors
+        probe-rs's approach and avoids burning a fixed retry budget during
+        the multi-second SWD downtime that follows an nRF54L15 hardware reset.
+
+        The suspicious-success guard still applies: when the J-Link DLL returns
+        out-of-range offsets without raising (a behavior observed during reset
+        windows), we surface TransientSwdReadError so the outer loop's
+        classifier treats it as transient.
         """
         ch = self._find_channel(channel_index)
-
-        # Single round-trip: WrOff and RdOff are adjacent at offsets 12, 16.
         wr_rd_addr = ch.desc_addr + BUFFER_DESC_WROFF_OFFSET
+
         wr_off, rd_off = self._jlink.memory_read32(wr_rd_addr, 2)
 
+        # Suspicious-success guard: the J-Link DLL sometimes returns zero-
+        # filled or stale buffer data during the reset window without raising.
+        # Raise TransientSwdReadError so the outer loop treats this as a
+        # transient error subject to the time-based grace window.
+        if wr_off >= ch.size or rd_off >= ch.size:
+            raise TransientSwdReadError(
+                f"channel {channel_index}: offsets out of range "
+                f"(wr={wr_off}, rd={rd_off}, size={ch.size})"
+            )
+
+        # Reset detection: did the target overwrite our last RdOff?
         expected = self._last_written_rd_off.get(ch.index, ch.initial_rd_off)
         if rd_off != expected:
             raise TargetResetError(ch.index, expected, rd_off)
@@ -955,13 +1025,18 @@ def run_pylink_direct(device_or_addr, poll_ms, serial_no=None):
 
     stdout = os.fdopen(sys.stdout.fileno(), "wb", 0)
     poll_interval = poll_ms / 1000.0
-    consecutive_errors = 0
     last_data_time = time.monotonic()
     try:
         SILENCE_THRESHOLD = float(os.environ.get("LOGSCOPE_RTT_SILENCE_THRESHOLD", "30"))
     except ValueError:
         SILENCE_THRESHOLD = 30.0
-    MAX_CONSECUTIVE_ERRORS = 5
+
+    # Time-based grace before escalating transient SWD errors to a full
+    # reconnect. Hardware testing on nRF54L15 showed the SWD bus stays
+    # glitched for ~1 second after a hardware reset, so a count-based or
+    # short-budget retry escalates prematurely. Mirrors probe-rs's pattern:
+    # let the poll cadence be the retry, only escalate if errors persist.
+    SEVERE_ERROR_GRACE_SEC = 0.3
 
     def write_frame(channel, data):
         """Write framed data: [channel:1][length:4 LE][data:N]"""
@@ -976,6 +1051,7 @@ def run_pylink_direct(device_or_addr, poll_ms, serial_no=None):
         """
         print("Full J-Link reconnect...", file=sys.stderr)
         sys.stderr.flush()
+        t0 = time.monotonic()
         try:
             jlink.close()
         except Exception:
@@ -987,16 +1063,54 @@ def run_pylink_direct(device_or_addr, poll_ms, serial_no=None):
             if jlink.halted():
                 jlink.restart()
         except Exception as reconnect_err:
-            print(f"Reconnect failed: {reconnect_err}", file=sys.stderr)
+            elapsed_ms = int((time.monotonic() - t0) * 1000)
+            print(f"Reconnect failed after {elapsed_ms} ms: {reconnect_err}", file=sys.stderr)
             sys.stderr.flush()
             return False
         try:
             session.attach(search_ranges)
         except Exception as attach_err:
-            print(f"Reconnect re-attach failed: {attach_err}", file=sys.stderr)
+            elapsed_ms = int((time.monotonic() - t0) * 1000)
+            print(f"Reconnect re-attach failed after {elapsed_ms} ms: {attach_err}", file=sys.stderr)
             sys.stderr.flush()
             return False
-        print(f"Reconnected OK, buffers={session.channel_count()}", file=sys.stderr)
+        elapsed_ms = int((time.monotonic() - t0) * 1000)
+        print(f"Reconnected OK in {elapsed_ms} ms, buffers={session.channel_count()}", file=sys.stderr)
+        sys.stderr.flush()
+        emit_channel_names()
+        return True
+
+    def cheap_reinit():
+        """Re-init SWD by re-running jlink.connect(device) without closing the
+        J-Link USB handle. Faster than full_reconnect (no close+reopen).
+        Returns True if SWD is responsive after the re-init and session.attach
+        succeeds. Logs elapsed time so we can compare against full_reconnect on
+        real hardware.
+        """
+        print("Cheap re-init (jlink.connect without close)...", file=sys.stderr)
+        sys.stderr.flush()
+        t0 = time.monotonic()
+        try:
+            jlink.connect(device)
+            if jlink.halted():
+                jlink.restart()
+        except Exception as e:
+            elapsed_ms = int((time.monotonic() - t0) * 1000)
+            print(f"Cheap re-init connect() failed after {elapsed_ms} ms: {e}",
+                  file=sys.stderr)
+            sys.stderr.flush()
+            return False
+        try:
+            session.attach(search_ranges)
+        except Exception as e:
+            elapsed_ms = int((time.monotonic() - t0) * 1000)
+            print(f"Cheap re-init session.attach() failed after {elapsed_ms} ms: {e}",
+                  file=sys.stderr)
+            sys.stderr.flush()
+            return False
+        elapsed_ms = int((time.monotonic() - t0) * 1000)
+        print(f"Cheap re-init OK in {elapsed_ms} ms, buffers={session.channel_count()}",
+              file=sys.stderr)
         sys.stderr.flush()
         emit_channel_names()
         return True
@@ -1015,6 +1129,11 @@ def run_pylink_direct(device_or_addr, poll_ms, serial_no=None):
     stdin_thread = threading.Thread(target=_watch_stdin, daemon=True)
     stdin_thread.start()
 
+    # Time-based recovery state. first_error_time is set on the FIRST error
+    # in a streak (and cleared on any successful read or successful recovery);
+    # only escalate to full_reconnect when the streak exceeds the grace window.
+    first_error_time = None
+
     while not quit_requested.is_set():
         got_data = False
         try:
@@ -1024,38 +1143,33 @@ def run_pylink_direct(device_or_addr, poll_ms, serial_no=None):
                     write_frame(ch.index, data)
                     got_data = True
         except TargetResetError as e:
+            # Cheap path: read succeeded but RdOff diverged from our tracked
+            # value. Re-attach without halting the CPU; the CB is in BSS so
+            # the address is stable, but re-scan to be safe.
             print(f"Target reset detected: {e}", file=sys.stderr)
             sys.stderr.flush()
-            # Re-attach (CB is in BSS so address is stable; re-scan to be safe).
             try:
                 session.attach(search_ranges)
                 print(f"Reconnected OK, buffers={session.channel_count()}", file=sys.stderr)
                 sys.stderr.flush()
-                # Re-emit channel names — firmware may have updated mid-session.
                 emit_channel_names()
-                consecutive_errors = 0
+                first_error_time = None
                 last_data_time = time.monotonic()
+                reconnect_attempts = 0
             except Exception as reattach_err:
-                consecutive_errors += 1
-                print(f"Re-attach failed: {reattach_err}", file=sys.stderr)
+                print(f"Re-attach after reset failed: {reattach_err}", file=sys.stderr)
                 sys.stderr.flush()
-                if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
-                    print("ERROR: Re-attach failed repeatedly; giving up", file=sys.stderr)
-                    sys.stderr.flush()
-                    try:
-                        jlink.close()
-                    except Exception:
-                        pass
-                    sys.exit(4)
-                time.sleep(poll_interval * 2)
+                # Don't immediately reset first_error_time; let the next
+                # poll's exception path apply the time-based grace.
             continue
         except BrokenPipeError:
             break
         except Exception as e:
-            consecutive_errors += 1
-            print(f"RTT read error #{consecutive_errors}: {e}", file=sys.stderr)
-            sys.stderr.flush()
-            if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+            kind = _classify_jlink_error(e)
+
+            if kind == "probe_fatal":
+                print(f"Probe error ({type(e).__name__}): {e}; reconnecting...", file=sys.stderr)
+                sys.stderr.flush()
                 if not full_reconnect():
                     reconnect_attempts += 1
                     if reconnect_attempts >= MAX_RECONNECT_ATTEMPTS:
@@ -1068,15 +1182,63 @@ def run_pylink_direct(device_or_addr, poll_ms, serial_no=None):
                         sys.exit(4)
                 else:
                     reconnect_attempts = 0
-                consecutive_errors = 0
-                last_data_time = time.monotonic()
+                    last_data_time = time.monotonic()
+                    first_error_time = None
                 continue
-            time.sleep(poll_interval * 2)
+
+            if kind == "target_state":
+                # Surface but don't auto-recover; sleep extra and continue
+                # polling. Only log the first occurrence so we don't spam.
+                if first_error_time is None:
+                    print(f"Target-state error: {e}", file=sys.stderr)
+                    sys.stderr.flush()
+                    first_error_time = time.monotonic()
+                time.sleep(poll_interval * 2)
+                continue
+
+            # Transient (default): keep polling; only escalate after the
+            # grace window expires. Log only the first error in the streak
+            # to avoid 50+ "RTT read error" lines during a 1-second SWD
+            # downtime on nRF54L15-style hardware resets.
+            now = time.monotonic()
+            if first_error_time is None:
+                first_error_time = now
+                print(f"RTT read error: {e}", file=sys.stderr)
+                sys.stderr.flush()
+            elif now - first_error_time > SEVERE_ERROR_GRACE_SEC:
+                print(
+                    f"Read errors persisted >{SEVERE_ERROR_GRACE_SEC}s; "
+                    f"trying cheap re-init...",
+                    file=sys.stderr,
+                )
+                sys.stderr.flush()
+                if cheap_reinit():
+                    reconnect_attempts = 0
+                    last_data_time = time.monotonic()
+                else:
+                    print("Cheap re-init failed; escalating to full reconnect...", file=sys.stderr)
+                    sys.stderr.flush()
+                    if not full_reconnect():
+                        reconnect_attempts += 1
+                        if reconnect_attempts >= MAX_RECONNECT_ATTEMPTS:
+                            print("ERROR: full reconnect failed repeatedly; giving up", file=sys.stderr)
+                            sys.stderr.flush()
+                            try:
+                                jlink.close()
+                            except Exception:
+                                pass
+                            sys.exit(4)
+                    else:
+                        reconnect_attempts = 0
+                        last_data_time = time.monotonic()
+                first_error_time = None
+            time.sleep(poll_interval)
             continue
 
         if got_data:
             last_data_time = time.monotonic()
-            consecutive_errors = 0
+            first_error_time = None
+            reconnect_attempts = 0
         else:
             # In direct-memory mode silence is just silence: no host-side
             # restart is needed (the legacy path had to restart to re-sync

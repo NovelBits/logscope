@@ -9,11 +9,16 @@ All notable changes to LogScope will be documented in this file.
 - The legacy path remains available via `LOGSCOPE_RTT_LEGACY=1` for one-flip rollback if the new path causes regressions.
 
 ### Fixed
-- Mid-session board resets now surface the new boot banner within ~50 ms. Pressing the reset button while LogScope is connected no longer silently drops new boot data: the new code detects target resets via probe-rs's `last_written_rd_off` pattern (write RdOff, remember it, re-attach when the target's RdOff no longer matches what we wrote) and transparently re-attaches without halting the CPU.
+- Mid-session board resets are now detected and recovered automatically. Pressing the reset button while LogScope is connected no longer leaves the panel stuck on the pre-reset buffer; the helper detects the failed SWD reads, re-attaches the J-Link probe, and surfaces the new boot banner.
+- The probe-rs-style `last_written_rd_off` detection pattern is implemented: after the helper writes `RdOff` to the target, it remembers the value and compares it against the target's `RdOff` on the next poll. If they diverge, a target reset has happened and the helper re-attaches without halting the CPU. On hardware where SWD recovers on its own after reset, this is a single-digit-ms path.
+
+### Recovery time on Nordic chips (known limitation)
+- Hardware testing on the nRF54L15 shows a mid-session reset recovery time of approximately 2.5 to 3 seconds end to end. Empirically the J-Link DLL jams its DAP state during the reset window on this chip and `jlink.connect()` alone (without `close()` first) fails in a few ms with "Unspecified error". The full sequence `close() + sleep + open() + connect() + re-attach` is required to clear the jam, which sets the floor. The cheap re-init path is still attempted first (free when it fails fast) and on other vendors' hardware (STM32, SiLabs, TI; untested at v0.6.0) it may succeed, in which case recovery is sub-second. See TODO.md for the optimization follow-ups planned for v0.6.1.
 
 ### Added
-- Channel names from the SEGGER_RTT control block display in the sidebar (for example, "Terminal" instead of "Channel 0"). Names come from the `sName` pointer in each up-buffer descriptor.
-- Python test suite at `test/python/` covering CB scanning, parsing, ring-buffer read math, and the session state machine including reset detection. Run via `npm run test:python` (34 tests, 0.02s).
+- Channel names from the SEGGER_RTT control block display in the sidebar (for example, "Terminal" instead of "Channel 0"). Names come from the `sName` pointer in each up-buffer descriptor and are re-emitted after every successful re-attach so post-reset firmware updates with different channel names show correctly.
+- pylink error classification: `JLinkException` codes are now classified as transient (retry via polling), probe-fatal (immediate full reconnect), or target-state (surface; no auto-recovery). Time-based grace (300 ms) before escalating to recovery prevents spurious reconnects on isolated bad reads.
+- Python test suite at `test/python/` covering CB scanning, parsing, ring-buffer math, error classification, and the session state machine. Run via `npm run test:python` (41 tests).
 - CI step runs the Python tests on every PR.
 
 ### Rollback

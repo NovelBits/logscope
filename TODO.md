@@ -4,16 +4,26 @@ Running list of deferred work — items that are well-understood and ready to pi
 
 ## Transport / RTT
 
-### Helper doesn't re-sync RTT control block after a target reset
-**Origin:** observed 2026-05-12 while testing the orphan-helper fix in v0.5.18. With a live connection, pressing the board reset button does NOT make the new boot banner appear in the LogScope viewer. The new boot lines stay invisible until a disconnect/reconnect cycle, which forces a full RTT re-init by spawning a fresh helper process.
+### v0.6.1 follow-ups (post-v0.6.0 direct-memory RTT)
 
-**The bug:** after a firmware reset the target's RTT control block has fresh offsets (WrOff=0, RdOff=0 if SRAM was cleared) but libjlinkarm's host-side cached `tracked_RdOff` is stale from before the reset. `jlink.rtt_read()` returns 0 bytes because libjlinkarm thinks it has already consumed everything past the new buffer's WrOff.
+The mid-session-reset bug (originally tracked below as "Helper doesn't re-sync RTT control block after a target reset") was **fixed in v0.6.0** via the direct-memory RTT rewrite. Recovery is now automatic (~2.5 to 3 seconds on nRF54L15). These v0.6.1 items are optimizations and known-limitation follow-ups.
 
-**What does NOT work (verified empirically 2026-05-12):** periodic `rtt_stop()` + `rtt_start()` from within the same pylink session. Despite SEGGER docs implying this re-syncs, libjlinkarm caches the host-side `tracked_RdOff` across stop/start in the same process. Only a full close-and-reopen of the J-Link probe (essentially `full_reconnect()` or a fresh helper subprocess) clears the cache — and `full_reconnect()` halts the target CPU on `jlink.connect()`, which reintroduces the issue #17 regression.
+**Duplicate "Device Reset Detected" banner on TS side.** Hardware testing (2026-05-13) consistently showed two reset banners in the log panel for a single physical reset event. Helper only emits one `Reconnected OK` line, so the duplication is on the TypeScript side. Suspect: chunk-boundary in stderr buffering causes the per-line check in `_handleStderrLine` to fire twice when "Reconnected OK" arrives split across two read chunks. Investigate `nrfutil-rtt.ts` line splitting and consider adding a debounce/de-duplication on the `reset` emit.
 
-**Why this matters:** every user who connects to a long-running board and resets the firmware sees zero feedback in real time. Disconnect/reconnect works around it but is friction. This is also what's behind the "stuck in buffer" symptom users hit when debugging boot sequences.
+**Cache `cb_addr` across reconnects to skip the memory scan.** `session.attach()` currently reads up to 512 KB of memory searching for the SEGGER RTT magic on every attach (initial AND re-attach). Cached `cb_addr` from the initial attach should be the first thing tried; only fall back to scan on mismatch. Empirical: scan is roughly half of `full_reconnect()`'s 2.5 s wall time on nRF54L15. Adding a `known_cb_addr` parameter to `session.attach()` and using it inside `full_reconnect()` should cut recovery to ~1.2 to 1.5 seconds.
 
-**The right fix (v0.6.0 candidate):** implement RTT on top of direct target memory reads, bypassing libjlinkarm's high-level `JLINK_RTTERMINAL_*` API entirely. This is what RTT Viewer (SEGGER), probe-rs (Rust open source), OpenOCD, and Nordic's nrfutil all do. The control block layout is public (SEGGER's open-source `SEGGER_RTT.h`). Full implementation spec: `docs/session-handoff-2026-05-12-logscope-rtt.md` in the brain repo.
+**Investigate non-Nordic recovery time.** The `cheap_reinit()` path was added in v0.6.0 and fast-fails (~3 ms) on the nRF54L15 because the J-Link DLL apparently jams DAP state during reset on Nordic chips. On other vendors' hardware (STM32, SiLabs, TI) `jlink.connect()` may successfully re-init the AP/DP without USB cycling, in which case recovery becomes sub-second. Test on STM32H7 and EFR32 boards to confirm. If verified, the v0.6.0 design pays off as advertised on non-Nordic hardware.
+
+**Shorten the 500 ms USB sleep in `full_reconnect()`.** The intentional `time.sleep(0.5)` between `close()` and `_open_jlink()` was added defensively. On modern J-Link probes (V12 firmware) USB re-enumeration is faster. Test 100 to 300 ms and pick the minimum that works reliably. Potential 200 to 400 ms savings.
+
+**Test with non-silent firmware.** All hardware testing for v0.6.0 used the silent_demo firmware on nRF54L15DK. Confirm that recovery time on chatty firmware (regular logging every few seconds) is similar; sleep modes may shorten the SWD-jam window.
+
+### Fake "Device Reset Detected" banner on initial connect to long-running board
+**Origin:** observed 2026-05-11 during the LinkedIn carousel capture session. Initial fix attempted in v0.5.17 (boot-detection grace window in `extension.ts`) got reverted during the orphan-helper-bug investigation. With v0.5.18's orphan fix in place, the grace-window approach is safe to re-apply.
+
+**The bug:** when LogScope attaches to a board that has been running for a while, the J-Link first drains the RTT control block's historical contents — which typically includes the firmware's original boot banner from when it was first powered on. The parser at `extension.ts` line 140 sees `*** Booting` in the drained text and fires `panel?.sendReset()`, producing a "Device Reset Detected" separator even though no reset has actually happened.
+
+**Suggested fix (same approach as the reverted v0.5.17 attempt, now safe):** add a 2-second grace window after each connect. Boot banners during the initial drain quietly update `bootDetected` but do not fire the reset banner. Any boot banner past the grace window IS a real reset and fires.
 
 ### Fake "Device Reset Detected" banner on initial connect to long-running board
 **Origin:** observed 2026-05-11 during the LinkedIn carousel capture session. Initial fix attempted in v0.5.17 (boot-detection grace window in `extension.ts`) got reverted during the orphan-helper-bug investigation. With v0.5.18's orphan fix in place, the grace-window approach is safe to re-apply.

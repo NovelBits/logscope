@@ -365,3 +365,116 @@ def test_session_read_channel_wraparound():
 
     # new_rd_off should be (900 + 224) % 1024 = 100
     assert session._last_written_rd_off[0] == 100
+
+
+# ---------------------------------------------------------------------------
+# Transient SWD error retry tests (reset-window glitch recovery).
+# ---------------------------------------------------------------------------
+
+
+class FakeJLinkException(Exception):
+    """Mock pylink JLinkException with a code attribute."""
+    def __init__(self, message, code):
+        super().__init__(message)
+        self.code = code
+
+
+class ScriptedFakeJLink(FakeJLink):
+    """FakeJLink that throws scripted exceptions on memory_read32 calls.
+
+    error_script is a list; each entry is either None (success, fall through
+    to FakeJLink behavior) or an Exception instance to raise.
+    """
+    def __init__(self, memory=None, error_script=None):
+        super().__init__(memory=memory)
+        self.error_script = list(error_script) if error_script else []
+        self.memory_read32_calls = 0
+
+    def memory_read32(self, addr, num_words):
+        self.memory_read32_calls += 1
+        if self.error_script:
+            entry = self.error_script.pop(0)
+            if entry is not None:
+                raise entry
+        return super().memory_read32(addr, num_words)
+
+
+def test_classify_jlink_error_transient():
+    from rtt_helper import _classify_jlink_error
+    exc = FakeJLinkException("Unspecified error.", code=-1)
+    assert _classify_jlink_error(exc) == "transient"
+
+
+def test_classify_jlink_error_probe_fatal():
+    from rtt_helper import _classify_jlink_error
+    exc = FakeJLinkException("EMU communication error.", code=-257)
+    assert _classify_jlink_error(exc) == "probe_fatal"
+
+
+def test_classify_jlink_error_target_state():
+    from rtt_helper import _classify_jlink_error
+    exc = FakeJLinkException("CPU in low power mode.", code=-274)
+    assert _classify_jlink_error(exc) == "target_state"
+
+
+def test_classify_jlink_error_unknown_treated_as_transient():
+    """Exceptions without a code attribute should be treated transient
+    (matches the message-only fallback case)."""
+    from rtt_helper import _classify_jlink_error
+    exc = Exception("some random error")
+    assert _classify_jlink_error(exc) == "transient"
+
+
+def test_read_channel_probe_fatal_raises_immediately():
+    """A probe-fatal error (-257) must propagate to the caller unchanged so
+    the outer loop can escalate to full_reconnect without any grace window."""
+    cb = cb_one_up(p_buffer=0x20001000, size=1024, wr_off=50, rd_off=0)
+    fake = ScriptedFakeJLink(
+        memory={0x20000800: cb, 0x20001000: bytes(50)},
+        error_script=[FakeJLinkException("EMU comm error.", code=-257)],
+    )
+    session = DirectMemoryRttSession(fake)
+    session.attach(search_ranges=[(0x20000000, 0x10000)])
+    with pytest.raises(FakeJLinkException) as exc_info:
+        session.read_channel(0)
+    assert exc_info.value.code == -257
+    # attach() uses memory_read (bytes), not memory_read32, so the only
+    # memory_read32 call is the single one inside read_channel.
+    assert fake.memory_read32_calls == 1
+
+
+def test_read_channel_target_state_raises_immediately():
+    """Target-state errors propagate so the outer loop surfaces them
+    without auto-recovery."""
+    cb = cb_one_up(p_buffer=0x20001000, size=1024, wr_off=50, rd_off=0)
+    fake = ScriptedFakeJLink(
+        memory={0x20000800: cb, 0x20001000: bytes(50)},
+        error_script=[FakeJLinkException("CPU low power.", code=-274)],
+    )
+    session = DirectMemoryRttSession(fake)
+    session.attach(search_ranges=[(0x20000000, 0x10000)])
+    with pytest.raises(FakeJLinkException) as exc_info:
+        session.read_channel(0)
+    assert exc_info.value.code == -274
+    assert fake.memory_read32_calls == 1
+
+
+def test_read_channel_raises_TransientSwdReadError_on_out_of_range_offsets():
+    """When the J-Link DLL returns out-of-range offsets without raising
+    (a behavior observed during the reset window), read_channel surfaces a
+    TransientSwdReadError. The outer loop's classifier then treats this as
+    a transient error subject to the time-based grace window.
+    """
+    from rtt_helper import TransientSwdReadError
+    cb = cb_one_up(p_buffer=0x20001000, size=1024, wr_off=50, rd_off=0)
+    fake = FakeJLink(memory={0x20000800: cb, 0x20001000: bytes(range(50))})
+    session = DirectMemoryRttSession(fake)
+    session.attach(search_ranges=[(0x20000000, 0x10000)])
+
+    # Override memory_read32 to return out-of-range offsets on the read.
+    def out_of_range(addr, num_words):
+        return [9999, 0]  # wr_off=9999 > size=1024
+    fake.memory_read32 = out_of_range
+
+    with pytest.raises(TransientSwdReadError):
+        session.read_channel(0)
