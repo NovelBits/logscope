@@ -14,10 +14,51 @@ import threading
 import time
 import sys
 import os
+from dataclasses import dataclass, field
+from typing import List
 
 
 RTT_MAGIC = b"SEGGER RTT\x00\x00\x00\x00\x00\x00"
 assert len(RTT_MAGIC) == 16
+
+# SEGGER RTT control-block layout constants (from SEGGER_RTT.h).
+# Header: magic (16 bytes) + MaxNumUpBuffers (u32) + MaxNumDownBuffers (u32).
+CB_HEADER_SIZE = 24
+# Each SEGGER_RTT_BUFFER_UP/DOWN descriptor: sName + pBuffer + size + WrOff
+# + RdOff + Flags, each a little-endian u32.
+BUFFER_DESC_SIZE = 24
+
+BUFFER_DESC_NAME_OFFSET = 0
+BUFFER_DESC_PBUFFER_OFFSET = 4
+BUFFER_DESC_SIZE_OFFSET = 8
+BUFFER_DESC_WROFF_OFFSET = 12
+BUFFER_DESC_RDOFF_OFFSET = 16
+BUFFER_DESC_FLAGS_OFFSET = 20
+
+# probe-rs sanity cap; SEGGER spec uses u32 but real firmware never goes above 4.
+MAX_BUFFERS = 255
+
+
+@dataclass
+class ChannelDesc:
+    index: int              # 0-based index within the up-buffers array
+    desc_addr: int          # absolute address of this descriptor in target memory
+    name_ptr: int
+    p_buffer: int
+    size: int
+    initial_wr_off: int
+    initial_rd_off: int
+    flags_mode: int         # Flags & 0x3 (0=NoBlockSkip, 1=NoBlockTrim, 2=BlockIfFull)
+    flags_raw: int
+
+
+@dataclass
+class ParsedCB:
+    cb_addr: int
+    max_up_buffers: int
+    max_down_buffers: int
+    up_buffers: List[ChannelDesc] = field(default_factory=list)
+    # down_buffers intentionally omitted; LogScope does not write to the target.
 
 
 def _scan_for_magic(buf, magic=RTT_MAGIC):
@@ -40,6 +81,87 @@ def _scan_for_magic(buf, magic=RTT_MAGIC):
         offsets.append(idx)
         start = idx + 1
     return offsets
+
+
+def _parse_cb(buf, base_addr):
+    """Parse a SEGGER RTT control block from a memory snapshot.
+
+    Args:
+        buf: bytes containing the CB starting at offset 0.
+        base_addr: target memory address corresponding to buf[0].
+
+    Returns:
+        ParsedCB with validated up-buffer descriptors. Channels with
+        pBuffer == 0 are skipped silently (uninitialized).
+
+    Raises:
+        ValueError on any validation failure. Callers should surface as
+        "control block corrupted; check firmware RTT initialization."
+    """
+    if len(buf) < CB_HEADER_SIZE:
+        raise ValueError(
+            f"CB truncated: need {CB_HEADER_SIZE} header bytes, got {len(buf)}")
+
+    if buf[:16] != RTT_MAGIC:
+        raise ValueError("CB magic mismatch")
+
+    max_up, max_down = struct.unpack_from("<II", buf, 16)
+
+    if max_up > MAX_BUFFERS:
+        raise ValueError(
+            f"max_up_buffers={max_up} exceeds {MAX_BUFFERS} (CB corrupt?)")
+    if max_down > MAX_BUFFERS:
+        raise ValueError(
+            f"max_down_buffers={max_down} exceeds {MAX_BUFFERS} (CB corrupt?)")
+
+    expected_len = CB_HEADER_SIZE + (max_up + max_down) * BUFFER_DESC_SIZE
+    if len(buf) < expected_len:
+        raise ValueError(
+            f"CB truncated: need {expected_len} bytes, got {len(buf)}")
+
+    up_buffers = []
+    for i in range(max_up):
+        desc_offset = CB_HEADER_SIZE + i * BUFFER_DESC_SIZE
+        name_ptr, p_buffer, size, wr_off, rd_off, flags = struct.unpack_from(
+            "<IIIIII", buf, desc_offset)
+
+        # Uninitialized slot: SEGGER zeroes pBuffer until the channel is set up.
+        # Some firmware writes the magic LAST during init, so this is expected
+        # for channels above the firmware's actual configured count.
+        if p_buffer == 0:
+            continue
+
+        if size == 0:
+            raise ValueError(
+                f"channel {i}: size=0 with pBuffer=0x{p_buffer:08x}")
+        if wr_off >= size:
+            raise ValueError(f"channel {i}: WrOff={wr_off} >= size={size}")
+        if rd_off >= size:
+            raise ValueError(f"channel {i}: RdOff={rd_off} >= size={size}")
+
+        mode = flags & 0x3
+        if mode == 3:
+            raise ValueError(
+                f"channel {i}: invalid mode bits (Flags=0x{flags:08x})")
+
+        up_buffers.append(ChannelDesc(
+            index=i,
+            desc_addr=base_addr + desc_offset,
+            name_ptr=name_ptr,
+            p_buffer=p_buffer,
+            size=size,
+            initial_wr_off=wr_off,
+            initial_rd_off=rd_off,
+            flags_mode=mode,
+            flags_raw=flags,
+        ))
+
+    return ParsedCB(
+        cb_addr=base_addr,
+        max_up_buffers=max_up,
+        max_down_buffers=max_down,
+        up_buffers=up_buffers,
+    )
 
 
 def _install_orphan_watcher():
