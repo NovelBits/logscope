@@ -1,0 +1,27 @@
+# Bluetooth LE SMP Pairing Failed Reason Codes — Novel Bits curated reference.
+#
+# Source: Bluetooth Core Specification v6.3, Vol 3, Part H, §3.5.5
+# (Pairing Failed), Table 3.7.
+#
+# Codes 0x10-0xFF are reserved for future use.
+
+schema: smp_error_codes
+spec_version: "6.3"
+last_updated: "2026-05-13"
+
+entries:
+  - { code: "0x01", name: "Passkey Entry Failed", specRef: "Core Spec v6.3, Vol 3, Part H, §3.5.5" }
+  - { code: "0x02", name: "OOB Not Available", specRef: "Core Spec v6.3, Vol 3, Part H, §3.5.5" }
+  - { code: "0x03", name: "Authentication Requirements", specRef: "Core Spec v6.3, Vol 3, Part H, §3.5.5" }
+  - { code: "0x04", name: "Confirm Value Failed", specRef: "Core Spec v6.3, Vol 3, Part H, §3.5.5" }
+  - { code: "0x05", name: "Pairing Not Supported", specRef: "Core Spec v6.3, Vol 3, Part H, §3.5.5" }
+  - { code: "0x06", name: "Encryption Key Size", specRef: "Core Spec v6.3, Vol 3, Part H, §3.5.5" }
+  - { code: "0x07", name: "Command Not Supported", specRef: "Core Spec v6.3, Vol 3, Part H, §3.5.5" }
+  - { code: "0x08", name: "Unspecified Reason", specRef: "Core Spec v6.3, Vol 3, Part H, §3.5.5" }
+  - { code: "0x09", name: "Repeated Attempts", specRef: "Core Spec v6.3, Vol 3, Part H, §3.5.5" }
+  - { code: "0x0a", name: "Invalid Parameters", specRef: "Core Spec v6.3, Vol 3, Part H, §3.5.5" }
+  - { code: "0x0b", name: "DHKey Check Failed", specRef: "Core Spec v6.3, Vol 3, Part H, §3.5.5" }
+  - { code: "0x0c", name: "Numeric Comparison Failed", specRef: "Core Spec v6.3, Vol 3, Part H, §3.5.5" }
+  - { code: "0x0d", name: "BR/EDR Pairing In Progress", specRef: "Core Spec v6.3, Vol 3, Part H, §3.5.5" }
+  - { code: "0x0e", name: "Cross-Transport Key Derivation/Generation Not Allowed", specRef: "Core Spec v6.3, Vol 3, Part H, §3.5.5" }
+  - { code: "0x0f", name: "Key Rejected", specRef: "Core Spec v6.3, Vol 3, Part H, §3.5.5" }

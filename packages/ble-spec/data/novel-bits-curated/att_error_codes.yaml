@@ -1,0 +1,35 @@
+# Bluetooth LE ATT Error Codes — Novel Bits curated reference data.
+#
+# Source: Bluetooth Core Specification v6.3, Vol 3, Part F, §3.4.1.1
+# (Error Response), Table 3.4.
+#
+# Reserved ranges:
+#   0x14-0x7F  reserved for future use
+#   0x80-0x9F  application error codes defined by higher-layer profiles
+#   0xA0-0xDF  reserved for future use
+#   0xE0-0xFF  Common Profile and Service Error Codes (Supplement Part B)
+
+schema: att_error_codes
+spec_version: "6.3"
+last_updated: "2026-05-13"
+
+entries:
+  - { code: "0x01", name: "Invalid Handle", specRef: "Core Spec v6.3, Vol 3, Part F, §3.4.1.1" }
+  - { code: "0x02", name: "Read Not Permitted", specRef: "Core Spec v6.3, Vol 3, Part F, §3.4.1.1" }
+  - { code: "0x03", name: "Write Not Permitted", specRef: "Core Spec v6.3, Vol 3, Part F, §3.4.1.1" }
+  - { code: "0x04", name: "Invalid PDU", specRef: "Core Spec v6.3, Vol 3, Part F, §3.4.1.1" }
+  - { code: "0x05", name: "Insufficient Authentication", specRef: "Core Spec v6.3, Vol 3, Part F, §3.4.1.1" }
+  - { code: "0x06", name: "Request Not Supported", specRef: "Core Spec v6.3, Vol 3, Part F, §3.4.1.1" }
+  - { code: "0x07", name: "Invalid Offset", specRef: "Core Spec v6.3, Vol 3, Part F, §3.4.1.1" }
+  - { code: "0x08", name: "Insufficient Authorization", specRef: "Core Spec v6.3, Vol 3, Part F, §3.4.1.1" }
+  - { code: "0x09", name: "Prepare Queue Full", specRef: "Core Spec v6.3, Vol 3, Part F, §3.4.1.1" }
+  - { code: "0x0a", name: "Attribute Not Found", specRef: "Core Spec v6.3, Vol 3, Part F, §3.4.1.1" }
+  - { code: "0x0b", name: "Attribute Not Long", specRef: "Core Spec v6.3, Vol 3, Part F, §3.4.1.1" }
+  - { code: "0x0c", name: "Encryption Key Size Too Short", specRef: "Core Spec v6.3, Vol 3, Part F, §3.4.1.1" }
+  - { code: "0x0d", name: "Invalid Attribute Value Length", specRef: "Core Spec v6.3, Vol 3, Part F, §3.4.1.1" }
+  - { code: "0x0e", name: "Unlikely Error", specRef: "Core Spec v6.3, Vol 3, Part F, §3.4.1.1" }
+  - { code: "0x0f", name: "Insufficient Encryption", specRef: "Core Spec v6.3, Vol 3, Part F, §3.4.1.1" }
+  - { code: "0x10", name: "Unsupported Group Type", specRef: "Core Spec v6.3, Vol 3, Part F, §3.4.1.1" }
+  - { code: "0x11", name: "Insufficient Resources", specRef: "Core Spec v6.3, Vol 3, Part F, §3.4.1.1" }
+  - { code: "0x12", name: "Database Out Of Sync", specRef: "Core Spec v6.3, Vol 3, Part F, §3.4.1.1" }
+  - { code: "0x13", name: "Value Not Allowed", specRef: "Core Spec v6.3, Vol 3, Part F, §3.4.1.1" }

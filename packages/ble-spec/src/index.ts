@@ -8,3 +8,5 @@
 export type { ErrorCodeEntry, CompanyIdEntry } from "./types";
 
 export { HCI_ERROR_CODES, lookupHciError } from "./generated/hci-error-codes";
+export { ATT_ERROR_CODES, lookupAttError } from "./generated/att-error-codes";
+export { SMP_ERROR_CODES, lookupSmpError } from "./generated/smp-error-codes";

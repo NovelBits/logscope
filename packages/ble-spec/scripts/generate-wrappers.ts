@@ -115,6 +115,28 @@ const GENERATIONS: GenSpec[] = [
         "HCI Error Codes (returned in the Status field of HCI events)."
       ),
   },
+  {
+    yamlFile: "att_error_codes.yaml",
+    outFile: "att-error-codes.ts",
+    render: (raw) =>
+      renderErrorCodeModule(
+        raw,
+        "ATT_ERROR_CODES",
+        "lookupAttError",
+        "ATT Error Codes (returned in the Error Code field of ATT_ERROR_RSP PDUs)."
+      ),
+  },
+  {
+    yamlFile: "smp_error_codes.yaml",
+    outFile: "smp-error-codes.ts",
+    render: (raw) =>
+      renderErrorCodeModule(
+        raw,
+        "SMP_ERROR_CODES",
+        "lookupSmpError",
+        "SMP Pairing Failed Reason Codes (returned in the Reason field of SMP Pairing Failed PDUs)."
+      ),
+  },
 ];
 
 function main() {
