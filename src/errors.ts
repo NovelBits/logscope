@@ -31,6 +31,7 @@ const ACTION_RETRY: ErrorAction = { label: "Retry", command: "retry" };
 const ACTION_RECONNECT: ErrorAction = { label: "Reconnect", command: "reconnect" };
 const ACTION_DOWNLOAD_PYTHON: ErrorAction = { label: "Download Python", command: "downloadPython" };
 const ACTION_DOWNLOAD_SEGGER: ErrorAction = { label: "Download SEGGER J-Link", command: "downloadSegger" };
+const ACTION_SET_JLINK_DEVICE: ErrorAction = { label: "Set Chip Name...", command: "setJlinkDevice" };
 
 function makeResetDeviceAction(serialNumber?: string): ErrorAction {
   // Only pass identifiers that are safe for shell args: digits (serial numbers)
@@ -108,6 +109,23 @@ export function classifyError(
         "The device didn't respond within 15 seconds. Check that firmware is running and the board isn't halted by another debugger.",
       actions: [ACTION_RETRY],
       severity: "warning",
+    };
+  }
+
+  // pylink raises JLinkReadException with "Unspecified error" when the J-Link
+  // DLL refuses a memory_read. The most common cause is connecting with a
+  // generic ARM core name (Cortex-M33, Cortex-M4) instead of the specific
+  // chip name, so libjlinkarm has no memory map for the target. Surface a
+  // direct "Set Chip Name..." action so the user can fix it without diving
+  // into settings.json. Reported by issue #23 (custom nRF54L15 board).
+  if (msg.includes("JLinkReadException") || msg.includes("Unspecified error")) {
+    return {
+      code: "JLINK_READ_FAILED",
+      headline: "Memory read failed",
+      detail:
+        "The J-Link couldn't read target memory while searching for the RTT control block. This usually means LogScope connected with a generic ARM core name (Cortex-M33, M4, M7), but libjlinkarm needs the specific chip name (e.g., NRF54L15_M33, STM32F401RE) to know the memory map. Set the chip name explicitly, then reconnect.",
+      actions: [ACTION_SET_JLINK_DEVICE, ACTION_RETRY],
+      severity: "error",
     };
   }
 
@@ -210,8 +228,8 @@ export function classifyError(
       code: "NO_RTT",
       headline: "No RTT control block found",
       detail:
-        "The J-Link probe connected to the target successfully, but no RTT control block was found in memory. This means the firmware on the device does not include SEGGER RTT logging, or the RTT search range does not cover the control block address. If your firmware has RTT enabled, try resetting the device or adjusting the RTT search range in settings (logscope.jlink.rttSearchRanges).",
-      actions: [makeResetDeviceAction(serialNumber), ACTION_RESCAN],
+        "The J-Link probe connected to the target successfully, but no RTT control block was found in memory. Possible causes: (1) the firmware does not include SEGGER RTT logging, (2) LogScope is connected with a generic ARM core name (e.g., Cortex-M33) and libjlinkarm is searching the wrong memory region, or (3) the RTT search range does not cover the control block address. Try setting the exact chip name (e.g., NRF54L15_M33), resetting the device, or adjusting logscope.jlink.rttSearchRanges in settings.",
+      actions: [makeResetDeviceAction(serialNumber), ACTION_SET_JLINK_DEVICE, ACTION_RESCAN],
       severity: "warning",
     };
   }

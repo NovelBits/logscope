@@ -274,6 +274,85 @@ class DirectMemoryRttSession:
         self.channels = []                  # list[ChannelDesc]
         self._last_written_rd_off = {}      # channel_index -> int
 
+    def _try_parse_cb_at(self, cb_addr, search_ranges=None):
+        """Attempt to read and parse a CB at the given address.
+
+        Returns a ParsedCB if the bytes at cb_addr look like a valid SEGGER
+        RTT control block with at least one initialized up-buffer pointing
+        into known RAM, else None. Used by attach() to disambiguate between
+        multiple magic-string matches (real firmware commonly has the magic
+        appear as a literal in initialized SRAM in addition to the actual CB).
+
+        Args:
+            cb_addr: candidate CB address to validate.
+            search_ranges: optional list of (start, length) RAM regions; when
+                provided, every initialized up-buffer's pBuffer must point
+                into one of them. This filters out stray magic-string patterns
+                whose nearby bytes happen to look like a CB but whose buffer
+                pointer is junk pointing outside the user's known RAM range.
+        """
+        try:
+            header = bytes(self._jlink.memory_read(cb_addr, CB_HEADER_SIZE))
+            max_up, max_down = struct.unpack_from("<II", header, 16)
+            if max_up > MAX_BUFFERS or max_down > MAX_BUFFERS:
+                return None
+            full_size = CB_HEADER_SIZE + (max_up + max_down) * BUFFER_DESC_SIZE
+            full_buf = bytes(self._jlink.memory_read(cb_addr, full_size))
+            parsed = _parse_cb(full_buf, base_addr=cb_addr)
+        except Exception:
+            return None
+        # A valid CB must have at least one initialized up-buffer; a stray
+        # magic literal in rodata typically lacks any usable channel.
+        if not parsed.up_buffers:
+            return None
+        # Every up-buffer's pBuffer must point into a region the user
+        # configured as RAM. probe-rs does the equivalent check via its
+        # MemoryRegion list. We use the search_ranges as a proxy since that
+        # is the strongest "known RAM" signal we have.
+        if search_ranges:
+            def _in_ranges(addr):
+                return any(start <= addr < start + length
+                           for start, length in search_ranges)
+            for ch in parsed.up_buffers:
+                if not _in_ranges(ch.p_buffer):
+                    return None
+                # Also reject if the buffer would extend past the end of
+                # the range it starts in (corrupt size field).
+                if not _in_ranges(ch.p_buffer + ch.size - 1):
+                    return None
+        # Every up-buffer's sName (when non-zero) must dereference to a
+        # plausible C-string. A stray CB-shaped pattern's sName typically
+        # points at uninitialized memory whose bytes lack a NUL terminator
+        # within bounds, or contain non-printable values. A real RTT
+        # channel name like "Terminal" or "btmonitor" is short and all
+        # printable ASCII.
+        for ch in parsed.up_buffers:
+            if not self._is_plausible_channel_name(ch.name_ptr):
+                return None
+        return parsed
+
+    def _is_plausible_channel_name(self, name_ptr):
+        """Check whether name_ptr resolves to a plausible C-string name.
+
+        Returns True if name_ptr == 0 (no name, allowed) or the bytes at
+        name_ptr form a NUL-terminated string of 1+ printable ASCII chars
+        within CHANNEL_NAME_MAX_LEN. Returns False otherwise. Used as an
+        extra disambiguator when multiple magic-string matches exist:
+        the real CB's sName points to a string literal like "Terminal",
+        while a stray CB-shaped pattern's sName usually points to garbage.
+        """
+        if name_ptr == 0:
+            return True
+        try:
+            buf = bytes(self._jlink.memory_read(name_ptr, CHANNEL_NAME_MAX_LEN))
+        except Exception:
+            return False
+        nul = buf.find(b"\x00")
+        if nul <= 0:
+            return False
+        # All bytes before the NUL must be printable ASCII (space..tilde).
+        return all(0x20 <= b <= 0x7E for b in buf[:nul])
+
     def attach(self, search_ranges):
         """Scan target memory for the RTT control block and parse it.
 
@@ -281,10 +360,17 @@ class DirectMemoryRttSession:
             search_ranges: list of (start_addr, length) tuples bounding the
                 RAM regions to scan for the SEGGER RTT magic.
 
+        When the magic is found at multiple addresses (common: the literal
+        appears in initialized rodata in addition to the actual CB), each
+        candidate is validated by attempting to parse it. The match that
+        parses cleanly AND has at least one initialized up-buffer wins. If
+        multiple candidates pass validation we surface the ambiguity rather
+        than guessing.
+
         Raises:
-            ValueError if the magic is not found, or if multiple matches are
-            present (caller must tighten the search range). Also reraises
-            validation errors from _parse_cb.
+            ValueError if no valid CB is found, or if multiple candidates
+            all look like valid CBs (truly ambiguous). Reraises validation
+            errors from _parse_cb when there is only one candidate.
         """
         all_matches = []
         for start, length in search_ranges:
@@ -295,26 +381,50 @@ class DirectMemoryRttSession:
         if not all_matches:
             raise ValueError(
                 f"RTT control block not found in scanned ranges: {search_ranges}")
-        if len(all_matches) > 1:
-            addrs = [hex(a) for a in all_matches]
-            raise ValueError(
-                f"multiple RTT control block matches at {addrs}. "
-                f"Set logscope.jlink.rttSearchRanges to a tighter range."
+
+        if len(all_matches) == 1:
+            # Single match: parse it directly so validation errors surface
+            # to the caller (preserves the existing error messages).
+            cb_addr = all_matches[0]
+            header = bytes(self._jlink.memory_read(cb_addr, CB_HEADER_SIZE))
+            max_up, max_down = struct.unpack_from("<II", header, 16)
+            if max_up > MAX_BUFFERS or max_down > MAX_BUFFERS:
+                raise ValueError(
+                    f"CB at 0x{cb_addr:08x} has implausible buffer counts "
+                    f"(max_up={max_up}, max_down={max_down}); cap is {MAX_BUFFERS}."
+                )
+            full_size = CB_HEADER_SIZE + (max_up + max_down) * BUFFER_DESC_SIZE
+            full_buf = bytes(self._jlink.memory_read(cb_addr, full_size))
+            parsed = _parse_cb(full_buf, base_addr=cb_addr)
+        else:
+            # Multiple matches: validate each candidate; keep only the ones
+            # that parse cleanly and have at least one initialized channel.
+            valid = []
+            for cb_addr in all_matches:
+                p = self._try_parse_cb_at(cb_addr, search_ranges=search_ranges)
+                if p is not None:
+                    valid.append(p)
+
+            if not valid:
+                addrs = [hex(a) for a in all_matches]
+                raise ValueError(
+                    f"RTT magic found at {addrs} but none parsed as a valid "
+                    f"control block. The firmware may not have initialized RTT yet."
+                )
+            if len(valid) > 1:
+                addrs = [hex(p.cb_addr) for p in valid]
+                raise ValueError(
+                    f"multiple valid RTT control block candidates at {addrs}. "
+                    f"Set logscope.jlink.rttSearchRanges to a tighter range."
+                )
+            parsed = valid[0]
+            ignored = [hex(a) for a in all_matches if a != parsed.cb_addr]
+            print(
+                f"RTT magic found at multiple addresses; picked validated CB "
+                f"at 0x{parsed.cb_addr:08x} (ignored {ignored})",
+                file=sys.stderr,
             )
-
-        cb_addr = all_matches[0]
-
-        header = bytes(self._jlink.memory_read(cb_addr, CB_HEADER_SIZE))
-        max_up, max_down = struct.unpack_from("<II", header, 16)
-        if max_up > MAX_BUFFERS or max_down > MAX_BUFFERS:
-            raise ValueError(
-                f"CB at 0x{cb_addr:08x} has implausible buffer counts "
-                f"(max_up={max_up}, max_down={max_down}); cap is {MAX_BUFFERS}."
-            )
-
-        full_size = CB_HEADER_SIZE + (max_up + max_down) * BUFFER_DESC_SIZE
-        full_buf = bytes(self._jlink.memory_read(cb_addr, full_size))
-        parsed = _parse_cb(full_buf, base_addr=cb_addr)
+            sys.stderr.flush()
 
         self.cb_addr = parsed.cb_addr
         self.channels = parsed.up_buffers

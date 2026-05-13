@@ -223,6 +223,99 @@ def test_session_attach_rejects_multiple_matches():
         session.attach(search_ranges=[(0x20000000, 0x10000)])
 
 
+def test_session_attach_picks_valid_cb_when_one_match_has_no_channels():
+    """Real-world scenario: the magic string appears in firmware rodata that
+    got copied to SRAM at boot, AND the actual RTT CB exists at a different
+    address. The literal copy parses (magic + zero counts) but has no
+    initialized up-buffers, so it's filtered out and the real CB wins."""
+    import struct as _s
+    real_cb = cb_one_up(p_buffer=0x20001000, size=1024)
+    # Stray literal: magic followed by max_up=0, max_down=0 (no channels).
+    stray = RTT_MAGIC + _s.pack("<II", 0, 0)
+    fake = FakeJLink(memory={
+        0x20000800: real_cb,
+        0x20002000: stray,
+    })
+    session = DirectMemoryRttSession(fake)
+    session.attach(search_ranges=[(0x20000000, 0x10000)])
+    assert session.cb_addr == 0x20000800
+    assert len(session.channels) == 1
+
+
+def test_session_attach_picks_valid_cb_when_stray_sname_is_garbage():
+    """Two CBs that both pass the pBuffer-in-RAM check, but one has sName
+    pointing to a NUL-terminated printable string ("Terminal") and the
+    other has sName pointing to bytes with no early NUL or with
+    non-printable values. The sName-plausibility check disambiguates."""
+    import struct as _s
+    # Real CB at 0x20000800: sName -> 0x20003000 ("Terminal\0"),
+    # pBuffer -> 0x20001000.
+    real_cb = RTT_MAGIC + _s.pack("<II", 1, 0) + build_buffer_descriptor(
+        0x20003000, 0x20001000, 1024, 0, 0, 0)
+    # Stray CB at 0x20002500: sName -> 0x20004000 (garbage), pBuffer -> 0x20001800.
+    stray = RTT_MAGIC + _s.pack("<II", 1, 0) + build_buffer_descriptor(
+        0x20004000, 0x20001800, 256, 0, 0, 0)
+    fake = FakeJLink(memory={
+        0x20000800: real_cb,
+        0x20002500: stray,
+        0x20003000: b"Terminal\x00",
+        0x20004000: b"\xff" * 100,  # no NUL within 100 bytes + non-printable
+    })
+    session = DirectMemoryRttSession(fake)
+    session.attach(search_ranges=[(0x20000000, 0x10000)])
+    assert session.cb_addr == 0x20000800
+    assert session.channel_name(0) == "Terminal"
+
+
+def test_session_attach_picks_valid_cb_when_stray_pbuffer_points_outside_ram():
+    """One match has pBuffer in known RAM (real CB); the other has pBuffer
+    pointing to an address outside the search ranges (junk pointer from a
+    stray magic literal whose nearby bytes happen to look like a CB).
+    The pBuffer-in-RAM filter rejects the stray candidate."""
+    real_cb = cb_one_up(p_buffer=0x20001000, size=1024)
+    # Stray CB-shaped pattern with pBuffer pointing to flash (out of RAM).
+    stray = build_cb([build_buffer_descriptor(0, 0x00100000, 1024, 0, 0, 0)])
+    fake = FakeJLink(memory={
+        0x20000800: real_cb,
+        0x20002000: stray,
+    })
+    session = DirectMemoryRttSession(fake)
+    session.attach(search_ranges=[(0x20000000, 0x10000)])
+    assert session.cb_addr == 0x20000800
+
+
+def test_session_attach_picks_valid_cb_when_other_fails_to_parse():
+    """One match is a genuine CB; the other has the magic but is followed
+    by garbage that fails _parse_cb (e.g., implausible max_up_buffers).
+    The valid candidate wins."""
+    import struct as _s
+    real_cb = cb_one_up(p_buffer=0x20001000, size=1024)
+    # Stray match: magic + implausibly large max_up_buffers, which
+    # _try_parse_cb_at filters out via the MAX_BUFFERS sanity check.
+    stray = RTT_MAGIC + _s.pack("<II", 9999, 0) + b"\x00" * 64
+    fake = FakeJLink(memory={
+        0x20000800: real_cb,
+        0x20002000: stray,
+    })
+    session = DirectMemoryRttSession(fake)
+    session.attach(search_ranges=[(0x20000000, 0x10000)])
+    assert session.cb_addr == 0x20000800
+
+
+def test_session_attach_raises_when_all_matches_invalid():
+    """Magic appears multiple times in memory but none has initialized
+    channels (all stray rodata literals, no real RTT init has happened yet)."""
+    import struct as _s
+    stray = RTT_MAGIC + _s.pack("<II", 0, 0)  # max_up=0, no channels
+    fake = FakeJLink(memory={
+        0x20000800: stray,
+        0x20002000: stray,
+    })
+    session = DirectMemoryRttSession(fake)
+    with pytest.raises(ValueError, match="none parsed"):
+        session.attach(search_ranges=[(0x20000000, 0x10000)])
+
+
 def test_session_attach_raises_when_no_match():
     fake = FakeJLink()
     session = DirectMemoryRttSession(fake)

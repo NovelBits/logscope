@@ -116,6 +116,25 @@ describe("classifyError — message pattern matching", () => {
     expect(result.severity).toBe("error");
     expect(result.actions.some((a) => a.command === "rescan")).toBe(true);
   });
+
+  it("maps 'JLinkReadException: Unspecified error' to JLINK_READ_FAILED with set-device action", () => {
+    const traceback =
+      "Traceback (most recent call last):\n" +
+      '  File "rtt-helper.py", line 995, in run_pylink_direct\n' +
+      "    session.attach(search_ranges)\n" +
+      "pylink.errors.JLinkReadException: Unspecified error.";
+    const result = classifyError(traceback, 1);
+    expect(result.code).toBe("JLINK_READ_FAILED");
+    expect(result.severity).toBe("error");
+    expect(result.actions.some((a) => a.command === "setJlinkDevice")).toBe(true);
+    expect(result.actions.some((a) => a.command === "retry")).toBe(true);
+  });
+
+  it("NO_RTT (exit code 2) offers setJlinkDevice as a remediation action", () => {
+    const result = classifyError("", 2);
+    expect(result.code).toBe("NO_RTT");
+    expect(result.actions.some((a) => a.command === "setJlinkDevice")).toBe(true);
+  });
 });
 
 describe("classifyError — exit code fallback", () => {

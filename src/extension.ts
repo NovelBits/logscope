@@ -109,6 +109,16 @@ function loadWatchPatterns(): void {
 }
 
 let bootDetected = false;
+// Timestamp of the most recent transport-emitted "reset" event. When the
+// helper detects a target reset and re-attaches (full_reconnect or the cheap
+// TargetResetError path), it prints "Reconnected OK", the transport emits
+// "reset", and we fire sendReset() right away. The buffer-drain that follows
+// the re-attach almost always contains the fresh "*** Booting" line, which
+// the parser-side detection would ALSO treat as a reset, causing a duplicate
+// banner. Suppress the parser-side banner for a short window after the
+// transport already signaled the reset.
+const TRANSPORT_RESET_DEDUPE_WINDOW_MS = 5000;
+let lastTransportResetAt = 0;
 
 function handleChunk(chunk: Buffer): void {
   if (!ringBuffer || !session) return;
@@ -131,7 +141,12 @@ function handleChunk(chunk: Buffer): void {
   // detection. Real Zephyr boot banners always sit at the start of a line.
   if (/(^|\n)\*\*\* Booting/.test(completeText)) {
     if (bootDetected) {
-      panel?.sendReset();
+      // If the transport just emitted "reset" (helper-detected mid-session
+      // reset), it already called sendReset() — suppress the parser-driven
+      // duplicate. Older transport-reset signals are stale and ignored.
+      if (Date.now() - lastTransportResetAt > TRANSPORT_RESET_DEDUPE_WINDOW_MS) {
+        panel?.sendReset();
+      }
     }
     bootDetected = true;
   }
@@ -177,6 +192,7 @@ function wireTransportEvents(t: Transport): void {
 
   t.on("reset", () => {
     panel?.sendReset();
+    lastTransportResetAt = Date.now();
   });
 
   t.on("channelName", (info: { index: number; name: string }) => {
@@ -300,6 +316,9 @@ function handleErrorAction(action: ErrorAction): void {
       break;
     case "resetDevice":
       resetAndReconnect(action.args?.[0] as string);
+      break;
+    case "setJlinkDevice":
+      vscode.commands.executeCommand("logscope.changeJlinkDevice");
       break;
     case "downloadPython":
       vscode.env.openExternal(vscode.Uri.parse("https://www.python.org/downloads/"));
@@ -1654,6 +1673,10 @@ export function activate(context: vscode.ExtensionContext) {
     await rescanAndConnect();
   });
 
+  const changeJlinkDeviceCmd = vscode.commands.registerCommand("logscope.changeJlinkDevice", async () => {
+    await changeJlinkDevice();
+  });
+
   const disconnectCmd = vscode.commands.registerCommand("logscope.disconnect", () => {
     if (!transport?.connected) return;
     userDisconnecting = true;
@@ -1874,7 +1897,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     openCmd, connectCmd, reconnectCmd, rescanCmd, disconnectCmd, forgetDeviceCmd, exportCmd,
-    changeSettingsCmd, openWalkthroughCmd, cycleParserCmd,
+    changeSettingsCmd, changeJlinkDeviceCmd, openWalkthroughCmd, cycleParserCmd,
     addWatchPatternCmd, removeWatchPatternCmd, scrollToWatchCmd,
   );
 }

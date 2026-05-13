@@ -2,6 +2,15 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.6.4] - 2026-05-13
+
+### Fixed
+- **Duplicate "Device Reset Detected" banner.** Two independent code paths fired the reset banner on a single mid-session reset: the transport's `Reconnected OK` event from the helper, AND the parser-side `*** Booting` detection on the buffer drain that follows the re-attach. The parser path is now suppressed for 5 seconds after a transport-emitted reset, eliminating the duplicate while keeping the parser-side fallback for cases where the helper doesn't detect the reset (e.g., warm boot with no SWD interruption).
+- **Multi-match RTT control block disambiguation.** When the SEGGER RTT magic string appears at more than one address (common: firmware embeds the magic literal in initialized rodata that gets copied to SRAM at boot, alongside the actual control block), LogScope now validates each candidate by parsing it as a CB and applying three checks: (1) parses cleanly with at least one initialized up-buffer, (2) every up-buffer's `pBuffer` points into a known RAM range, and (3) every up-buffer's `sName` dereferences to a plausible printable ASCII C-string. The candidate that passes wins; if multiple pass or none do, an actionable error surfaces. Mirrors probe-rs's approach. Reported by issue #23 (custom nRF54L15 board).
+
+### Added
+- **"Set Chip Name..." action in connect-failure error toasts.** When the helper reports `JLinkReadException: Unspecified error` (most often caused by connecting with a generic ARM core name instead of the chip-specific J-Link device name), the error toast now offers a one-click action that opens the chip-name picker (with both common-core quick-picks and an "Enter chip name..." free-text option). The same action is also offered on the "No RTT control block found" error (exit code 2) since a wrong device name is one of the common causes there. Eliminates the need to dive into `settings.json` for the most common direct-memory-path failure. Reported by issue #23.
+
 ## [0.6.3] - 2026-05-13
 
 ### Fixed
