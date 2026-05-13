@@ -408,7 +408,7 @@
     "build": "node esbuild.config.mjs",
     "watch": "node esbuild.config.mjs --watch",
     "test": "jest",
-    "test:python": "~/.logscope/venv/bin/python3 -m pytest test/python -v",
+    "test:python": "python3 -m pytest test/python -v",
     "package": "npx @vscode/vsce package",
     "install-ext": "npx @vscode/vsce package && code --install-extension novelbits-logscope-*.vsix",
     "publish": "npx @vscode/vsce publish",

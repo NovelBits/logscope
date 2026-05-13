@@ -1,6 +1,7 @@
 """Hand-crafted SEGGER RTT control-block byte fixtures."""
 import struct
 
+# Mirrors RTT_MAGIC in src/transport/rtt-helper.py; keep in sync.
 RTT_MAGIC = b"SEGGER RTT\x00\x00\x00\x00\x00\x00"  # 16 bytes
 assert len(RTT_MAGIC) == 16
 

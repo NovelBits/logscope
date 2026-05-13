@@ -29,6 +29,8 @@ def _scan_for_magic(buf, magic=RTT_MAGIC):
     actual CB, so callers must treat multiple matches as ambiguous rather than
     silently picking the first one.
     """
+    if not magic:
+        return []
     offsets = []
     start = 0
     while True:

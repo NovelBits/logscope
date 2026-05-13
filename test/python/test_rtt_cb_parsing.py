@@ -36,3 +36,11 @@ def test_scan_uses_byte_window_not_aligned():
     """Magic at odd offset must be found (byte-windowed, not aligned)."""
     buf = b"\x00\x00\x00" + RTT_MAGIC + b"\x00" * 64
     assert _scan_for_magic(buf) == [3]
+
+
+def test_scan_empty_magic_is_no_op():
+    """Defensive: explicit empty-magic returns empty list, not every offset."""
+    from rtt_helper import _scan_for_magic
+    # Without explicit guard, bytes.find(b"") returns offset 0 forever.
+    # Confirm we have a defensive guard.
+    assert _scan_for_magic(b"hello", b"") == []
