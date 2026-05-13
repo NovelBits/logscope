@@ -47,6 +47,10 @@ Canonical release flow:
 5. `git tag -a vX.Y.Z -m "..." && git push origin vX.Y.Z`. The workflow takes over from there.
 6. After the GHA run reports success, verify with `npx @vscode/vsce show novelbits.novelbits-logscope` that the new version is live.
 
+## Test invariants worth knowing about
+
+- **`test/security.test.ts` enforces an allowlist of action commands.** Every `command` string on an `ErrorAction` returned by `classifyError` in `src/errors.ts` must be present in the `ALLOWED` array in security.test.ts (there are two copies of the array, in the message-pattern and exit-code branches; update both). Adding a new error action without updating the allowlist passes locally but fails the GHA publish workflow's `npm test` step. v0.6.4 was bitten by this when `setJlinkDevice` was added without an allowlist update; the release had to be re-tagged after a security-test fix.
+
 ## Cross-Repo Maintenance
 
 **After any version bump or release**, update the NovelBits Brain knowledge base:
