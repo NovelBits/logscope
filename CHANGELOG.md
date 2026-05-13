@@ -4,7 +4,7 @@ All notable changes to LogScope will be documented in this file.
 
 ## [0.6.1] - 2026-05-13
 
-Version bumped from 0.6.0 to 0.6.1 due to a phantom 0.6.0 entry in the Marketplace publish database that prevented a fresh publish under that version. The changes below are the v0.6.0 work as planned; nothing in the code or behavior changed between the original v0.6.0 build and this v0.6.1 publish.
+Republish of v0.6.0 with a smaller VSIX. v0.6.0 was auto-published by the GitHub Actions release workflow on `v*` tag push, before a `.vscodeignore` fix excluded a stray local indexing database (`.cocoindex_code/`) that had been picked up by the packager. v0.6.1 ships the same code with a clean 679 KB VSIX instead of v0.6.0's 6.4 MB. **Prefer v0.6.1.** No functional or behavioral differences between the two releases.
 
 ### Architecture
 - Direct-memory RTT path replaces libjlinkarm's high-level RTT API. LogScope now reads the SEGGER RTT control block directly via target memory reads (the approach used by probe-rs, OpenOCD, and Nordic's nrfutil) instead of routing through `JLINK_RTTERMINAL_*`. This bypasses libjlinkarm's host-side `tracked_RdOff` cache.
@@ -25,6 +25,10 @@ Version bumped from 0.6.0 to 0.6.1 due to a phantom 0.6.0 entry in the Marketpla
 
 ### Rollback
 - If you hit a regression, set the `LogScope: Rtt: Legacy Mode` VS Code setting to `true` (or `"logscope.rtt.legacyMode": true` in settings.json) to force the old `JLINK_RTTERMINAL_*` path. Reload the window for the change to take effect. The environment variable `LOGSCOPE_RTT_LEGACY=1` also works for command-line use. Please file an issue at https://github.com/NovelBits/logscope/issues with the reproduction details.
+
+## [0.6.0] - 2026-05-13 (superseded by 0.6.1)
+
+Same code as [0.6.1] but with a bloated VSIX (6.4 MB) that inadvertently included a local `.cocoindex_code/` indexing database. Auto-published by the GitHub Actions release workflow before the `.vscodeignore` fix landed. Install [0.6.1] instead; it ships the identical code in a clean 679 KB VSIX.
 
 ## [0.5.18] - 2026-05-12
 
