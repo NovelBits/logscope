@@ -483,7 +483,7 @@ def _open_jlink(jlink, serial_no=None):
     jlink.disable_dialog_boxes()
 
 
-def run_pylink(device_or_addr, poll_ms, serial_no=None):
+def run_pylink_classic(device_or_addr, poll_ms, serial_no=None):
     """Fast path: native J-Link RTT via pylink. Works with any J-Link device."""
     import pylink
 
@@ -811,6 +811,235 @@ def run_pylink(device_or_addr, poll_ms, serial_no=None):
 
     jlink.rtt_stop()
     jlink.close()
+
+
+def run_pylink_direct(device_or_addr, poll_ms, serial_no=None):
+    """Direct-memory RTT path. Bypasses libjlinkarm's tracked_RdOff cache.
+
+    Mirrors run_pylink_classic's external contract: same RTT_READY line,
+    same framed-stdout protocol, same silence/quit/error semantics. Detects
+    target resets via the DirectMemoryRttSession's last_written_rd_off
+    tracking and transparently re-attaches without halting the CPU.
+    """
+    import pylink
+
+    # Pre-check: SEGGER J-Link Software must be installed for libjlinkarm to load.
+    if sys.platform in ("darwin", "win32") and _find_newest_jlink_dll() is None:
+        install_path = "/Applications/SEGGER/" if sys.platform == "darwin" else r"C:\Program Files\SEGGER\\"
+        print(
+            f"ERROR: SEGGER J-Link Software not found at {install_path}. "
+            f"Install the J-Link Software and Documentation Pack from "
+            f"https://www.segger.com/downloads/jlink and restart VS Code.",
+            file=sys.stderr,
+        )
+        sys.stderr.flush()
+        sys.exit(5)
+
+    jlink = _create_jlink()
+
+    # Check for connected probes BEFORE opening — otherwise the J-Link SDK
+    # pops up a native dialog asking about TCP/IP connection.
+    if not jlink.connected_emulators():
+        print("ERROR: No J-Link probes found. Connect a device via USB and try again.", file=sys.stderr)
+        sys.stderr.flush()
+        sys.exit(3)
+
+    if serial_no:
+        print(f"Opening J-Link probe SN: {serial_no}", file=sys.stderr)
+        sys.stderr.flush()
+    _open_jlink(jlink, serial_no=serial_no)
+
+    # If it looks like a hex address, it's the nrfutil fallback format.
+    # For pylink, we need a device name. Default to Cortex-M33 if address given.
+    if device_or_addr.startswith("0x"):
+        device = "Cortex-M33"
+    else:
+        device = device_or_addr
+
+    # Explicitly configure SWD interface and a safe default speed before connect.
+    try:
+        jlink.set_tif(pylink.enums.JLinkInterfaces.SWD)
+        print("Interface: SWD", file=sys.stderr)
+        sys.stderr.flush()
+    except Exception as e:
+        print(f"Warning: could not set SWD interface: {e}", file=sys.stderr)
+        sys.stderr.flush()
+
+    try:
+        jlink.set_speed(4000)
+        print("Speed: 4000 kHz", file=sys.stderr)
+        sys.stderr.flush()
+    except Exception as e:
+        print(f"Warning: could not set speed: {e}", file=sys.stderr)
+        sys.stderr.flush()
+
+    try:
+        jlink.connect(device)
+    except Exception as e:
+        print(f"ERROR: J-Link connect to '{device}' failed: {e}", file=sys.stderr)
+        print(f"Hint: If your board uses a specific chip (e.g., STM32H743II, nRF54L15), set", file=sys.stderr)
+        print(f"  \"logscope.jlink.device\" in VS Code settings to the exact chip name.", file=sys.stderr)
+        sys.stderr.flush()
+        sys.exit(1)
+
+    if not jlink.target_connected():
+        print(f"ERROR: J-Link reports no target connection after connect('{device}').", file=sys.stderr)
+        print(f"  Possible causes:", file=sys.stderr)
+        print(f"  1. Device name '{device}' doesn't match your target chip. Try the exact", file=sys.stderr)
+        print(f"     part number (e.g., STM32H743II) in \"logscope.jlink.device\".", file=sys.stderr)
+        print(f"  2. Target board is not powered or is held in reset.", file=sys.stderr)
+        print(f"  3. SWD/SWO pins are not connected to the J-Link probe.", file=sys.stderr)
+        sys.stderr.flush()
+        sys.exit(1)
+
+    print(f"J-Link connected to {device}, CPU halted: {jlink.halted()}", file=sys.stderr)
+
+    if jlink.halted():
+        jlink.restart()
+        print("Resumed CPU", file=sys.stderr)
+    sys.stderr.flush()
+
+    # Parse search ranges from env (format: "<addr> <len> [<addr> <len> ...]")
+    raw_ranges = os.environ.get("LOGSCOPE_RTT_SEARCH_RANGES", "0x20000000 0x80000")
+    parts = raw_ranges.split()
+    search_ranges = []
+    try:
+        for i in range(0, len(parts), 2):
+            search_ranges.append((int(parts[i], 16), int(parts[i + 1], 16)))
+    except (ValueError, IndexError):
+        print(f"ERROR: Invalid LOGSCOPE_RTT_SEARCH_RANGES: '{raw_ranges}'", file=sys.stderr)
+        sys.stderr.flush()
+        try:
+            jlink.close()
+        except Exception:
+            pass
+        sys.exit(1)
+    print(f"RTT search range: {raw_ranges}", file=sys.stderr)
+    sys.stderr.flush()
+
+    # Attach with retry (firmware may not have called SEGGER_RTT_Init yet).
+    session = DirectMemoryRttSession(jlink)
+    attach_deadline = time.monotonic() + 5.0
+    while True:
+        try:
+            session.attach(search_ranges)
+            break
+        except ValueError as e:
+            if time.monotonic() >= attach_deadline:
+                print(f"ERROR: No RTT control block found: {e}", file=sys.stderr)
+                sys.stderr.flush()
+                try:
+                    jlink.close()
+                except Exception:
+                    pass
+                sys.exit(2)
+            time.sleep(0.1)
+
+    num_up = session.channel_count()
+    has_hci = num_up >= 2
+    print(f"RTT_READY buffers={num_up} hci={'yes' if has_hci else 'no'}", file=sys.stderr)
+
+    # Surface channel names for the UI. Task 6 consumes CHANNEL_NAME on the TS side.
+    for ch in session.channels:
+        name = session.channel_name(ch.index)
+        if name:
+            print(f"CHANNEL_NAME {ch.index} {name}", file=sys.stderr)
+    sys.stderr.flush()
+
+    stdout = os.fdopen(sys.stdout.fileno(), "wb", 0)
+    poll_interval = poll_ms / 1000.0
+    consecutive_errors = 0
+    last_data_time = time.monotonic()
+    try:
+        SILENCE_THRESHOLD = float(os.environ.get("LOGSCOPE_RTT_SILENCE_THRESHOLD", "30"))
+    except ValueError:
+        SILENCE_THRESHOLD = 30.0
+    MAX_CONSECUTIVE_ERRORS = 5
+
+    def write_frame(channel, data):
+        """Write framed data: [channel:1][length:4 LE][data:N]"""
+        stdout.write(bytes([channel]) + struct.pack('<I', len(data)) + data)
+
+    quit_requested = threading.Event()
+
+    def _watch_stdin():
+        try:
+            for line in sys.stdin:
+                if line.strip() == "quit":
+                    quit_requested.set()
+                    return
+        except Exception:
+            pass
+
+    stdin_thread = threading.Thread(target=_watch_stdin, daemon=True)
+    stdin_thread.start()
+
+    while not quit_requested.is_set():
+        got_data = False
+        try:
+            for ch in session.channels:
+                data = session.read_channel(ch.index)
+                if data:
+                    write_frame(ch.index, data)
+                    got_data = True
+        except TargetResetError as e:
+            print(f"Target reset detected: {e}", file=sys.stderr)
+            sys.stderr.flush()
+            # Re-attach (CB is in BSS so address is stable; re-scan to be safe).
+            try:
+                session.attach(search_ranges)
+                print(f"Reconnected OK, buffers={session.channel_count()}", file=sys.stderr)
+                sys.stderr.flush()
+                consecutive_errors = 0
+                last_data_time = time.monotonic()
+            except Exception as reattach_err:
+                consecutive_errors += 1
+                print(f"Re-attach failed: {reattach_err}", file=sys.stderr)
+                sys.stderr.flush()
+                if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                    print("ERROR: Re-attach failed repeatedly; giving up", file=sys.stderr)
+                    sys.stderr.flush()
+                    try:
+                        jlink.close()
+                    except Exception:
+                        pass
+                    sys.exit(4)
+                time.sleep(poll_interval * 2)
+            continue
+        except BrokenPipeError:
+            break
+        except Exception as e:
+            consecutive_errors += 1
+            print(f"RTT read error #{consecutive_errors}: {e}", file=sys.stderr)
+            sys.stderr.flush()
+            if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                print("ERROR: too many read errors; giving up", file=sys.stderr)
+                sys.stderr.flush()
+                try:
+                    jlink.close()
+                except Exception:
+                    pass
+                sys.exit(4)
+            time.sleep(poll_interval * 2)
+            continue
+
+        if got_data:
+            last_data_time = time.monotonic()
+            consecutive_errors = 0
+        else:
+            # In direct-memory mode silence is just silence: no host-side
+            # restart is needed (the legacy path had to restart to re-sync
+            # libjlinkarm's tracked_RdOff, which is now bypassed entirely).
+            silence = time.monotonic() - last_data_time
+            if SILENCE_THRESHOLD > 0 and silence > SILENCE_THRESHOLD:
+                last_data_time = time.monotonic()  # reset timer to avoid log spam
+
+        time.sleep(poll_interval)
+
+    try:
+        jlink.close()
+    except Exception:
+        pass
 
 
 def _parse_swd_read_line(line):
@@ -1205,9 +1434,15 @@ def main():
     # Try pylink first (native J-Link RTT, works with any J-Link device)
     try:
         import pylink  # noqa: F401
-        print("Using pylink (native J-Link RTT)", file=sys.stderr)
-        sys.stderr.flush()
-        run_pylink(device_or_addr, poll_ms, serial_no=serial_no)
+        use_legacy = os.environ.get("LOGSCOPE_RTT_LEGACY", "0") == "1"
+        if use_legacy:
+            print("Using pylink (legacy libjlinkarm RTT path)", file=sys.stderr)
+            sys.stderr.flush()
+            run_pylink_classic(device_or_addr, poll_ms, serial_no=serial_no)
+        else:
+            print("Using pylink (direct-memory RTT, v0.6.0)", file=sys.stderr)
+            sys.stderr.flush()
+            run_pylink_direct(device_or_addr, poll_ms, serial_no=serial_no)
     except ImportError:
         print("pylink not available, falling back to nrfutil CLI", file=sys.stderr)
         sys.stderr.flush()
