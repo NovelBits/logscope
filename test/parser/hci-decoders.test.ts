@@ -259,18 +259,17 @@ describe("decodeAcl", () => {
       0x05,       // Error Code: 0x05 (Insufficient Authentication)
     ]);
     const result = decodeAcl(payload);
-    expect(result).not.toBeNull();
-    expect(result!.summary).toContain("ATT Error Response");
-    expect(result!.summary).toContain("Read Request");
-    expect(result!.summary).toContain("Insufficient Authentication");
+    expect(result?.summary).toContain("ATT Error Response");
+    expect(result?.summary).toContain("Read Request");
+    expect(result?.summary).toContain("Insufficient Authentication");
 
-    const reqField = result!.fields.find((f) => f.name === "Request In Error");
+    const reqField = result?.fields.find((f) => f.name === "Request In Error");
     expect(reqField?.value).toBe("Read Request");
 
-    const handleField = result!.fields.find((f) => f.name === "ATT Handle In Error");
+    const handleField = result?.fields.find((f) => f.name === "ATT Handle In Error");
     expect(handleField?.value).toBe("0x0015");
 
-    const errField = result!.fields.find((f) => f.name === "Error Code");
+    const errField = result?.fields.find((f) => f.name === "Error Code");
     expect(errField?.value).toBe("Insufficient Authentication");
     expect(errField?.specRef).toMatch(/Vol 3.*Part F/);
     expect(errField?.color).toBeDefined(); // red for error
@@ -286,8 +285,7 @@ describe("decodeAcl", () => {
       0x99,       // Error Code: 0x99 (reserved / unknown)
     ]);
     const result = decodeAcl(payload);
-    expect(result).not.toBeNull();
-    const errField = result!.fields.find((f) => f.name === "Error Code");
+    const errField = result?.fields.find((f) => f.name === "Error Code");
     expect(errField?.value).toContain("0x99");
     expect(errField?.specRef).toBeUndefined(); // unknown -> no spec ref
   });

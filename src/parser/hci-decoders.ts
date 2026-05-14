@@ -650,7 +650,121 @@ export function decodeEvent(
 // ATT opcode decoder helpers
 // ---------------------------------------------------------------------------
 
-/** Decode an ATT read/write/notify/mtu opcode, mutating fields and returning a packet or null */
+/**
+ * Decoder for a single ATT opcode. Receives the full ACL payload (so it can
+ * read fields at known byte offsets), the formatted connection handle string,
+ * and the shared fields array which it mutates. Returns a DecodedPacket on
+ * success, or null when the payload is too short to decode (in which case the
+ * caller falls back to the default ATT opcode-name display).
+ */
+type AttDecoder = (
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+) => DecodedPacket | null;
+
+/**
+ * ATT Error Response (opcode 0x01): Request Opcode (1B) + Attribute Handle
+ * In Error (2B) + Error Code (1B). Core Spec v6.0 Vol 3 Part F §3.4.1.1.
+ */
+function decodeAttErrorResponse(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  if (payload.length < 13) return null;
+  const reqOpcode = payload[9];
+  const reqOpcodeName = attOpcodeName(reqOpcode);
+  const attHandle = payload.readUInt16LE(10);
+  const errCode = payload[12];
+  const errEntry = lookupAttError(errCode);
+  const errText = errEntry
+    ? errEntry.name
+    : `Unknown (0x${errCode.toString(16).toUpperCase().padStart(2, "0")})`;
+  fields.push(
+    field("Request In Error", reqOpcodeName),
+    field("ATT Handle In Error", fmtHandle(attHandle)),
+  );
+  if (errEntry) {
+    fields.push(fieldWithSpec("Error Code", errEntry.name, errEntry.specRef, COLOR_ERROR));
+  } else {
+    fields.push(field("Error Code", errText, COLOR_ERROR));
+  }
+  return {
+    summary: `handle:${handleStr} ATT Error Response (${reqOpcodeName} -> ${errText})`,
+    fields,
+  };
+}
+
+/** ATT Exchange MTU Request (0x02) / Response (0x03). */
+function decodeAttExchangeMtu(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  if (payload.length < 11) return null;
+  const mtu = payload.readUInt16LE(9);
+  fields.push(field("MTU", mtu.toString()));
+  return { summary: `handle:${handleStr} ATT Exchange MTU (mtu: ${mtu})`, fields };
+}
+
+/** ATT Read Request (0x0a). */
+function decodeAttReadRequest(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  if (payload.length < 11) return null;
+  const attHandle = payload.readUInt16LE(9);
+  fields.push(field("ATT Handle", fmtHandle(attHandle)));
+  return { summary: `handle:${handleStr} ATT Read Request (handle: ${fmtHandle(attHandle)})`, fields };
+}
+
+/** ATT Read Response (0x0b) — variable-length value, no minimum beyond the opcode byte. */
+function decodeAttReadResponse(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  const respData = payload.subarray(9);
+  fields.push(field("Data", formatValueBytes(respData)));
+  return { summary: `handle:${handleStr} ATT Read Response (${respData.length} bytes)`, fields };
+}
+
+/**
+ * ATT Write Request (0x12) / Write Command (0x52) / Notification (0x1b).
+ * Shared decoder — the ATT opcode is read from payload[8] for label selection
+ * only; the parsing layout is identical across the three.
+ */
+function decodeAttWriteOrNotify(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  if (payload.length < 11) return null;
+  const attOpcode = payload[8];
+  const attHandle = payload.readUInt16LE(9);
+  const value = payload.subarray(11);
+  fields.push(field("ATT Handle", fmtHandle(attHandle)), field("Value", formatValueBytes(value)));
+  const label =
+    attOpcode === 0x12 ? "ATT Write Request" :
+    attOpcode === 0x52 ? "ATT Write Command" :
+    "ATT Notification";
+  return { summary: `handle:${handleStr} ${label} (handle: ${fmtHandle(attHandle)})`, fields };
+}
+
+const attDecoders: Record<number, AttDecoder> = {
+  0x01: decodeAttErrorResponse,
+  0x02: decodeAttExchangeMtu,
+  0x03: decodeAttExchangeMtu,
+  0x0a: decodeAttReadRequest,
+  0x0b: decodeAttReadResponse,
+  0x12: decodeAttWriteOrNotify,
+  0x52: decodeAttWriteOrNotify,
+  0x1b: decodeAttWriteOrNotify,
+};
+
+/** Decode an ATT read/write/notify/mtu opcode, mutating fields and returning a packet. */
 function decodeAttOpcode(
   attOpcode: number,
   attName: string,
@@ -658,55 +772,13 @@ function decodeAttOpcode(
   handleStr: string,
   fields: DecodedField[]
 ): DecodedPacket {
-  // ATT Error Response (opcode 0x01): Request Opcode (1B) + Attribute
-  // Handle In Error (2B) + Error Code (1B). Core Spec v6.0 Vol 3 Part F §3.4.1.1.
-  if (attOpcode === 0x01 && payload.length >= 13) {
-    const reqOpcode = payload[9];
-    const reqOpcodeName = attOpcodeName(reqOpcode);
-    const attHandle = payload.readUInt16LE(10);
-    const errCode = payload[12];
-    const errEntry = lookupAttError(errCode);
-    const errText = errEntry
-      ? errEntry.name
-      : `Unknown (0x${errCode.toString(16).toUpperCase().padStart(2, "0")})`;
-    fields.push(field("Request In Error", reqOpcodeName));
-    fields.push(field("ATT Handle In Error", fmtHandle(attHandle)));
-    if (errEntry) {
-      fields.push(fieldWithSpec("Error Code", errEntry.name, errEntry.specRef, COLOR_ERROR));
-    } else {
-      fields.push(field("Error Code", errText, COLOR_ERROR));
-    }
-    return {
-      summary: `handle:${handleStr} ATT Error Response (${reqOpcodeName} -> ${errText})`,
-      fields,
-    };
+  const decoder = attDecoders[attOpcode];
+  if (decoder) {
+    const result = decoder(payload, handleStr, fields);
+    if (result) return result;
   }
-  if (attOpcode === 0x0a && payload.length >= 11) {
-    const attHandle = payload.readUInt16LE(9);
-    fields.push(field("ATT Handle", fmtHandle(attHandle)));
-    return { summary: `handle:${handleStr} ATT Read Request (handle: ${fmtHandle(attHandle)})`, fields };
-  }
-  if (attOpcode === 0x0b) {
-    const respData = payload.subarray(9);
-    fields.push(field("Data", formatValueBytes(respData)));
-    return { summary: `handle:${handleStr} ATT Read Response (${respData.length} bytes)`, fields };
-  }
-  if ((attOpcode === 0x12 || attOpcode === 0x52 || attOpcode === 0x1b) && payload.length >= 11) {
-    const attHandle = payload.readUInt16LE(9);
-    const value = payload.subarray(11);
-    fields.push(field("ATT Handle", fmtHandle(attHandle)), field("Value", formatValueBytes(value)));
-    const label =
-      attOpcode === 0x12 ? "ATT Write Request" :
-      attOpcode === 0x52 ? "ATT Write Command" :
-      "ATT Notification";
-    return { summary: `handle:${handleStr} ${label} (handle: ${fmtHandle(attHandle)})`, fields };
-  }
-  if ((attOpcode === 0x02 || attOpcode === 0x03) && payload.length >= 11) {
-    const mtu = payload.readUInt16LE(9);
-    fields.push(field("MTU", mtu.toString()));
-    return { summary: `handle:${handleStr} ATT Exchange MTU (mtu: ${mtu})`, fields };
-  }
-  // Default: just show the ATT opcode name
+  // Default: just show the ATT opcode name (also the fallback when the
+  // payload is too short for the matched decoder to produce a result).
   fields.push(field("ATT Opcode", attName));
   return { summary: `handle:${handleStr} ATT ${attName}`, fields };
 }

@@ -24,7 +24,7 @@ describe("BLE error code tables", () => {
   });
 
   it("HCI table entries all have a spec reference", () => {
-    for (const [code, entry] of Object.entries(HCI_ERROR_CODES)) {
+    for (const entry of Object.values(HCI_ERROR_CODES)) {
       expect(entry.specRef).toMatch(/Core Spec.*Vol 1.*Part F/);
       expect(entry.name.length).toBeGreaterThan(0);
     }
@@ -67,9 +67,8 @@ describe("BLE error code tables", () => {
 
     it("lookupHciError returns the entry for known codes", () => {
       const entry = lookupHciError(0x05);
-      expect(entry).not.toBeNull();
-      expect(entry!.name).toBe("Authentication Failure");
-      expect(entry!.specRef).toContain("Vol 1, Part F");
+      expect(entry?.name).toBe("Authentication Failure");
+      expect(entry?.specRef).toContain("Vol 1, Part F");
     });
 
     it("lookupAttError returns null for reserved codes", () => {
