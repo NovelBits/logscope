@@ -9,6 +9,8 @@ import {
   decodeAttFindInformationResponse,
   decodeAttFindByTypeValueRequest,
   decodeAttFindByTypeValueResponse,
+  decodeAttReadByTypeRequest,
+  decodeAttReadByTypeResponse,
 } from "../../src/parser/att-decoders";
 
 describe("ATT stub decoders (zero-payload)", () => {
@@ -232,6 +234,146 @@ describe("Find By Type Value (0x06 / 0x07)", () => {
         0xab,
       ]);
       const result = decodeAttFindByTypeValueResponse(buf, "0x0040", []);
+      const truncated = result?.fields.find((f) => f.name === "Truncated");
+      expect(truncated?.value).toBe("1 byte(s)");
+    });
+  });
+});
+
+describe("Read By Type (0x08 / 0x09)", () => {
+  describe("Request (0x08)", () => {
+    it("decodes 16-bit attribute type resolved by name", () => {
+      // opcode 0x08, start 0x0001, end 0xFFFF, type 0x2A37 (Heart Rate Measurement)
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x08,
+        0x01, 0x00,
+        0xff, 0xff,
+        0x37, 0x2a,
+      ]);
+      const result = decodeAttReadByTypeRequest(buf, "0x0040", []);
+      expect(result?.summary).toBe(
+        "handle:0x0040 ATT Read By Type Request (Heart Rate Measurement (0x2A37))"
+      );
+      expect(result?.fields).toEqual([
+        { name: "Starting Handle", value: "0x0001" },
+        { name: "Ending Handle", value: "0xFFFF" },
+        { name: "Attribute Type", value: "Heart Rate Measurement (0x2A37)" },
+      ]);
+    });
+
+    it("falls back to raw hex for unknown 16-bit attribute type", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x08,
+        0x01, 0x00,
+        0xff, 0xff,
+        0x99, 0x99,
+      ]);
+      const result = decodeAttReadByTypeRequest(buf, "0x0040", []);
+      expect(result?.summary).toBe("handle:0x0040 ATT Read By Type Request (0x9999)");
+      expect(result?.fields[2].value).toBe("0x9999");
+    });
+
+    it("decodes 128-bit attribute type", () => {
+      // Nordic UART service base (LE on the wire, big-endian when rendered)
+      const nordicUart = [0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0, 0x93, 0xf3, 0xa3, 0xb5, 0x01, 0x00, 0x40, 0x6e];
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x08,
+        0x01, 0x00,
+        0xff, 0xff,
+        ...nordicUart,
+      ]);
+      const result = decodeAttReadByTypeRequest(buf, "0x0040", []);
+      expect(result?.summary).toBe(
+        "handle:0x0040 ATT Read By Type Request (6E400001-B5A3-F393-E0A9-E50E24DCCA9E)"
+      );
+      expect(result?.fields[2].value).toBe("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");
+    });
+
+    it("returns null on truncated payload (between 16-bit and 128-bit sizes)", () => {
+      // 16 bytes total: 8 prefix + opcode + 2 + 2 + 3 (partial UUID)
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x08,
+        0x01, 0x00,
+        0xff, 0xff,
+        0x37, 0x2a, 0x00,
+      ]);
+      expect(decodeAttReadByTypeRequest(buf, "0x0040", [])).toBeNull();
+    });
+  });
+
+  describe("Response (0x09)", () => {
+    it("decodes a single entry", () => {
+      // length=5 (handle 2B + value 3B), one entry: handle 0x0010, value 01 02 03
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x09,
+        0x05,
+        0x10, 0x00, 0x01, 0x02, 0x03,
+      ]);
+      const result = decodeAttReadByTypeResponse(buf, "0x0040", []);
+      expect(result?.summary).toBe("handle:0x0040 ATT Read By Type Response (1 entry)");
+      expect(result?.fields[0]).toEqual({ name: "Length", value: "5" });
+      expect(result?.fields[1].name).toBe("Entry 1");
+      expect(result?.fields[1].value).toContain("handle 0x0010");
+      expect(result?.fields[1].value).toContain("01 02 03");
+    });
+
+    it("decodes multiple entries", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x09,
+        0x04,
+        0x10, 0x00, 0xaa, 0xbb,
+        0x11, 0x00, 0xcc, 0xdd,
+        0x12, 0x00, 0xee, 0xff,
+      ]);
+      const result = decodeAttReadByTypeResponse(buf, "0x0040", []);
+      expect(result?.summary).toBe("handle:0x0040 ATT Read By Type Response (3 entries)");
+      // Length field + 3 entries = 4 fields
+      expect(result?.fields).toHaveLength(4);
+      expect(result?.fields[3].value).toContain("handle 0x0012");
+      expect(result?.fields[3].value).toContain("ee ff");
+    });
+
+    it("accepts zero-length values (length == 2, just handles)", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x09,
+        0x02,
+        0x10, 0x00,
+        0x11, 0x00,
+      ]);
+      const result = decodeAttReadByTypeResponse(buf, "0x0040", []);
+      expect(result?.summary).toBe("handle:0x0040 ATT Read By Type Response (2 entries)");
+      expect(result?.fields[1].value).toContain("handle 0x0010");
+      expect(result?.fields[1].value).toContain("(empty)");
+    });
+
+    it("flags malformed length byte (length == 1)", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x09,
+        0x01,
+      ]);
+      const result = decodeAttReadByTypeResponse(buf, "0x0040", []);
+      expect(result?.summary).toBe("handle:0x0040 ATT Read By Type Response (invalid length)");
+      const truncated = result?.fields.find((f) => f.name === "Truncated");
+      expect(truncated?.value).toContain("must be >= 2");
+    });
+
+    it("flags trailing bytes that don't form a full entry", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x09,
+        0x04,
+        0x10, 0x00, 0xaa, 0xbb,
+        0xcc,
+      ]);
+      const result = decodeAttReadByTypeResponse(buf, "0x0040", []);
       const truncated = result?.fields.find((f) => f.name === "Truncated");
       expect(truncated?.value).toBe("1 byte(s)");
     });

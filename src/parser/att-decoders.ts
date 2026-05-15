@@ -307,6 +307,97 @@ export function decodeAttFindByTypeValueResponse(
   };
 }
 
+/**
+ * ATT Read By Type Request (0x08). Core Spec v6.3 Vol 3 Part F §3.4.4.1.
+ *
+ * Body: Starting Handle (2B) + Ending Handle (2B) + Attribute Type UUID
+ * (2B or 16B). The UUID size is inferred from the total body length:
+ * 6 bytes → 16-bit UUID, 20 bytes → 128-bit UUID. Any other length is
+ * malformed → return null.
+ */
+export function decodeAttReadByTypeRequest(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  // Opcode at offset 8; body starts at offset 9.
+  // Valid total lengths: 9 + 6 = 15 (16-bit UUID) or 9 + 20 = 29 (128-bit).
+  if (payload.length !== 15 && payload.length !== 29) return null;
+  const startHandle = payload.readUInt16LE(9);
+  const endHandle = payload.readUInt16LE(11);
+  let attrTypeLabel: string;
+  if (payload.length === 15) {
+    const uuid16 = payload.readUInt16LE(13);
+    attrTypeLabel = fmtUuid16WithLookup(uuid16);
+  } else {
+    attrTypeLabel = format128BitUuid(payload.subarray(13, 29));
+  }
+  fields.push(
+    field("Starting Handle", fmtHandle(startHandle)),
+    field("Ending Handle", fmtHandle(endHandle)),
+    field("Attribute Type", attrTypeLabel),
+  );
+  return {
+    summary: `handle:${handleStr} ATT Read By Type Request (${attrTypeLabel})`,
+    fields,
+  };
+}
+
+/**
+ * ATT Read By Type Response (0x09). Core Spec v6.3 Vol 3 Part F §3.4.4.2.
+ *
+ * Body: Length byte (1B) giving the size of each Attribute Data entry that
+ * follows, then a list of entries each containing
+ * `Attribute Handle (2B) + Attribute Value (length - 2 bytes)`. The Length
+ * byte must be >= 2 (room for the handle); zero-length values (length == 2)
+ * are valid.
+ *
+ * NOTE for Sprint B: the aggregation view will interpret the Attribute Value
+ * bytes based on the request's Attribute Type (e.g., when type = 0x2803
+ * Characteristic Declaration, the value is structured as
+ * properties/handle/UUID). For Sprint A we just render raw bytes.
+ */
+export function decodeAttReadByTypeResponse(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  // Need at least the length byte at offset 9.
+  if (payload.length < 10) return null;
+  const lengthByte = payload[9];
+  fields.push(field("Length", lengthByte.toString()));
+
+  if (lengthByte < 2) {
+    fields.push(field("Truncated", `invalid length byte: ${lengthByte} (must be >= 2)`, COLOR_ERROR));
+    return {
+      summary: `handle:${handleStr} ATT Read By Type Response (invalid length)`,
+      fields,
+    };
+  }
+
+  const list = payload.subarray(10);
+  const fullEntries = Math.floor(list.length / lengthByte);
+  const leftover = list.length - fullEntries * lengthByte;
+  const valueSize = lengthByte - 2;
+
+  for (let i = 0; i < fullEntries; i++) {
+    const offset = i * lengthByte;
+    const attrHandle = list.readUInt16LE(offset);
+    const valueBytes = list.subarray(offset + 2, offset + 2 + valueSize);
+    fields.push(
+      field(`Entry ${i + 1}`, `handle ${fmtHandle(attrHandle)}, value: ${formatValueBytes(valueBytes)}`),
+    );
+  }
+  if (leftover > 0) {
+    fields.push(field("Truncated", `${leftover} byte(s)`, COLOR_ERROR));
+  }
+
+  return {
+    summary: `handle:${handleStr} ATT Read By Type Response (${fullEntries} entr${fullEntries === 1 ? "y" : "ies"})`,
+    fields,
+  };
+}
+
 export const attDecoders: Record<number, AttDecoder> = {
   0x01: decodeAttErrorResponse,
   0x02: decodeAttExchangeMtu,
@@ -315,6 +406,8 @@ export const attDecoders: Record<number, AttDecoder> = {
   0x05: decodeAttFindInformationResponse,
   0x06: decodeAttFindByTypeValueRequest,
   0x07: decodeAttFindByTypeValueResponse,
+  0x08: decodeAttReadByTypeRequest,
+  0x09: decodeAttReadByTypeResponse,
   0x0a: decodeAttReadRequest,
   0x0b: decodeAttReadResponse,
   0x12: decodeAttWriteOrNotify,
