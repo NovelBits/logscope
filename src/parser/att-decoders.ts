@@ -11,7 +11,12 @@
  */
 
 import { DecodedField, DecodedPacket } from "./types";
-import { lookupAttError, lookupDescriptorUuid } from "@novelbits/ble-spec";
+import {
+  lookupAttError,
+  lookupCharacteristicUuid,
+  lookupDescriptorUuid,
+  lookupServiceUuid,
+} from "@novelbits/ble-spec";
 import {
   COLOR_ERROR,
   field,
@@ -213,12 +218,103 @@ export function decodeAttFindInformationResponse(
   };
 }
 
+/**
+ * Resolve a 16-bit UUID against all three SIG UUID tables (service,
+ * characteristic, descriptor) and return the first match. Used by ATT
+ * decoders where the wire format doesn't tell us which UUID kind to expect
+ * (e.g., Find By Type Value's Attribute Type, Read By Type's Attribute Type).
+ *
+ * Service is tried first because the dominant real-world use of these
+ * opcodes is service discovery (Attribute Type = 0x2800 Primary Service,
+ * with the value being the service UUID).
+ */
+function lookupAnyUuid16(uuid: number): string | null {
+  return lookupServiceUuid(uuid) ?? lookupCharacteristicUuid(uuid) ?? lookupDescriptorUuid(uuid);
+}
+
+/**
+ * Format a 16-bit UUID with name resolution against the union of SIG tables.
+ * Returns "Name (0xHHHH)" when resolved, or just "0xHHHH" otherwise.
+ */
+function fmtUuid16WithLookup(uuid: number): string {
+  const name = lookupAnyUuid16(uuid);
+  const hex = `0x${uuid.toString(16).padStart(4, "0").toUpperCase()}`;
+  return name ? `${name} (${hex})` : hex;
+}
+
+/**
+ * ATT Find By Type Value Request (0x06). Core Spec v6.3 Vol 3 Part F §3.4.3.3.
+ *
+ * Body: Starting Handle (2B) + Ending Handle (2B) + Attribute Type (2B, 16-bit
+ * UUID only per spec) + Attribute Value (variable, may be zero-length).
+ * Minimum total payload: 8 (L2CAP prefix) + 1 (opcode) + 6 (handles + type) = 15.
+ */
+export function decodeAttFindByTypeValueRequest(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  if (payload.length < 15) return null;
+  const startHandle = payload.readUInt16LE(9);
+  const endHandle = payload.readUInt16LE(11);
+  const attrType = payload.readUInt16LE(13);
+  const value = payload.subarray(15);
+  const attrTypeLabel = fmtUuid16WithLookup(attrType);
+  fields.push(
+    field("Starting Handle", fmtHandle(startHandle)),
+    field("Ending Handle", fmtHandle(endHandle)),
+    field("Attribute Type", attrTypeLabel),
+    field("Attribute Value", formatValueBytes(value)),
+  );
+  return {
+    summary: `handle:${handleStr} ATT Find By Type Value Request (${attrTypeLabel})`,
+    fields,
+  };
+}
+
+/**
+ * ATT Find By Type Value Response (0x07). Core Spec v6.3 Vol 3 Part F §3.4.3.4.
+ *
+ * Body: a list of (Found Attribute Handle 2B + Group End Handle 2B) entries.
+ * Each entry is exactly 4 bytes. Zero entries is valid per spec.
+ */
+export function decodeAttFindByTypeValueResponse(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  if (payload.length < 9) return null;
+  const list = payload.subarray(9);
+  const entrySize = 4;
+  const fullEntries = Math.floor(list.length / entrySize);
+  const leftover = list.length - fullEntries * entrySize;
+
+  for (let i = 0; i < fullEntries; i++) {
+    const offset = i * entrySize;
+    const foundHandle = list.readUInt16LE(offset);
+    const groupEndHandle = list.readUInt16LE(offset + 2);
+    fields.push(
+      field(`Entry ${i + 1}`, `${fmtHandle(foundHandle)} -> ${fmtHandle(groupEndHandle)}`),
+    );
+  }
+  if (leftover > 0) {
+    fields.push(field("Truncated", `${leftover} byte(s)`, COLOR_ERROR));
+  }
+
+  return {
+    summary: `handle:${handleStr} ATT Find By Type Value Response (${fullEntries} entr${fullEntries === 1 ? "y" : "ies"})`,
+    fields,
+  };
+}
+
 export const attDecoders: Record<number, AttDecoder> = {
   0x01: decodeAttErrorResponse,
   0x02: decodeAttExchangeMtu,
   0x03: decodeAttExchangeMtu,
   0x04: decodeAttFindInformationRequest,
   0x05: decodeAttFindInformationResponse,
+  0x06: decodeAttFindByTypeValueRequest,
+  0x07: decodeAttFindByTypeValueResponse,
   0x0a: decodeAttReadRequest,
   0x0b: decodeAttReadResponse,
   0x12: decodeAttWriteOrNotify,
