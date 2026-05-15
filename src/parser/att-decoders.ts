@@ -603,6 +603,104 @@ export function decodeAttReadMultipleResponse(
   };
 }
 
+/**
+ * ATT Read Multiple Variable Request (0x20). Core Spec v6.3 Vol 3 Part F
+ * §3.4.4.11 (added in v5.2). Same wire format as Read Multiple Request — a
+ * list of at least two 2-byte attribute handles. The difference vs 0x0e is
+ * the response shape: 0x21 returns length-prefixed values so each value's
+ * boundary is unambiguous.
+ */
+export function decodeAttReadMultipleVariableRequest(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  if (payload.length < 13) return null;
+  const body = payload.subarray(9);
+  const handleCount = Math.floor(body.length / 2);
+  const leftover = body.length - handleCount * 2;
+
+  for (let i = 0; i < handleCount; i++) {
+    const h = body.readUInt16LE(i * 2);
+    fields.push(field(`Handle ${i + 1}`, fmtHandle(h)));
+  }
+  if (leftover > 0) {
+    fields.push(field("Truncated", `${leftover} byte(s)`, COLOR_ERROR));
+  }
+
+  return {
+    summary: `handle:${handleStr} ATT Read Multiple Variable Request (${handleCount} handles)`,
+    fields,
+  };
+}
+
+/**
+ * ATT Read Multiple Variable Response (0x21). Core Spec v6.3 Vol 3 Part F
+ * §3.4.4.12 (added in v5.2).
+ *
+ * Body: a sequence of length-prefixed tuples — each tuple is
+ * `Value Length (2B LE) + Value (Length bytes)`. The list continues until the
+ * body is exhausted. If a declared length overruns the buffer, render the
+ * remaining bytes and flag Truncated.
+ */
+export function decodeAttReadMultipleVariableResponse(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  if (payload.length < 9) return null;
+  const body = payload.subarray(9);
+  let cursor = 0;
+  let count = 0;
+
+  while (cursor < body.length) {
+    // Need 2 bytes for the length prefix itself.
+    if (body.length - cursor < 2) {
+      const remaining = body.length - cursor;
+      const partial = body.subarray(cursor);
+      count += 1;
+      fields.push(
+        field(`Value ${count}`, `(truncated length prefix: ${formatValueBytes(partial)})`, COLOR_ERROR),
+      );
+      fields.push(field("Truncated", `${remaining} byte(s)`, COLOR_ERROR));
+      cursor = body.length;
+      break;
+    }
+
+    const declaredLen = body.readUInt16LE(cursor);
+    const available = body.length - cursor - 2;
+    count += 1;
+
+    if (declaredLen <= available) {
+      const value = body.subarray(cursor + 2, cursor + 2 + declaredLen);
+      fields.push(
+        field(`Value ${count} (${declaredLen} B)`, formatValueBytes(value)),
+      );
+      cursor += 2 + declaredLen;
+    } else {
+      // Declared length overruns the buffer — render what's there and flag.
+      const value = body.subarray(cursor + 2);
+      fields.push(
+        field(
+          `Value ${count} (${declaredLen} B declared, ${value.length} B available)`,
+          formatValueBytes(value),
+          COLOR_ERROR,
+        ),
+      );
+      fields.push(
+        field("Truncated", `value ${count} length ${declaredLen} exceeds remaining ${available} byte(s)`, COLOR_ERROR),
+      );
+      cursor = body.length;
+      break;
+    }
+  }
+
+  return {
+    summary: `handle:${handleStr} ATT Read Multiple Variable Response (${count} value${count === 1 ? "" : "s"})`,
+    fields,
+  };
+}
+
 export const attDecoders: Record<number, AttDecoder> = {
   0x01: decodeAttErrorResponse,
   0x02: decodeAttExchangeMtu,
@@ -625,5 +723,7 @@ export const attDecoders: Record<number, AttDecoder> = {
   0x13: decodeAttWriteResponse,
   0x1b: decodeAttWriteOrNotify,
   0x1e: decodeAttHandleValueConfirmation,
+  0x20: decodeAttReadMultipleVariableRequest,
+  0x21: decodeAttReadMultipleVariableResponse,
   0x52: decodeAttWriteOrNotify,
 };

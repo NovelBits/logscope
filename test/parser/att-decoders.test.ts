@@ -17,6 +17,8 @@ import {
   decodeAttReadBlobResponse,
   decodeAttReadMultipleRequest,
   decodeAttReadMultipleResponse,
+  decodeAttReadMultipleVariableRequest,
+  decodeAttReadMultipleVariableResponse,
 } from "../../src/parser/att-decoders";
 
 describe("ATT stub decoders (zero-payload)", () => {
@@ -699,6 +701,124 @@ describe("Read Multiple (0x0e / 0x0f)", () => {
       const result = decodeAttReadMultipleResponse(buf, "0x0040", []);
       expect(result?.summary).toBe("handle:0x0040 ATT Read Multiple Response (0 bytes)");
       expect(result?.fields[0]).toEqual({ name: "Value", value: "(empty)" });
+    });
+  });
+});
+
+describe("Read Multiple Variable (0x20 / 0x21)", () => {
+  describe("Request (0x20)", () => {
+    it("decodes a well-formed request with 3 handles", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x20,
+        0x10, 0x00,
+        0x20, 0x00,
+        0x30, 0x00,
+      ]);
+      const result = decodeAttReadMultipleVariableRequest(buf, "0x0040", []);
+      expect(result?.summary).toBe(
+        "handle:0x0040 ATT Read Multiple Variable Request (3 handles)"
+      );
+      expect(result?.fields).toEqual([
+        { name: "Handle 1", value: "0x0010" },
+        { name: "Handle 2", value: "0x0020" },
+        { name: "Handle 3", value: "0x0030" },
+      ]);
+    });
+
+    it("returns null on request below the 2-handle minimum", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x20,
+        0x10, 0x00,
+      ]);
+      expect(decodeAttReadMultipleVariableRequest(buf, "0x0040", [])).toBeNull();
+    });
+  });
+
+  describe("Response (0x21)", () => {
+    it("decodes two well-formed length-prefixed tuples", () => {
+      // tuple 1: len 2, value AA BB
+      // tuple 2: len 3, value CC DD EE
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x21,
+        0x02, 0x00, 0xaa, 0xbb,
+        0x03, 0x00, 0xcc, 0xdd, 0xee,
+      ]);
+      const result = decodeAttReadMultipleVariableResponse(buf, "0x0040", []);
+      expect(result?.summary).toBe(
+        "handle:0x0040 ATT Read Multiple Variable Response (2 values)"
+      );
+      expect(result?.fields[0].name).toBe("Value 1 (2 B)");
+      expect(result?.fields[0].value).toContain("aa bb");
+      expect(result?.fields[1].name).toBe("Value 2 (3 B)");
+      expect(result?.fields[1].value).toContain("cc dd ee");
+    });
+
+    it("decodes a zero-length tuple", () => {
+      // tuple 1: len 0, no value
+      // tuple 2: len 2, value AA BB
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x21,
+        0x00, 0x00,
+        0x02, 0x00, 0xaa, 0xbb,
+      ]);
+      const result = decodeAttReadMultipleVariableResponse(buf, "0x0040", []);
+      expect(result?.summary).toBe(
+        "handle:0x0040 ATT Read Multiple Variable Response (2 values)"
+      );
+      expect(result?.fields[0].name).toBe("Value 1 (0 B)");
+      expect(result?.fields[0].value).toBe("(empty)");
+      expect(result?.fields[1].name).toBe("Value 2 (2 B)");
+    });
+
+    it("flags a truncated final tuple where declared length overruns the buffer", () => {
+      // tuple 1: len 2, value AA BB (well-formed)
+      // tuple 2: len 5 declared but only 2 bytes remain
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x21,
+        0x02, 0x00, 0xaa, 0xbb,
+        0x05, 0x00, 0xcc, 0xdd,
+      ]);
+      const result = decodeAttReadMultipleVariableResponse(buf, "0x0040", []);
+      expect(result?.summary).toBe(
+        "handle:0x0040 ATT Read Multiple Variable Response (2 values)"
+      );
+      expect(result?.fields[1].name).toContain("declared");
+      const truncated = result?.fields.find((f) => f.name === "Truncated");
+      expect(truncated?.value).toContain("exceeds remaining");
+    });
+
+    it("accepts an empty response", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x21,
+      ]);
+      const result = decodeAttReadMultipleVariableResponse(buf, "0x0040", []);
+      expect(result?.summary).toBe(
+        "handle:0x0040 ATT Read Multiple Variable Response (0 values)"
+      );
+      expect(result?.fields).toEqual([]);
+    });
+
+    it("flags a 1-byte trailing fragment (incomplete length prefix)", () => {
+      // tuple 1: len 2, value AA BB
+      // trailing: single byte 0x99 (not enough for a length prefix)
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x21,
+        0x02, 0x00, 0xaa, 0xbb,
+        0x99,
+      ]);
+      const result = decodeAttReadMultipleVariableResponse(buf, "0x0040", []);
+      expect(result?.summary).toBe(
+        "handle:0x0040 ATT Read Multiple Variable Response (2 values)"
+      );
+      const truncated = result?.fields.find((f) => f.name === "Truncated");
+      expect(truncated?.value).toBe("1 byte(s)");
     });
   });
 });
