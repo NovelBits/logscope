@@ -13,6 +13,8 @@ import {
   decodeAttReadByTypeResponse,
   decodeAttReadByGroupTypeRequest,
   decodeAttReadByGroupTypeResponse,
+  decodeAttReadBlobRequest,
+  decodeAttReadBlobResponse,
 } from "../../src/parser/att-decoders";
 
 describe("ATT stub decoders (zero-payload)", () => {
@@ -540,6 +542,78 @@ describe("Read By Group Type (0x10 / 0x11)", () => {
       const result = decodeAttReadByGroupTypeResponse(buf, "0x0040", []);
       const truncated = result?.fields.find((f) => f.name === "Truncated");
       expect(truncated?.value).toBe("1 byte(s)");
+    });
+  });
+});
+
+describe("Read Blob (0x0c / 0x0d)", () => {
+  describe("Request (0x0c)", () => {
+    it("decodes handle + offset", () => {
+      // opcode 0x0c, handle 0x0010, offset 0x0014 (20)
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x0c,
+        0x10, 0x00,
+        0x14, 0x00,
+      ]);
+      const result = decodeAttReadBlobRequest(buf, "0x0040", []);
+      expect(result?.summary).toBe(
+        "handle:0x0040 ATT Read Blob Request (handle: 0x0010, offset: 20)"
+      );
+      expect(result?.fields).toEqual([
+        { name: "ATT Handle", value: "0x0010" },
+        { name: "Value Offset", value: "20" },
+      ]);
+    });
+
+    it("returns null on truncated payload (missing offset)", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x0c,
+        0x10, 0x00,
+      ]);
+      expect(decodeAttReadBlobRequest(buf, "0x0040", [])).toBeNull();
+    });
+  });
+
+  describe("Response (0x0d)", () => {
+    it("decodes a non-empty value", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x0d,
+        0x48, 0x65, 0x6c, 0x6c, 0x6f,
+      ]);
+      const result = decodeAttReadBlobResponse(buf, "0x0040", []);
+      expect(result?.summary).toBe("handle:0x0040 ATT Read Blob Response (5 bytes)");
+      expect(result?.fields[0]).toEqual({ name: "Length", value: "5" });
+      expect(result?.fields[1].name).toBe("Value");
+      expect(result?.fields[1].value).toContain("48 65 6c 6c 6f");
+      expect(result?.fields[1].value).toContain("Hello");
+    });
+
+    it("accepts a zero-length value", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x0d,
+      ]);
+      const result = decodeAttReadBlobResponse(buf, "0x0040", []);
+      expect(result?.summary).toBe("handle:0x0040 ATT Read Blob Response (0 bytes)");
+      expect(result?.fields[0]).toEqual({ name: "Length", value: "0" });
+      expect(result?.fields[1]).toEqual({ name: "Value", value: "(empty)" });
+    });
+
+    it("decodes a large 22-byte value (typical post-MTU-exchange blob chunk)", () => {
+      const valueBytes = new Array(22).fill(0).map((_, i) => i + 1);
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x0d,
+        ...valueBytes,
+      ]);
+      const result = decodeAttReadBlobResponse(buf, "0x0040", []);
+      expect(result?.summary).toBe("handle:0x0040 ATT Read Blob Response (22 bytes)");
+      expect(result?.fields[0]).toEqual({ name: "Length", value: "22" });
+      expect(result?.fields[1].value).toContain("01 02 03");
+      expect(result?.fields[1].value).toContain("16");
     });
   });
 });

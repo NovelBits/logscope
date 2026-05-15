@@ -497,6 +497,54 @@ export function decodeAttReadByGroupTypeResponse(
   };
 }
 
+/**
+ * ATT Read Blob Request (0x0c). Core Spec v6.3 Vol 3 Part F §3.4.4.5.
+ *
+ * Body: Attribute Handle (2B) + Value Offset (2B). Minimum body 4 bytes;
+ * minimum total payload 13 bytes (8-byte L2CAP prefix + opcode + 4 body).
+ */
+export function decodeAttReadBlobRequest(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  if (payload.length < 13) return null;
+  const attHandle = payload.readUInt16LE(9);
+  const offset = payload.readUInt16LE(11);
+  fields.push(
+    field("ATT Handle", fmtHandle(attHandle)),
+    field("Value Offset", offset.toString()),
+  );
+  return {
+    summary: `handle:${handleStr} ATT Read Blob Request (handle: ${fmtHandle(attHandle)}, offset: ${offset})`,
+    fields,
+  };
+}
+
+/**
+ * ATT Read Blob Response (0x0d). Core Spec v6.3 Vol 3 Part F §3.4.4.6.
+ *
+ * Body: Part Attribute Value (variable, up to MTU-1 bytes). Zero length is
+ * valid per spec — server may return an empty value if there's nothing more
+ * to read at the requested offset.
+ */
+export function decodeAttReadBlobResponse(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  if (payload.length < 9) return null;
+  const value = payload.subarray(9);
+  fields.push(
+    field("Length", value.length.toString()),
+    field("Value", formatValueBytes(value)),
+  );
+  return {
+    summary: `handle:${handleStr} ATT Read Blob Response (${value.length} bytes)`,
+    fields,
+  };
+}
+
 export const attDecoders: Record<number, AttDecoder> = {
   0x01: decodeAttErrorResponse,
   0x02: decodeAttExchangeMtu,
@@ -509,6 +557,8 @@ export const attDecoders: Record<number, AttDecoder> = {
   0x09: decodeAttReadByTypeResponse,
   0x0a: decodeAttReadRequest,
   0x0b: decodeAttReadResponse,
+  0x0c: decodeAttReadBlobRequest,
+  0x0d: decodeAttReadBlobResponse,
   0x10: decodeAttReadByGroupTypeRequest,
   0x11: decodeAttReadByGroupTypeResponse,
   0x12: decodeAttWriteOrNotify,
