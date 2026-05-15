@@ -796,6 +796,36 @@ export function decodeAttExecuteWriteResponse(
 }
 
 /**
+ * ATT Handle Value Indication (0x1d). Core Spec v6.3 Vol 3 Part F §3.4.7.2.
+ *
+ * Body: Attribute Handle (2B LE) + Value (variable, up to MTU-3 bytes).
+ * Minimum body 2 bytes (handle only, zero-length value permitted). Minimum
+ * total payload: 8 (L2CAP prefix) + 1 (opcode) + 2 = 11.
+ *
+ * Wire format is identical to 0x1b Handle Value Notification. The semantic
+ * difference is that the receiver must acknowledge with 0x1e Handle Value
+ * Confirmation. For Sprint A we just decode the PDU; the confirmation pairing
+ * is a Sprint B aggregation concern.
+ */
+export function decodeAttHandleValueIndication(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  if (payload.length < 11) return null;
+  const attHandle = payload.readUInt16LE(9);
+  const value = payload.subarray(11);
+  fields.push(
+    field("ATT Handle", fmtHandle(attHandle)),
+    field("Value", formatValueBytes(value)),
+  );
+  return {
+    summary: `handle:${handleStr} ATT Handle Value Indication (handle: ${fmtHandle(attHandle)})`,
+    fields,
+  };
+}
+
+/**
  * ATT Signed Write Command (0xd2). Core Spec v6.3 Vol 3 Part F §3.4.5.4.
  *
  * Body: Attribute Handle (2B) + Value (variable, up to MTU-15 bytes) +
@@ -853,6 +883,7 @@ export const attDecoders: Record<number, AttDecoder> = {
   0x18: decodeAttExecuteWriteRequest,
   0x19: decodeAttExecuteWriteResponse,
   0x1b: decodeAttWriteOrNotify,
+  0x1d: decodeAttHandleValueIndication,
   0x1e: decodeAttHandleValueConfirmation,
   0x20: decodeAttReadMultipleVariableRequest,
   0x21: decodeAttReadMultipleVariableResponse,

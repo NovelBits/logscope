@@ -24,6 +24,7 @@ import {
   decodeAttExecuteWriteRequest,
   decodeAttExecuteWriteResponse,
   decodeAttSignedWriteCommand,
+  decodeAttHandleValueIndication,
 } from "../../src/parser/att-decoders";
 
 describe("ATT stub decoders (zero-payload)", () => {
@@ -1027,5 +1028,63 @@ describe("Signed Write Command (0xd2)", () => {
       "handle:0x0040 ATT Signed Write Command (handle: 0x0010)"
     );
     expect(result?.fields[1]).toEqual({ name: "Value", value: "(empty)" });
+  });
+});
+
+describe("Handle Value Indication (0x1d)", () => {
+  it("decodes a well-formed indication with value bytes", () => {
+    // opcode 0x1d, handle 0x0010, value "Hi" (0x48 0x69)
+    const buf = Buffer.from([
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0x1d,
+      0x10, 0x00,
+      0x48, 0x69,
+    ]);
+    const result = decodeAttHandleValueIndication(buf, "0x0040", []);
+    expect(result?.summary).toBe(
+      "handle:0x0040 ATT Handle Value Indication (handle: 0x0010)"
+    );
+    expect(result?.fields[0]).toEqual({ name: "ATT Handle", value: "0x0010" });
+    expect(result?.fields[1].name).toBe("Value");
+    expect(result?.fields[1].value).toContain("48 69");
+    expect(result?.fields[1].value).toContain("Hi");
+  });
+
+  it("accepts an indication with a zero-length value (handle only)", () => {
+    const buf = Buffer.from([
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0x1d,
+      0x20, 0x00,
+    ]);
+    expect(buf.length).toBe(11);
+    const result = decodeAttHandleValueIndication(buf, "0x0040", []);
+    expect(result?.summary).toBe(
+      "handle:0x0040 ATT Handle Value Indication (handle: 0x0020)"
+    );
+    expect(result?.fields[0]).toEqual({ name: "ATT Handle", value: "0x0020" });
+    expect(result?.fields[1]).toEqual({ name: "Value", value: "(empty)" });
+  });
+
+  it("returns null on truncated payload (less than 11 bytes total)", () => {
+    // 10 bytes: 8 prefix + opcode + 1 (missing one handle byte)
+    const buf = Buffer.from([
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0x1d,
+      0x10,
+    ]);
+    expect(buf.length).toBe(10);
+    expect(decodeAttHandleValueIndication(buf, "0x0040", [])).toBeNull();
+  });
+
+  it("summary text confirms Indication (not Notification)", () => {
+    const buf = Buffer.from([
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0x1d,
+      0x10, 0x00,
+      0xaa,
+    ]);
+    const result = decodeAttHandleValueIndication(buf, "0x0040", []);
+    expect(result?.summary).toContain("Indication");
+    expect(result?.summary).not.toContain("Notification");
   });
 });
