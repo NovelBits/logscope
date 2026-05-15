@@ -32,6 +32,14 @@ interface CompanyIdYaml {
   entries: Array<{ code: string; name: string }>;
 }
 
+interface UuidYaml {
+  schema: string;
+  source: string;
+  last_updated: string;
+  source_commit?: string;
+  entries: Array<{ code: string; name: string }>;
+}
+
 function renderErrorCodeModule(
   data: ErrorCodeYaml,
   constantName: string,
@@ -92,8 +100,39 @@ export function lookupCompanyId(code: number): string | null {
 `;
 }
 
+function renderUuidModule(
+  data: UuidYaml,
+  constantName: string,
+  lookupName: string,
+  label: string
+): string {
+  const header = `// GENERATED FILE — DO NOT EDIT BY HAND.
+// Source: packages/ble-spec/data/sig-mirror/${data.schema}.yaml
+// Regenerate with: npm run gen:ble-spec
+//
+// ${label}
+// Upstream: ${data.source}
+// Last updated: ${data.last_updated}${data.source_commit ? `\n// Upstream commit: ${data.source_commit}` : ""}
+`;
+
+  const entries = data.entries
+    .map((e) => `  ${e.code}: ${JSON.stringify(e.name)},`)
+    .join("\n");
+
+  return `${header}
+export const ${constantName}: Record<number, string> = {
+${entries}
+};
+
+export function ${lookupName}(code: number): string | null {
+  return ${constantName}[code] ?? null;
+}
+`;
+}
+
 interface GenSpec {
   yamlFile: string;
+  yamlDir?: string; // defaults to "novel-bits-curated"
   outFile: string;
   render: (raw: any) => string;
 }
@@ -137,6 +176,42 @@ const GENERATIONS: GenSpec[] = [
     outFile: "company-ids.ts",
     render: (raw) => renderCompanyIdsModule(raw),
   },
+  {
+    yamlFile: "service_uuids.yaml",
+    yamlDir: "sig-mirror",
+    outFile: "service-uuids.ts",
+    render: (raw) =>
+      renderUuidModule(
+        raw,
+        "SERVICE_UUIDS",
+        "lookupServiceUuid",
+        "Bluetooth SIG-defined 16-bit Service UUIDs (mirrors the SIG bitbucket assigned-numbers tree)."
+      ),
+  },
+  {
+    yamlFile: "characteristic_uuids.yaml",
+    yamlDir: "sig-mirror",
+    outFile: "characteristic-uuids.ts",
+    render: (raw) =>
+      renderUuidModule(
+        raw,
+        "CHARACTERISTIC_UUIDS",
+        "lookupCharacteristicUuid",
+        "Bluetooth SIG-defined 16-bit Characteristic UUIDs (mirrors the SIG bitbucket assigned-numbers tree)."
+      ),
+  },
+  {
+    yamlFile: "descriptor_uuids.yaml",
+    yamlDir: "sig-mirror",
+    outFile: "descriptor-uuids.ts",
+    render: (raw) =>
+      renderUuidModule(
+        raw,
+        "DESCRIPTOR_UUIDS",
+        "lookupDescriptorUuid",
+        "Bluetooth SIG-defined 16-bit Descriptor UUIDs (mirrors the SIG bitbucket assigned-numbers tree)."
+      ),
+  },
 ];
 
 function main() {
@@ -144,7 +219,8 @@ function main() {
   let drifted = false;
 
   for (const spec of GENERATIONS) {
-    const inputPath = join(DATA_DIR, spec.yamlFile);
+    const subdir = spec.yamlDir ?? "novel-bits-curated";
+    const inputPath = join(PACKAGE_ROOT, "data", subdir, spec.yamlFile);
     if (!existsSync(inputPath)) {
       console.error(`SKIP: ${inputPath} does not exist`);
       continue;
