@@ -11,12 +11,13 @@
  */
 
 import { DecodedField, DecodedPacket } from "./types";
-import { lookupAttError } from "@novelbits/ble-spec";
+import { lookupAttError, lookupDescriptorUuid } from "@novelbits/ble-spec";
 import {
   COLOR_ERROR,
   field,
   fieldWithSpec,
   fmtHandle,
+  format128BitUuid,
   formatValueBytes,
   attOpcodeName,
 } from "./hci-decoders-shared";
@@ -148,10 +149,76 @@ export function decodeAttHandleValueConfirmation(
   };
 }
 
+export function decodeAttFindInformationRequest(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  // ATT opcode at offset 8; body bytes start at offset 9.
+  // Need: 4 body bytes (start handle 2B + end handle 2B) = 13 bytes total.
+  if (payload.length < 13) return null;
+  const startHandle = payload.readUInt16LE(9);
+  const endHandle = payload.readUInt16LE(11);
+  fields.push(
+    field("Starting Handle", fmtHandle(startHandle)),
+    field("Ending Handle", fmtHandle(endHandle)),
+  );
+  return {
+    summary: `handle:${handleStr} ATT Find Information Request (${fmtHandle(startHandle)}-${fmtHandle(endHandle)})`,
+    fields,
+  };
+}
+
+export function decodeAttFindInformationResponse(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  // Opcode at 8, format byte at 9, list starts at 10.
+  if (payload.length < 10) return null;
+  const format = payload[9];
+  const entrySize = format === 0x01 ? 4 : format === 0x02 ? 18 : null;
+  if (entrySize === null) {
+    fields.push(field("Format", `0x${format.toString(16).padStart(2, "0")} (invalid)`, COLOR_ERROR));
+    return { summary: `handle:${handleStr} ATT Find Information Response (invalid format)`, fields };
+  }
+
+  fields.push(field("Format", format === 0x01 ? "16-bit UUIDs" : "128-bit UUIDs"));
+
+  const list = payload.subarray(10);
+  const fullEntries = Math.floor(list.length / entrySize);
+  const leftover = list.length - fullEntries * entrySize;
+
+  for (let i = 0; i < fullEntries; i++) {
+    const offset = i * entrySize;
+    const attrHandle = list.readUInt16LE(offset);
+    let uuidLabel: string;
+    if (format === 0x01) {
+      const uuid16 = list.readUInt16LE(offset + 2);
+      const name = lookupDescriptorUuid(uuid16);
+      const hex = `0x${uuid16.toString(16).padStart(4, "0").toUpperCase()}`;
+      uuidLabel = name ? `${name} (${hex})` : hex;
+    } else {
+      uuidLabel = format128BitUuid(list.subarray(offset + 2, offset + 18));
+    }
+    fields.push(field(`Entry ${i + 1}`, `${fmtHandle(attrHandle)} -> ${uuidLabel}`));
+  }
+  if (leftover > 0) {
+    fields.push(field("Truncated", `${leftover} byte(s)`, COLOR_ERROR));
+  }
+
+  return {
+    summary: `handle:${handleStr} ATT Find Information Response (${fullEntries} entry${fullEntries === 1 ? "" : "ies"})`,
+    fields,
+  };
+}
+
 export const attDecoders: Record<number, AttDecoder> = {
   0x01: decodeAttErrorResponse,
   0x02: decodeAttExchangeMtu,
   0x03: decodeAttExchangeMtu,
+  0x04: decodeAttFindInformationRequest,
+  0x05: decodeAttFindInformationResponse,
   0x0a: decodeAttReadRequest,
   0x0b: decodeAttReadResponse,
   0x12: decodeAttWriteOrNotify,

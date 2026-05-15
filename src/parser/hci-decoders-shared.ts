@@ -51,3 +51,18 @@ export function fmtHandle(h: number): string {
 export function attOpcodeName(opcode: number): string {
   return attOpcodeNameImpl(opcode);
 }
+
+/**
+ * Format a 16-byte little-endian UUID buffer as a standard textual UUID
+ * (8-4-4-4-12 hex with hyphens, big-endian). Used for 128-bit UUIDs in
+ * ATT responses where the SIG transmits little-endian on the wire but
+ * humans read big-endian.
+ */
+export function format128BitUuid(buf: Buffer): string {
+  if (buf.length !== 16) {
+    return buf.toString("hex").toUpperCase();
+  }
+  const bytes = Buffer.from(buf).reverse();
+  const hex = bytes.toString("hex").toUpperCase();
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
