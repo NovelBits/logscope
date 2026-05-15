@@ -213,7 +213,7 @@ export function decodeAttFindInformationResponse(
   }
 
   return {
-    summary: `handle:${handleStr} ATT Find Information Response (${fullEntries} entry${fullEntries === 1 ? "" : "ies"})`,
+    summary: `handle:${handleStr} ATT Find Information Response (${fullEntries} entr${fullEntries === 1 ? "y" : "ies"})`,
     fields,
   };
 }
