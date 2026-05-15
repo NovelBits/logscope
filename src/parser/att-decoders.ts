@@ -750,6 +750,51 @@ export function decodeAttPrepareWriteResponse(
   return decodeAttPrepareWriteBody(payload, handleStr, fields, "Response");
 }
 
+/**
+ * ATT Execute Write Request (0x18). Core Spec v6.3 Vol 3 Part F §3.4.6.3.
+ *
+ * Body: Flags (1B). 0x00 = Cancel all prepared writes; 0x01 = Immediately
+ * write all pending prepared values. Any other value is reserved and flagged
+ * with COLOR_ERROR.
+ */
+export function decodeAttExecuteWriteRequest(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  // Need opcode + 1 flags byte = 8 + 1 + 1 = 10 bytes total.
+  if (payload.length < 10) return null;
+  const flags = payload[9];
+  let label: string;
+  if (flags === 0x00) {
+    label = "Cancel";
+    fields.push(field("Flags", "Cancel"));
+  } else if (flags === 0x01) {
+    label = "Commit";
+    fields.push(field("Flags", "Commit"));
+  } else {
+    const hex = `0x${flags.toString(16).padStart(2, "0").toUpperCase()} (reserved)`;
+    label = "reserved";
+    fields.push(field("Flags", hex, COLOR_ERROR));
+  }
+  return {
+    summary: `handle:${handleStr} ATT Execute Write Request (${label})`,
+    fields,
+  };
+}
+
+/** ATT Execute Write Response (0x19) — zero-payload, like Write Response. */
+export function decodeAttExecuteWriteResponse(
+  _payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket {
+  return {
+    summary: `handle:${handleStr} ATT Execute Write Response`,
+    fields,
+  };
+}
+
 export const attDecoders: Record<number, AttDecoder> = {
   0x01: decodeAttErrorResponse,
   0x02: decodeAttExchangeMtu,
@@ -772,6 +817,8 @@ export const attDecoders: Record<number, AttDecoder> = {
   0x13: decodeAttWriteResponse,
   0x16: decodeAttPrepareWriteRequest,
   0x17: decodeAttPrepareWriteResponse,
+  0x18: decodeAttExecuteWriteRequest,
+  0x19: decodeAttExecuteWriteResponse,
   0x1b: decodeAttWriteOrNotify,
   0x1e: decodeAttHandleValueConfirmation,
   0x20: decodeAttReadMultipleVariableRequest,

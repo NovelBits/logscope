@@ -21,6 +21,8 @@ import {
   decodeAttReadMultipleVariableResponse,
   decodeAttPrepareWriteRequest,
   decodeAttPrepareWriteResponse,
+  decodeAttExecuteWriteRequest,
+  decodeAttExecuteWriteResponse,
 } from "../../src/parser/att-decoders";
 
 describe("ATT stub decoders (zero-payload)", () => {
@@ -904,6 +906,56 @@ describe("Prepare Write (0x16 / 0x17)", () => {
         []
       );
       expect(rsp?.fields).toEqual(req?.fields);
+    });
+  });
+});
+
+describe("Execute Write (0x18 / 0x19)", () => {
+  describe("Request (0x18)", () => {
+    it("decodes the Cancel flag (0x00)", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x18,
+        0x00,
+      ]);
+      const result = decodeAttExecuteWriteRequest(buf, "0x0040", []);
+      expect(result?.summary).toBe("handle:0x0040 ATT Execute Write Request (Cancel)");
+      expect(result?.fields).toEqual([{ name: "Flags", value: "Cancel" }]);
+    });
+
+    it("decodes the Commit flag (0x01)", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x18,
+        0x01,
+      ]);
+      const result = decodeAttExecuteWriteRequest(buf, "0x0040", []);
+      expect(result?.summary).toBe("handle:0x0040 ATT Execute Write Request (Commit)");
+      expect(result?.fields).toEqual([{ name: "Flags", value: "Commit" }]);
+    });
+
+    it("flags a reserved flag value", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x18,
+        0x77,
+      ]);
+      const result = decodeAttExecuteWriteRequest(buf, "0x0040", []);
+      expect(result?.summary).toBe("handle:0x0040 ATT Execute Write Request (reserved)");
+      expect(result?.fields[0].name).toBe("Flags");
+      expect(result?.fields[0].value).toBe("0x77 (reserved)");
+    });
+  });
+
+  describe("Response (0x19)", () => {
+    it("renders summary with handle (zero payload)", () => {
+      const result = decodeAttExecuteWriteResponse(
+        Buffer.from([0, 0, 0, 0, 0, 0, 0, 0, 0x19]),
+        "0x0040",
+        []
+      );
+      expect(result?.summary).toBe("handle:0x0040 ATT Execute Write Response");
+      expect(result?.fields).toEqual([]);
     });
   });
 });
