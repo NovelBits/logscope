@@ -15,6 +15,8 @@ import {
   decodeAttReadByGroupTypeResponse,
   decodeAttReadBlobRequest,
   decodeAttReadBlobResponse,
+  decodeAttReadMultipleRequest,
+  decodeAttReadMultipleResponse,
 } from "../../src/parser/att-decoders";
 
 describe("ATT stub decoders (zero-payload)", () => {
@@ -614,6 +616,89 @@ describe("Read Blob (0x0c / 0x0d)", () => {
       expect(result?.fields[0]).toEqual({ name: "Length", value: "22" });
       expect(result?.fields[1].value).toContain("01 02 03");
       expect(result?.fields[1].value).toContain("16");
+    });
+  });
+});
+
+describe("Read Multiple (0x0e / 0x0f)", () => {
+  describe("Request (0x0e)", () => {
+    it("decodes a request with 2 handles", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x0e,
+        0x10, 0x00,
+        0x20, 0x00,
+      ]);
+      const result = decodeAttReadMultipleRequest(buf, "0x0040", []);
+      expect(result?.summary).toBe("handle:0x0040 ATT Read Multiple Request (2 handles)");
+      expect(result?.fields).toEqual([
+        { name: "Handle 1", value: "0x0010" },
+        { name: "Handle 2", value: "0x0020" },
+      ]);
+    });
+
+    it("decodes a request with 5 handles", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x0e,
+        0x10, 0x00,
+        0x20, 0x00,
+        0x30, 0x00,
+        0x40, 0x00,
+        0x50, 0x00,
+      ]);
+      const result = decodeAttReadMultipleRequest(buf, "0x0040", []);
+      expect(result?.summary).toBe("handle:0x0040 ATT Read Multiple Request (5 handles)");
+      expect(result?.fields).toHaveLength(5);
+      expect(result?.fields[4]).toEqual({ name: "Handle 5", value: "0x0050" });
+    });
+
+    it("returns null on request with only 1 handle (spec requires min 2)", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x0e,
+        0x10, 0x00,
+      ]);
+      expect(decodeAttReadMultipleRequest(buf, "0x0040", [])).toBeNull();
+    });
+
+    it("flags an odd trailing byte as truncated", () => {
+      // 2 valid handles + 1 trailing byte (5 body bytes, body.length=5)
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x0e,
+        0x10, 0x00,
+        0x20, 0x00,
+        0xab,
+      ]);
+      const result = decodeAttReadMultipleRequest(buf, "0x0040", []);
+      expect(result?.summary).toBe("handle:0x0040 ATT Read Multiple Request (2 handles)");
+      const truncated = result?.fields.find((f) => f.name === "Truncated");
+      expect(truncated?.value).toBe("1 byte(s)");
+    });
+  });
+
+  describe("Response (0x0f)", () => {
+    it("decodes a concatenated value", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x0f,
+        0xaa, 0xbb, 0xcc, 0xdd,
+      ]);
+      const result = decodeAttReadMultipleResponse(buf, "0x0040", []);
+      expect(result?.summary).toBe("handle:0x0040 ATT Read Multiple Response (4 bytes)");
+      expect(result?.fields[0].name).toBe("Value");
+      expect(result?.fields[0].value).toContain("aa bb cc dd");
+    });
+
+    it("accepts an empty response", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x0f,
+      ]);
+      const result = decodeAttReadMultipleResponse(buf, "0x0040", []);
+      expect(result?.summary).toBe("handle:0x0040 ATT Read Multiple Response (0 bytes)");
+      expect(result?.fields[0]).toEqual({ name: "Value", value: "(empty)" });
     });
   });
 });

@@ -545,6 +545,64 @@ export function decodeAttReadBlobResponse(
   };
 }
 
+/**
+ * ATT Read Multiple Request (0x0e). Core Spec v6.3 Vol 3 Part F §3.4.4.7.
+ *
+ * Body: Set of Handles — at least 2 attribute handles, each 2 bytes (LE).
+ * The spec REQUIRES a minimum of two handles; a request carrying fewer is
+ * malformed. If the body has an odd byte count the trailing byte is flagged
+ * as Truncated.
+ */
+export function decodeAttReadMultipleRequest(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  // Need at least the opcode + 2 handles = 8 + 1 + 4 = 13 bytes total.
+  if (payload.length < 13) return null;
+  const body = payload.subarray(9);
+  const handleCount = Math.floor(body.length / 2);
+  const leftover = body.length - handleCount * 2;
+
+  for (let i = 0; i < handleCount; i++) {
+    const h = body.readUInt16LE(i * 2);
+    fields.push(field(`Handle ${i + 1}`, fmtHandle(h)));
+  }
+  if (leftover > 0) {
+    fields.push(field("Truncated", `${leftover} byte(s)`, COLOR_ERROR));
+  }
+
+  return {
+    summary: `handle:${handleStr} ATT Read Multiple Request (${handleCount} handles)`,
+    fields,
+  };
+}
+
+/**
+ * ATT Read Multiple Response (0x0f). Core Spec v6.3 Vol 3 Part F §3.4.4.8.
+ *
+ * Body: Set of Values — the attribute values for the requested handles,
+ * concatenated with NO per-handle delimiters. The client must use its own
+ * memory of the request's handle list to split the response.
+ *
+ * NOTE for Sprint B: aggregation will use the paired Read Multiple Request to
+ * split this concatenated value into per-handle slices. For Sprint A we just
+ * render the raw concatenated bytes.
+ */
+export function decodeAttReadMultipleResponse(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  if (payload.length < 9) return null;
+  const value = payload.subarray(9);
+  fields.push(field("Value", formatValueBytes(value)));
+  return {
+    summary: `handle:${handleStr} ATT Read Multiple Response (${value.length} bytes)`,
+    fields,
+  };
+}
+
 export const attDecoders: Record<number, AttDecoder> = {
   0x01: decodeAttErrorResponse,
   0x02: decodeAttExchangeMtu,
@@ -559,6 +617,8 @@ export const attDecoders: Record<number, AttDecoder> = {
   0x0b: decodeAttReadResponse,
   0x0c: decodeAttReadBlobRequest,
   0x0d: decodeAttReadBlobResponse,
+  0x0e: decodeAttReadMultipleRequest,
+  0x0f: decodeAttReadMultipleResponse,
   0x10: decodeAttReadByGroupTypeRequest,
   0x11: decodeAttReadByGroupTypeResponse,
   0x12: decodeAttWriteOrNotify,
