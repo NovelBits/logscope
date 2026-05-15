@@ -398,6 +398,105 @@ export function decodeAttReadByTypeResponse(
   };
 }
 
+/**
+ * ATT Read By Group Type Request (0x10). Core Spec v6.3 Vol 3 Part F §3.4.4.9.
+ *
+ * Body: same shape as Read By Type request — Starting Handle (2B) +
+ * Ending Handle (2B) + Attribute Group Type UUID (2B or 16B). Body length
+ * disambiguates UUID size: 6 → 16-bit, 20 → 128-bit.
+ */
+export function decodeAttReadByGroupTypeRequest(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  if (payload.length !== 15 && payload.length !== 29) return null;
+  const startHandle = payload.readUInt16LE(9);
+  const endHandle = payload.readUInt16LE(11);
+  let groupTypeLabel: string;
+  if (payload.length === 15) {
+    const uuid16 = payload.readUInt16LE(13);
+    groupTypeLabel = fmtUuid16WithLookup(uuid16);
+  } else {
+    groupTypeLabel = format128BitUuid(payload.subarray(13, 29));
+  }
+  fields.push(
+    field("Starting Handle", fmtHandle(startHandle)),
+    field("Ending Handle", fmtHandle(endHandle)),
+    field("Attribute Group Type", groupTypeLabel),
+  );
+  return {
+    summary: `handle:${handleStr} ATT Read By Group Type Request (${groupTypeLabel})`,
+    fields,
+  };
+}
+
+/**
+ * ATT Read By Group Type Response (0x11). Core Spec v6.3 Vol 3 Part F §3.4.4.10.
+ *
+ * Body: Length byte (1B) giving the size of each Attribute Data entry, then
+ * a list of entries each containing
+ * `Attribute Handle (2B) + End Group Handle (2B) + Attribute Value (length - 4 bytes)`.
+ *
+ * The dominant use is Primary Service discovery, where each value IS a
+ * service UUID. We resolve as follows: value length 2 → 16-bit, attempt
+ * `lookupServiceUuid` (services only, since this is the canonical use);
+ * value length 16 → format as 128-bit UUID; any other length → raw hex.
+ */
+export function decodeAttReadByGroupTypeResponse(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  if (payload.length < 10) return null;
+  const lengthByte = payload[9];
+  fields.push(field("Length", lengthByte.toString()));
+
+  if (lengthByte < 4) {
+    fields.push(field("Truncated", `invalid length byte: ${lengthByte} (must be >= 4)`, COLOR_ERROR));
+    return {
+      summary: `handle:${handleStr} ATT Read By Group Type Response (invalid length)`,
+      fields,
+    };
+  }
+
+  const list = payload.subarray(10);
+  const fullEntries = Math.floor(list.length / lengthByte);
+  const leftover = list.length - fullEntries * lengthByte;
+  const valueSize = lengthByte - 4;
+
+  for (let i = 0; i < fullEntries; i++) {
+    const offset = i * lengthByte;
+    const attrHandle = list.readUInt16LE(offset);
+    const endGroupHandle = list.readUInt16LE(offset + 2);
+    const valueBytes = list.subarray(offset + 4, offset + 4 + valueSize);
+
+    let valueLabel: string;
+    if (valueSize === 2) {
+      const uuid16 = valueBytes.readUInt16LE(0);
+      const name = lookupServiceUuid(uuid16);
+      const hex = `0x${uuid16.toString(16).padStart(4, "0").toUpperCase()}`;
+      valueLabel = name ? `${name} (${hex})` : hex;
+    } else if (valueSize === 16) {
+      valueLabel = format128BitUuid(valueBytes);
+    } else {
+      valueLabel = formatValueBytes(valueBytes);
+    }
+
+    fields.push(
+      field(`Entry ${i + 1}`, `${fmtHandle(attrHandle)}-${fmtHandle(endGroupHandle)} -> ${valueLabel}`),
+    );
+  }
+  if (leftover > 0) {
+    fields.push(field("Truncated", `${leftover} byte(s)`, COLOR_ERROR));
+  }
+
+  return {
+    summary: `handle:${handleStr} ATT Read By Group Type Response (${fullEntries} entr${fullEntries === 1 ? "y" : "ies"})`,
+    fields,
+  };
+}
+
 export const attDecoders: Record<number, AttDecoder> = {
   0x01: decodeAttErrorResponse,
   0x02: decodeAttExchangeMtu,
@@ -410,6 +509,8 @@ export const attDecoders: Record<number, AttDecoder> = {
   0x09: decodeAttReadByTypeResponse,
   0x0a: decodeAttReadRequest,
   0x0b: decodeAttReadResponse,
+  0x10: decodeAttReadByGroupTypeRequest,
+  0x11: decodeAttReadByGroupTypeResponse,
   0x12: decodeAttWriteOrNotify,
   0x13: decodeAttWriteResponse,
   0x1b: decodeAttWriteOrNotify,

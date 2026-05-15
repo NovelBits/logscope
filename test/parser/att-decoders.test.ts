@@ -11,6 +11,8 @@ import {
   decodeAttFindByTypeValueResponse,
   decodeAttReadByTypeRequest,
   decodeAttReadByTypeResponse,
+  decodeAttReadByGroupTypeRequest,
+  decodeAttReadByGroupTypeResponse,
 } from "../../src/parser/att-decoders";
 
 describe("ATT stub decoders (zero-payload)", () => {
@@ -374,6 +376,168 @@ describe("Read By Type (0x08 / 0x09)", () => {
         0xcc,
       ]);
       const result = decodeAttReadByTypeResponse(buf, "0x0040", []);
+      const truncated = result?.fields.find((f) => f.name === "Truncated");
+      expect(truncated?.value).toBe("1 byte(s)");
+    });
+  });
+});
+
+describe("Read By Group Type (0x10 / 0x11)", () => {
+  describe("Request (0x10)", () => {
+    it("decodes 16-bit group type resolved by name", () => {
+      // opcode 0x10, start 0x0001, end 0xFFFF, group type 0x180D (Heart Rate)
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x10,
+        0x01, 0x00,
+        0xff, 0xff,
+        0x0d, 0x18,
+      ]);
+      const result = decodeAttReadByGroupTypeRequest(buf, "0x0040", []);
+      expect(result?.summary).toBe(
+        "handle:0x0040 ATT Read By Group Type Request (Heart Rate (0x180D))"
+      );
+      expect(result?.fields).toEqual([
+        { name: "Starting Handle", value: "0x0001" },
+        { name: "Ending Handle", value: "0xFFFF" },
+        { name: "Attribute Group Type", value: "Heart Rate (0x180D)" },
+      ]);
+    });
+
+    it("falls back to raw hex for unknown 16-bit group type", () => {
+      // 0x2800 (Primary Service declaration) isn't in any SIG UUID table
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x10,
+        0x01, 0x00,
+        0xff, 0xff,
+        0x00, 0x28,
+      ]);
+      const result = decodeAttReadByGroupTypeRequest(buf, "0x0040", []);
+      expect(result?.summary).toBe("handle:0x0040 ATT Read By Group Type Request (0x2800)");
+      expect(result?.fields[2].value).toBe("0x2800");
+    });
+
+    it("decodes 128-bit group type", () => {
+      const nordicUart = [0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0, 0x93, 0xf3, 0xa3, 0xb5, 0x01, 0x00, 0x40, 0x6e];
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x10,
+        0x01, 0x00,
+        0xff, 0xff,
+        ...nordicUart,
+      ]);
+      const result = decodeAttReadByGroupTypeRequest(buf, "0x0040", []);
+      expect(result?.summary).toBe(
+        "handle:0x0040 ATT Read By Group Type Request (6E400001-B5A3-F393-E0A9-E50E24DCCA9E)"
+      );
+      expect(result?.fields[2].value).toBe("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");
+    });
+
+    it("returns null on truncated payload", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x10,
+        0x01, 0x00,
+        0xff, 0xff,
+        0x0d,
+      ]);
+      expect(decodeAttReadByGroupTypeRequest(buf, "0x0040", [])).toBeNull();
+    });
+  });
+
+  describe("Response (0x11)", () => {
+    it("decodes a single entry with 16-bit service UUID resolved", () => {
+      // length=6 (handle 2B + endGroup 2B + value 2B), one entry:
+      // 0x0001-0x0005 -> 0x180D (Heart Rate)
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x11,
+        0x06,
+        0x01, 0x00,
+        0x05, 0x00,
+        0x0d, 0x18,
+      ]);
+      const result = decodeAttReadByGroupTypeResponse(buf, "0x0040", []);
+      expect(result?.summary).toBe("handle:0x0040 ATT Read By Group Type Response (1 entry)");
+      expect(result?.fields[0]).toEqual({ name: "Length", value: "6" });
+      expect(result?.fields[1]).toEqual({
+        name: "Entry 1",
+        value: "0x0001-0x0005 -> Heart Rate (0x180D)",
+      });
+    });
+
+    it("decodes multiple entries with mixed known/unknown UUIDs", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x11,
+        0x06,
+        0x01, 0x00, 0x05, 0x00, 0x0d, 0x18,
+        0x06, 0x00, 0x0a, 0x00, 0x0f, 0x18,
+        0x0b, 0x00, 0x10, 0x00, 0x99, 0x99,
+      ]);
+      const result = decodeAttReadByGroupTypeResponse(buf, "0x0040", []);
+      expect(result?.summary).toBe("handle:0x0040 ATT Read By Group Type Response (3 entries)");
+      expect(result?.fields[1].value).toBe("0x0001-0x0005 -> Heart Rate (0x180D)");
+      expect(result?.fields[2].value).toBe("0x0006-0x000A -> Battery (0x180F)");
+      expect(result?.fields[3].value).toBe("0x000B-0x0010 -> 0x9999");
+    });
+
+    it("decodes a 128-bit value", () => {
+      // length = 4 + 16 = 20
+      const nordicUart = [0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0, 0x93, 0xf3, 0xa3, 0xb5, 0x01, 0x00, 0x40, 0x6e];
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x11,
+        0x14,
+        0x01, 0x00,
+        0x0f, 0x00,
+        ...nordicUart,
+      ]);
+      const result = decodeAttReadByGroupTypeResponse(buf, "0x0040", []);
+      expect(result?.fields[1].value).toBe(
+        "0x0001-0x000F -> 6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
+      );
+    });
+
+    it("renders raw hex for a non-UUID-sized value", () => {
+      // length = 4 + 3 = 7 (value is 3 bytes, neither 2 nor 16 → raw hex)
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x11,
+        0x07,
+        0x01, 0x00,
+        0x05, 0x00,
+        0xaa, 0xbb, 0xcc,
+      ]);
+      const result = decodeAttReadByGroupTypeResponse(buf, "0x0040", []);
+      expect(result?.fields[1].value).toContain("0x0001-0x0005 -> ");
+      expect(result?.fields[1].value).toContain("aa bb cc");
+    });
+
+    it("flags malformed length byte (length == 3)", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x11,
+        0x03,
+      ]);
+      const result = decodeAttReadByGroupTypeResponse(buf, "0x0040", []);
+      expect(result?.summary).toBe(
+        "handle:0x0040 ATT Read By Group Type Response (invalid length)"
+      );
+      const truncated = result?.fields.find((f) => f.name === "Truncated");
+      expect(truncated?.value).toContain("must be >= 4");
+    });
+
+    it("flags trailing bytes that don't form a full entry", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x11,
+        0x06,
+        0x01, 0x00, 0x05, 0x00, 0x0d, 0x18,
+        0xab,
+      ]);
+      const result = decodeAttReadByGroupTypeResponse(buf, "0x0040", []);
       const truncated = result?.fields.find((f) => f.name === "Truncated");
       expect(truncated?.value).toBe("1 byte(s)");
     });
