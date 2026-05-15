@@ -23,6 +23,7 @@ import {
   decodeAttPrepareWriteResponse,
   decodeAttExecuteWriteRequest,
   decodeAttExecuteWriteResponse,
+  decodeAttSignedWriteCommand,
 } from "../../src/parser/att-decoders";
 
 describe("ATT stub decoders (zero-payload)", () => {
@@ -957,5 +958,74 @@ describe("Execute Write (0x18 / 0x19)", () => {
       expect(result?.summary).toBe("handle:0x0040 ATT Execute Write Response");
       expect(result?.fields).toEqual([]);
     });
+  });
+});
+
+describe("Signed Write Command (0xd2)", () => {
+  it("decodes a well-formed command with a value", () => {
+    // opcode 0xd2, handle 0x0010, value 5 bytes "Hello", signature 12 bytes 0xAA repeated
+    const signature = new Array(12).fill(0xaa);
+    const buf = Buffer.from([
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0xd2,
+      0x10, 0x00,
+      0x48, 0x65, 0x6c, 0x6c, 0x6f,
+      ...signature,
+    ]);
+    const result = decodeAttSignedWriteCommand(buf, "0x0040", []);
+    expect(result?.summary).toBe(
+      "handle:0x0040 ATT Signed Write Command (handle: 0x0010)"
+    );
+    expect(result?.fields[0]).toEqual({ name: "ATT Handle", value: "0x0010" });
+    expect(result?.fields[1].name).toBe("Value");
+    expect(result?.fields[1].value).toContain("48 65 6c 6c 6f");
+    expect(result?.fields[1].value).toContain("Hello");
+    expect(result?.fields[2].name).toBe("Signature");
+    expect(result?.fields[2].value).toContain("aa aa aa aa aa aa aa aa aa aa aa aa");
+  });
+
+  it("decodes a well-formed command with a zero-length value", () => {
+    const signature = new Array(12).fill(0xbb);
+    const buf = Buffer.from([
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0xd2,
+      0x20, 0x00,
+      ...signature,
+    ]);
+    const result = decodeAttSignedWriteCommand(buf, "0x0040", []);
+    expect(result?.summary).toBe(
+      "handle:0x0040 ATT Signed Write Command (handle: 0x0020)"
+    );
+    expect(result?.fields[0]).toEqual({ name: "ATT Handle", value: "0x0020" });
+    expect(result?.fields[1]).toEqual({ name: "Value", value: "(empty)" });
+    expect(result?.fields[2].value).toContain("bb bb bb bb bb bb bb bb bb bb bb bb");
+  });
+
+  it("returns null on truncated payload (less than min 23 bytes)", () => {
+    // 22 bytes total: 8 prefix + opcode + 2 handle + 11 (only 11 sig bytes)
+    const buf = Buffer.from([
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0xd2,
+      0x10, 0x00,
+      0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa,
+    ]);
+    expect(buf.length).toBe(22);
+    expect(decodeAttSignedWriteCommand(buf, "0x0040", [])).toBeNull();
+  });
+
+  it("accepts exact min-length boundary (23 bytes, zero-length value)", () => {
+    const signature = new Array(12).fill(0xcc);
+    const buf = Buffer.from([
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0xd2,
+      0x10, 0x00,
+      ...signature,
+    ]);
+    expect(buf.length).toBe(23);
+    const result = decodeAttSignedWriteCommand(buf, "0x0040", []);
+    expect(result?.summary).toBe(
+      "handle:0x0040 ATT Signed Write Command (handle: 0x0010)"
+    );
+    expect(result?.fields[1]).toEqual({ name: "Value", value: "(empty)" });
   });
 });

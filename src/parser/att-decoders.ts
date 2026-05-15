@@ -795,6 +795,39 @@ export function decodeAttExecuteWriteResponse(
   };
 }
 
+/**
+ * ATT Signed Write Command (0xd2). Core Spec v6.3 Vol 3 Part F §3.4.5.4.
+ *
+ * Body: Attribute Handle (2B) + Value (variable, up to MTU-15 bytes) +
+ * Authentication Signature (12B trailing). Minimum body 14 bytes (handle +
+ * 12-byte signature, with a zero-length value still permitted). Minimum
+ * total payload: 8 (L2CAP prefix) + 1 (opcode) + 14 = 23.
+ *
+ * The signature is the trailing 12 bytes; the Value sits between the handle
+ * and the signature.
+ */
+export function decodeAttSignedWriteCommand(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  if (payload.length < 23) return null;
+  const attHandle = payload.readUInt16LE(9);
+  const valueStart = 11;
+  const valueEnd = payload.length - 12;
+  const value = payload.subarray(valueStart, valueEnd);
+  const signature = payload.subarray(valueEnd);
+  fields.push(
+    field("ATT Handle", fmtHandle(attHandle)),
+    field("Value", formatValueBytes(value)),
+    field("Signature", formatValueBytes(signature)),
+  );
+  return {
+    summary: `handle:${handleStr} ATT Signed Write Command (handle: ${fmtHandle(attHandle)})`,
+    fields,
+  };
+}
+
 export const attDecoders: Record<number, AttDecoder> = {
   0x01: decodeAttErrorResponse,
   0x02: decodeAttExchangeMtu,
@@ -824,4 +857,5 @@ export const attDecoders: Record<number, AttDecoder> = {
   0x20: decodeAttReadMultipleVariableRequest,
   0x21: decodeAttReadMultipleVariableResponse,
   0x52: decodeAttWriteOrNotify,
+  0xd2: decodeAttSignedWriteCommand,
 };
