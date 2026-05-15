@@ -32,6 +32,14 @@ interface CompanyIdYaml {
   entries: Array<{ code: string; name: string }>;
 }
 
+interface UuidYaml {
+  schema: string;
+  source: string;
+  last_updated: string;
+  source_commit?: string;
+  entries: Array<{ code: string; name: string }>;
+}
+
 function renderErrorCodeModule(
   data: ErrorCodeYaml,
   constantName: string,
@@ -88,6 +96,36 @@ ${entries}
 
 export function lookupCompanyId(code: number): string | null {
   return BLUETOOTH_COMPANY_IDS[code] ?? null;
+}
+`;
+}
+
+function renderUuidModule(
+  data: UuidYaml,
+  constantName: string,
+  lookupName: string,
+  label: string
+): string {
+  const header = `// GENERATED FILE — DO NOT EDIT BY HAND.
+// Source: packages/ble-spec/data/sig-mirror/${data.schema}.yaml
+// Regenerate with: npm run gen:ble-spec
+//
+// ${label}
+// Upstream: ${data.source}
+// Last updated: ${data.last_updated}${data.source_commit ? `\n// Upstream commit: ${data.source_commit}` : ""}
+`;
+
+  const entries = data.entries
+    .map((e) => `  ${e.code}: ${JSON.stringify(e.name)},`)
+    .join("\n");
+
+  return `${header}
+export const ${constantName}: Record<number, string> = {
+${entries}
+};
+
+export function ${lookupName}(code: number): string | null {
+  return ${constantName}[code] ?? null;
 }
 `;
 }
