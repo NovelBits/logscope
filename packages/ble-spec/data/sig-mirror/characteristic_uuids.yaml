@@ -1,0 +1,514 @@
+# Bluetooth SIG-defined Characteristic UUIDs
+# Pinned snapshot from the Bluetooth SIG bitbucket repo.
+# Re-snapshot with packages/ble-spec/scripts/fetch-sig-uuids.py.
+
+schema: characteristic_uuids
+source: "https://bitbucket.org/bluetooth-SIG/public/raw/main/assigned_numbers/uuids/characteristic_uuids.yaml"
+last_updated: "2026-05-14"
+source_commit: "ad6172938054"
+
+entries:
+  - { code: "0x2A00", name: "Device Name" }
+  - { code: "0x2A01", name: "Appearance" }
+  - { code: "0x2A02", name: "Peripheral Privacy Flag" }
+  - { code: "0x2A03", name: "Reconnection Address" }
+  - { code: "0x2A04", name: "Peripheral Preferred Connection Parameters" }
+  - { code: "0x2A05", name: "Service Changed" }
+  - { code: "0x2A06", name: "Alert Level" }
+  - { code: "0x2A07", name: "Tx Power Level" }
+  - { code: "0x2A08", name: "Date Time" }
+  - { code: "0x2A09", name: "Day of Week" }
+  - { code: "0x2A0A", name: "Day Date Time" }
+  - { code: "0x2A0C", name: "Exact Time 256" }
+  - { code: "0x2A0D", name: "DST Offset" }
+  - { code: "0x2A0E", name: "Time Zone" }
+  - { code: "0x2A0F", name: "Local Time Information" }
+  - { code: "0x2A11", name: "Time with DST" }
+  - { code: "0x2A12", name: "Time Accuracy" }
+  - { code: "0x2A13", name: "Time Source" }
+  - { code: "0x2A14", name: "Reference Time Information" }
+  - { code: "0x2A16", name: "Time Update Control Point" }
+  - { code: "0x2A17", name: "Time Update State" }
+  - { code: "0x2A18", name: "Glucose Measurement" }
+  - { code: "0x2A19", name: "Battery Level" }
+  - { code: "0x2A1C", name: "Temperature Measurement" }
+  - { code: "0x2A1D", name: "Temperature Type" }
+  - { code: "0x2A1E", name: "Intermediate Temperature" }
+  - { code: "0x2A21", name: "Measurement Interval" }
+  - { code: "0x2A22", name: "Boot Keyboard Input Report" }
+  - { code: "0x2A23", name: "System ID" }
+  - { code: "0x2A24", name: "Model Number String" }
+  - { code: "0x2A25", name: "Serial Number String" }
+  - { code: "0x2A26", name: "Firmware Revision String" }
+  - { code: "0x2A27", name: "Hardware Revision String" }
+  - { code: "0x2A28", name: "Software Revision String" }
+  - { code: "0x2A29", name: "Manufacturer Name String" }
+  - { code: "0x2A2A", name: "IEEE 11073-20601 Regulatory Certification Data List" }
+  - { code: "0x2A2B", name: "Current Time" }
+  - { code: "0x2A2C", name: "Magnetic Declination" }
+  - { code: "0x2A31", name: "Scan Refresh" }
+  - { code: "0x2A32", name: "Boot Keyboard Output Report" }
+  - { code: "0x2A33", name: "Boot Mouse Input Report" }
+  - { code: "0x2A34", name: "Glucose Measurement Context" }
+  - { code: "0x2A35", name: "Blood Pressure Measurement" }
+  - { code: "0x2A36", name: "Intermediate Cuff Pressure" }
+  - { code: "0x2A37", name: "Heart Rate Measurement" }
+  - { code: "0x2A38", name: "Body Sensor Location" }
+  - { code: "0x2A39", name: "Heart Rate Control Point" }
+  - { code: "0x2A3F", name: "Alert Status" }
+  - { code: "0x2A40", name: "Ringer Control Point" }
+  - { code: "0x2A41", name: "Ringer Setting" }
+  - { code: "0x2A42", name: "Alert Category ID Bit Mask" }
+  - { code: "0x2A43", name: "Alert Category ID" }
+  - { code: "0x2A44", name: "Alert Notification Control Point" }
+  - { code: "0x2A45", name: "Unread Alert Status" }
+  - { code: "0x2A46", name: "New Alert" }
+  - { code: "0x2A47", name: "Supported New Alert Category" }
+  - { code: "0x2A48", name: "Supported Unread Alert Category" }
+  - { code: "0x2A49", name: "Blood Pressure Feature" }
+  - { code: "0x2A4A", name: "HID Information" }
+  - { code: "0x2A4B", name: "Report Map" }
+  - { code: "0x2A4C", name: "HID Control Point" }
+  - { code: "0x2A4D", name: "Report" }
+  - { code: "0x2A4E", name: "Protocol Mode" }
+  - { code: "0x2A4F", name: "Scan Interval Window" }
+  - { code: "0x2A50", name: "PnP ID" }
+  - { code: "0x2A51", name: "Glucose Feature" }
+  - { code: "0x2A52", name: "Record Access Control Point" }
+  - { code: "0x2A53", name: "RSC Measurement" }
+  - { code: "0x2A54", name: "RSC Feature" }
+  - { code: "0x2A55", name: "SC Control Point" }
+  - { code: "0x2A5A", name: "Aggregate" }
+  - { code: "0x2A5B", name: "CSC Measurement" }
+  - { code: "0x2A5C", name: "CSC Feature" }
+  - { code: "0x2A5D", name: "Sensor Location" }
+  - { code: "0x2A5E", name: "PLX Spot-Check Measurement" }
+  - { code: "0x2A5F", name: "PLX Continuous Measurement" }
+  - { code: "0x2A60", name: "PLX Features" }
+  - { code: "0x2A63", name: "Cycling Power Measurement" }
+  - { code: "0x2A64", name: "Cycling Power Vector" }
+  - { code: "0x2A65", name: "Cycling Power Feature" }
+  - { code: "0x2A66", name: "Cycling Power Control Point" }
+  - { code: "0x2A67", name: "Location and Speed" }
+  - { code: "0x2A68", name: "Navigation" }
+  - { code: "0x2A69", name: "Position Quality" }
+  - { code: "0x2A6A", name: "LN Feature" }
+  - { code: "0x2A6B", name: "LN Control Point" }
+  - { code: "0x2A6C", name: "Elevation" }
+  - { code: "0x2A6D", name: "Pressure" }
+  - { code: "0x2A6E", name: "Temperature" }
+  - { code: "0x2A6F", name: "Humidity" }
+  - { code: "0x2A70", name: "True Wind Speed" }
+  - { code: "0x2A71", name: "True Wind Direction" }
+  - { code: "0x2A72", name: "Apparent Wind Speed" }
+  - { code: "0x2A73", name: "Apparent Wind Direction" }
+  - { code: "0x2A74", name: "Gust Factor" }
+  - { code: "0x2A75", name: "Pollen Concentration" }
+  - { code: "0x2A76", name: "UV Index" }
+  - { code: "0x2A77", name: "Irradiance" }
+  - { code: "0x2A78", name: "Rainfall" }
+  - { code: "0x2A79", name: "Wind Chill" }
+  - { code: "0x2A7A", name: "Heat Index" }
+  - { code: "0x2A7B", name: "Dew Point" }
+  - { code: "0x2A7D", name: "Descriptor Value Changed" }
+  - { code: "0x2A7E", name: "Aerobic Heart Rate Lower Limit" }
+  - { code: "0x2A7F", name: "Aerobic Threshold" }
+  - { code: "0x2A80", name: "Age" }
+  - { code: "0x2A81", name: "Anaerobic Heart Rate Lower Limit" }
+  - { code: "0x2A82", name: "Anaerobic Heart Rate Upper Limit" }
+  - { code: "0x2A83", name: "Anaerobic Threshold" }
+  - { code: "0x2A84", name: "Aerobic Heart Rate Upper Limit" }
+  - { code: "0x2A85", name: "Date of Birth" }
+  - { code: "0x2A86", name: "Date of Threshold Assessment" }
+  - { code: "0x2A87", name: "Email Address" }
+  - { code: "0x2A88", name: "Fat Burn Heart Rate Lower Limit" }
+  - { code: "0x2A89", name: "Fat Burn Heart Rate Upper Limit" }
+  - { code: "0x2A8A", name: "First Name" }
+  - { code: "0x2A8B", name: "Five Zone Heart Rate Limits" }
+  - { code: "0x2A8C", name: "Gender" }
+  - { code: "0x2A8D", name: "Heart Rate Max" }
+  - { code: "0x2A8E", name: "Height" }
+  - { code: "0x2A8F", name: "Hip Circumference" }
+  - { code: "0x2A90", name: "Last Name" }
+  - { code: "0x2A91", name: "Maximum Recommended Heart Rate" }
+  - { code: "0x2A92", name: "Resting Heart Rate" }
+  - { code: "0x2A93", name: "Sport Type for Aerobic and Anaerobic Thresholds" }
+  - { code: "0x2A94", name: "Three Zone Heart Rate Limits" }
+  - { code: "0x2A95", name: "Two Zone Heart Rate Limits" }
+  - { code: "0x2A96", name: "VO2 Max" }
+  - { code: "0x2A97", name: "Waist Circumference" }
+  - { code: "0x2A98", name: "Weight" }
+  - { code: "0x2A99", name: "Database Change Increment" }
+  - { code: "0x2A9A", name: "User Index" }
+  - { code: "0x2A9B", name: "Body Composition Feature" }
+  - { code: "0x2A9C", name: "Body Composition Measurement" }
+  - { code: "0x2A9D", name: "Weight Measurement" }
+  - { code: "0x2A9E", name: "Weight Scale Feature" }
+  - { code: "0x2A9F", name: "User Control Point" }
+  - { code: "0x2AA0", name: "Magnetic Flux Density - 2D" }
+  - { code: "0x2AA1", name: "Magnetic Flux Density - 3D" }
+  - { code: "0x2AA2", name: "Language" }
+  - { code: "0x2AA3", name: "Barometric Pressure Trend" }
+  - { code: "0x2AA4", name: "Bond Management Control Point" }
+  - { code: "0x2AA5", name: "Bond Management Feature" }
+  - { code: "0x2AA6", name: "Central Address Resolution" }
+  - { code: "0x2AA7", name: "CGM Measurement" }
+  - { code: "0x2AA8", name: "CGM Feature" }
+  - { code: "0x2AA9", name: "CGM Status" }
+  - { code: "0x2AAA", name: "CGM Session Start Time" }
+  - { code: "0x2AAB", name: "CGM Session Run Time" }
+  - { code: "0x2AAC", name: "CGM Specific Ops Control Point" }
+  - { code: "0x2AAD", name: "Indoor Positioning Configuration" }
+  - { code: "0x2AAE", name: "Latitude" }
+  - { code: "0x2AAF", name: "Longitude" }
+  - { code: "0x2AB0", name: "Local North Coordinate" }
+  - { code: "0x2AB1", name: "Local East Coordinate" }
+  - { code: "0x2AB2", name: "Floor Number" }
+  - { code: "0x2AB3", name: "Altitude" }
+  - { code: "0x2AB4", name: "Uncertainty" }
+  - { code: "0x2AB5", name: "Location Name" }
+  - { code: "0x2AB6", name: "URI" }
+  - { code: "0x2AB7", name: "HTTP Headers" }
+  - { code: "0x2AB8", name: "HTTP Status Code" }
+  - { code: "0x2AB9", name: "HTTP Entity Body" }
+  - { code: "0x2ABA", name: "HTTP Control Point" }
+  - { code: "0x2ABB", name: "HTTPS Security" }
+  - { code: "0x2ABC", name: "TDS Control Point" }
+  - { code: "0x2ABD", name: "OTS Feature" }
+  - { code: "0x2ABE", name: "Object Name" }
+  - { code: "0x2ABF", name: "Object Type" }
+  - { code: "0x2AC0", name: "Object Size" }
+  - { code: "0x2AC1", name: "Object First-Created" }
+  - { code: "0x2AC2", name: "Object Last-Modified" }
+  - { code: "0x2AC3", name: "Object ID" }
+  - { code: "0x2AC4", name: "Object Properties" }
+  - { code: "0x2AC5", name: "Object Action Control Point" }
+  - { code: "0x2AC6", name: "Object List Control Point" }
+  - { code: "0x2AC7", name: "Object List Filter" }
+  - { code: "0x2AC8", name: "Object Changed" }
+  - { code: "0x2AC9", name: "Resolvable Private Address Only" }
+  - { code: "0x2ACC", name: "Fitness Machine Feature" }
+  - { code: "0x2ACD", name: "Treadmill Data" }
+  - { code: "0x2ACE", name: "Cross Trainer Data" }
+  - { code: "0x2ACF", name: "Step Climber Data" }
+  - { code: "0x2AD0", name: "Stair Climber Data" }
+  - { code: "0x2AD1", name: "Rower Data" }
+  - { code: "0x2AD2", name: "Indoor Bike Data" }
+  - { code: "0x2AD3", name: "Training Status" }
+  - { code: "0x2AD4", name: "Supported Speed Range" }
+  - { code: "0x2AD5", name: "Supported Inclination Range" }
+  - { code: "0x2AD6", name: "Supported Resistance Level Range" }
+  - { code: "0x2AD7", name: "Supported Heart Rate Range" }
+  - { code: "0x2AD8", name: "Supported Power Range" }
+  - { code: "0x2AD9", name: "Fitness Machine Control Point" }
+  - { code: "0x2ADA", name: "Fitness Machine Status" }
+  - { code: "0x2ADB", name: "Mesh Provisioning Data In" }
+  - { code: "0x2ADC", name: "Mesh Provisioning Data Out" }
+  - { code: "0x2ADD", name: "Mesh Proxy Data In" }
+  - { code: "0x2ADE", name: "Mesh Proxy Data Out" }
+  - { code: "0x2AE0", name: "Average Current" }
+  - { code: "0x2AE1", name: "Average Voltage" }
+  - { code: "0x2AE2", name: "Boolean" }
+  - { code: "0x2AE3", name: "Chromatic Distance from Planckian" }
+  - { code: "0x2AE4", name: "Chromaticity Coordinates" }
+  - { code: "0x2AE5", name: "Chromaticity in CCT and Duv Values" }
+  - { code: "0x2AE6", name: "Chromaticity Tolerance" }
+  - { code: "0x2AE7", name: "CIE 13.3-1995 Color Rendering Index" }
+  - { code: "0x2AE8", name: "Coefficient" }
+  - { code: "0x2AE9", name: "Correlated Color Temperature" }
+  - { code: "0x2AEA", name: "Count 16" }
+  - { code: "0x2AEB", name: "Count 24" }
+  - { code: "0x2AEC", name: "Country Code" }
+  - { code: "0x2AED", name: "Date UTC" }
+  - { code: "0x2AEE", name: "Electric Current" }
+  - { code: "0x2AEF", name: "Electric Current Range" }
+  - { code: "0x2AF0", name: "Electric Current Specification" }
+  - { code: "0x2AF1", name: "Electric Current Statistics" }
+  - { code: "0x2AF2", name: "Energy" }
+  - { code: "0x2AF3", name: "Energy in a Period of Day" }
+  - { code: "0x2AF4", name: "Event Statistics" }
+  - { code: "0x2AF5", name: "Fixed String 16" }
+  - { code: "0x2AF6", name: "Fixed String 24" }
+  - { code: "0x2AF7", name: "Fixed String 36" }
+  - { code: "0x2AF8", name: "Fixed String 8" }
+  - { code: "0x2AF9", name: "Generic Level" }
+  - { code: "0x2AFA", name: "Global Trade Item Number" }
+  - { code: "0x2AFB", name: "Illuminance" }
+  - { code: "0x2AFC", name: "Luminous Efficacy" }
+  - { code: "0x2AFD", name: "Luminous Energy" }
+  - { code: "0x2AFE", name: "Luminous Exposure" }
+  - { code: "0x2AFF", name: "Luminous Flux" }
+  - { code: "0x2B00", name: "Luminous Flux Range" }
+  - { code: "0x2B01", name: "Luminous Intensity" }
+  - { code: "0x2B02", name: "Mass Flow" }
+  - { code: "0x2B03", name: "Perceived Lightness" }
+  - { code: "0x2B04", name: "Percentage 8" }
+  - { code: "0x2B05", name: "Power" }
+  - { code: "0x2B06", name: "Power Specification" }
+  - { code: "0x2B07", name: "Relative Runtime in a Current Range" }
+  - { code: "0x2B08", name: "Relative Runtime in a Generic Level Range" }
+  - { code: "0x2B09", name: "Relative Value in a Voltage Range" }
+  - { code: "0x2B0A", name: "Relative Value in an Illuminance Range" }
+  - { code: "0x2B0B", name: "Relative Value in a Period of Day" }
+  - { code: "0x2B0C", name: "Relative Value in a Temperature Range" }
+  - { code: "0x2B0D", name: "Temperature 8" }
+  - { code: "0x2B0E", name: "Temperature 8 in a Period of Day" }
+  - { code: "0x2B0F", name: "Temperature 8 Statistics" }
+  - { code: "0x2B10", name: "Temperature Range" }
+  - { code: "0x2B11", name: "Temperature Statistics" }
+  - { code: "0x2B12", name: "Time Decihour 8" }
+  - { code: "0x2B13", name: "Time Exponential 8" }
+  - { code: "0x2B14", name: "Time Hour 24" }
+  - { code: "0x2B15", name: "Time Millisecond 24" }
+  - { code: "0x2B16", name: "Time Second 16" }
+  - { code: "0x2B17", name: "Time Second 8" }
+  - { code: "0x2B18", name: "Voltage" }
+  - { code: "0x2B19", name: "Voltage Specification" }
+  - { code: "0x2B1A", name: "Voltage Statistics" }
+  - { code: "0x2B1B", name: "Volume Flow" }
+  - { code: "0x2B1C", name: "Chromaticity Coordinate" }
+  - { code: "0x2B1D", name: "RC Feature" }
+  - { code: "0x2B1E", name: "RC Settings" }
+  - { code: "0x2B1F", name: "Reconnection Configuration Control Point" }
+  - { code: "0x2B20", name: "IDD Status Changed" }
+  - { code: "0x2B21", name: "IDD Status" }
+  - { code: "0x2B22", name: "IDD Annunciation Status" }
+  - { code: "0x2B23", name: "IDD Features" }
+  - { code: "0x2B24", name: "IDD Status Reader Control Point" }
+  - { code: "0x2B25", name: "IDD Command Control Point" }
+  - { code: "0x2B26", name: "IDD Command Data" }
+  - { code: "0x2B27", name: "IDD Record Access Control Point" }
+  - { code: "0x2B28", name: "IDD History Data" }
+  - { code: "0x2B29", name: "Client Supported Features" }
+  - { code: "0x2B2A", name: "Database Hash" }
+  - { code: "0x2B2B", name: "BSS Control Point" }
+  - { code: "0x2B2C", name: "BSS Response" }
+  - { code: "0x2B2D", name: "Emergency ID" }
+  - { code: "0x2B2E", name: "Emergency Text" }
+  - { code: "0x2B2F", name: "ACS Status" }
+  - { code: "0x2B30", name: "ACS Data In" }
+  - { code: "0x2B31", name: "ACS Data Out Notify" }
+  - { code: "0x2B32", name: "ACS Data Out Indicate" }
+  - { code: "0x2B33", name: "ACS Control Point" }
+  - { code: "0x2B34", name: "Enhanced Blood Pressure Measurement" }
+  - { code: "0x2B35", name: "Enhanced Intermediate Cuff Pressure" }
+  - { code: "0x2B36", name: "Blood Pressure Record" }
+  - { code: "0x2B37", name: "Registered User" }
+  - { code: "0x2B38", name: "BR-EDR Handover Data" }
+  - { code: "0x2B39", name: "Bluetooth SIG Data" }
+  - { code: "0x2B3A", name: "Server Supported Features" }
+  - { code: "0x2B3B", name: "Physical Activity Monitor Features" }
+  - { code: "0x2B3C", name: "General Activity Instantaneous Data" }
+  - { code: "0x2B3D", name: "General Activity Summary Data" }
+  - { code: "0x2B3E", name: "CardioRespiratory Activity Instantaneous Data" }
+  - { code: "0x2B3F", name: "CardioRespiratory Activity Summary Data" }
+  - { code: "0x2B40", name: "Step Counter Activity Summary Data" }
+  - { code: "0x2B41", name: "Sleep Activity Instantaneous Data" }
+  - { code: "0x2B42", name: "Sleep Activity Summary Data" }
+  - { code: "0x2B43", name: "Physical Activity Monitor Control Point" }
+  - { code: "0x2B44", name: "Physical Activity Current Session" }
+  - { code: "0x2B45", name: "Physical Activity Session Descriptor" }
+  - { code: "0x2B46", name: "Preferred Units" }
+  - { code: "0x2B47", name: "High Resolution Height" }
+  - { code: "0x2B48", name: "Middle Name" }
+  - { code: "0x2B49", name: "Stride Length" }
+  - { code: "0x2B4A", name: "Handedness" }
+  - { code: "0x2B4B", name: "Device Wearing Position" }
+  - { code: "0x2B4C", name: "Four Zone Heart Rate Limits" }
+  - { code: "0x2B4D", name: "High Intensity Exercise Threshold" }
+  - { code: "0x2B4E", name: "Activity Goal" }
+  - { code: "0x2B4F", name: "Sedentary Interval Notification" }
+  - { code: "0x2B50", name: "Caloric Intake" }
+  - { code: "0x2B51", name: "TMAP Role" }
+  - { code: "0x2B77", name: "Audio Input State" }
+  - { code: "0x2B78", name: "Gain Settings Attribute" }
+  - { code: "0x2B79", name: "Audio Input Type" }
+  - { code: "0x2B7A", name: "Audio Input Status" }
+  - { code: "0x2B7B", name: "Audio Input Control Point" }
+  - { code: "0x2B7C", name: "Audio Input Description" }
+  - { code: "0x2B7D", name: "Volume State" }
+  - { code: "0x2B7E", name: "Volume Control Point" }
+  - { code: "0x2B7F", name: "Volume Flags" }
+  - { code: "0x2B80", name: "Volume Offset State" }
+  - { code: "0x2B81", name: "Audio Location" }
+  - { code: "0x2B82", name: "Volume Offset Control Point" }
+  - { code: "0x2B83", name: "Audio Output Description" }
+  - { code: "0x2B84", name: "Set Identity Resolving Key" }
+  - { code: "0x2B85", name: "Coordinated Set Size" }
+  - { code: "0x2B86", name: "Set Member Lock" }
+  - { code: "0x2B87", name: "Set Member Rank" }
+  - { code: "0x2B88", name: "Encrypted Data Key Material" }
+  - { code: "0x2B89", name: "Apparent Energy 32" }
+  - { code: "0x2B8A", name: "Apparent Power" }
+  - { code: "0x2B8B", name: "Live Health Observations" }
+  - { code: "0x2B8C", name: "CO\\textsubscript{2} Concentration" }
+  - { code: "0x2B8D", name: "Cosine of the Angle" }
+  - { code: "0x2B8E", name: "Device Time Feature" }
+  - { code: "0x2B8F", name: "Device Time Parameters" }
+  - { code: "0x2B90", name: "Device Time" }
+  - { code: "0x2B91", name: "Device Time Control Point" }
+  - { code: "0x2B92", name: "Time Change Log Data" }
+  - { code: "0x2B93", name: "Media Player Name" }
+  - { code: "0x2B94", name: "Media Player Icon Object ID" }
+  - { code: "0x2B95", name: "Media Player Icon URL" }
+  - { code: "0x2B96", name: "Track Changed" }
+  - { code: "0x2B97", name: "Track Title" }
+  - { code: "0x2B98", name: "Track Duration" }
+  - { code: "0x2B99", name: "Track Position" }
+  - { code: "0x2B9A", name: "Playback Speed" }
+  - { code: "0x2B9B", name: "Seeking Speed" }
+  - { code: "0x2B9C", name: "Current Track Segments Object ID" }
+  - { code: "0x2B9D", name: "Current Track Object ID" }
+  - { code: "0x2B9E", name: "Next Track Object ID" }
+  - { code: "0x2B9F", name: "Parent Group Object ID" }
+  - { code: "0x2BA0", name: "Current Group Object ID" }
+  - { code: "0x2BA1", name: "Playing Order" }
+  - { code: "0x2BA2", name: "Playing Orders Supported" }
+  - { code: "0x2BA3", name: "Media State" }
+  - { code: "0x2BA4", name: "Media Control Point" }
+  - { code: "0x2BA5", name: "Media Control Point Opcodes Supported" }
+  - { code: "0x2BA6", name: "Search Results Object ID" }
+  - { code: "0x2BA7", name: "Search Control Point" }
+  - { code: "0x2BA8", name: "Energy 32" }
+  - { code: "0x2BAD", name: "Constant Tone Extension Enable" }
+  - { code: "0x2BAE", name: "Advertising Constant Tone Extension Minimum Length" }
+  - { code: "0x2BAF", name: "Advertising Constant Tone Extension Minimum Transmit Count" }
+  - { code: "0x2BB0", name: "Advertising Constant Tone Extension Transmit Duration" }
+  - { code: "0x2BB1", name: "Advertising Constant Tone Extension Interval" }
+  - { code: "0x2BB2", name: "Advertising Constant Tone Extension PHY" }
+  - { code: "0x2BB3", name: "Bearer Provider Name" }
+  - { code: "0x2BB4", name: "Bearer UCI" }
+  - { code: "0x2BB5", name: "Bearer Technology" }
+  - { code: "0x2BB6", name: "Bearer URI Schemes Supported List" }
+  - { code: "0x2BB7", name: "Bearer Signal Strength" }
+  - { code: "0x2BB8", name: "Bearer Signal Strength Reporting Interval" }
+  - { code: "0x2BB9", name: "Bearer List Current Calls" }
+  - { code: "0x2BBA", name: "Content Control ID" }
+  - { code: "0x2BBB", name: "Status Flags" }
+  - { code: "0x2BBC", name: "Incoming Call Target Bearer URI" }
+  - { code: "0x2BBD", name: "Call State" }
+  - { code: "0x2BBE", name: "Call Control Point" }
+  - { code: "0x2BBF", name: "Call Control Point Optional Opcodes" }
+  - { code: "0x2BC0", name: "Termination Reason" }
+  - { code: "0x2BC1", name: "Incoming Call" }
+  - { code: "0x2BC2", name: "Call Friendly Name" }
+  - { code: "0x2BC3", name: "Mute" }
+  - { code: "0x2BC4", name: "Sink ASE" }
+  - { code: "0x2BC5", name: "Source ASE" }
+  - { code: "0x2BC6", name: "ASE Control Point" }
+  - { code: "0x2BC7", name: "Broadcast Audio Scan Control Point" }
+  - { code: "0x2BC8", name: "Broadcast Receive State" }
+  - { code: "0x2BC9", name: "Sink PAC" }
+  - { code: "0x2BCA", name: "Sink Audio Locations" }
+  - { code: "0x2BCB", name: "Source PAC" }
+  - { code: "0x2BCC", name: "Source Audio Locations" }
+  - { code: "0x2BCD", name: "Available Audio Contexts" }
+  - { code: "0x2BCE", name: "Supported Audio Contexts" }
+  - { code: "0x2BCF", name: "Ammonia Concentration" }
+  - { code: "0x2BD0", name: "Carbon Monoxide Concentration" }
+  - { code: "0x2BD1", name: "Methane Concentration" }
+  - { code: "0x2BD2", name: "Nitrogen Dioxide Concentration" }
+  - { code: "0x2BD3", name: "Non-Methane Volatile Organic Compounds Concentration" }
+  - { code: "0x2BD4", name: "Ozone Concentration" }
+  - { code: "0x2BD5", name: "Particulate Matter - PM1 Concentration" }
+  - { code: "0x2BD6", name: "Particulate Matter - PM2.5 Concentration" }
+  - { code: "0x2BD7", name: "Particulate Matter - PM10 Concentration" }
+  - { code: "0x2BD8", name: "Sulfur Dioxide Concentration" }
+  - { code: "0x2BD9", name: "Sulfur Hexafluoride Concentration" }
+  - { code: "0x2BDA", name: "Hearing Aid Features" }
+  - { code: "0x2BDB", name: "Hearing Aid Preset Control Point" }
+  - { code: "0x2BDC", name: "Active Preset Index" }
+  - { code: "0x2BDD", name: "Stored Health Observations" }
+  - { code: "0x2BDE", name: "Fixed String 64" }
+  - { code: "0x2BDF", name: "High Temperature" }
+  - { code: "0x2BE0", name: "High Voltage" }
+  - { code: "0x2BE1", name: "Light Distribution" }
+  - { code: "0x2BE2", name: "Light Output" }
+  - { code: "0x2BE3", name: "Light Source Type" }
+  - { code: "0x2BE4", name: "Noise" }
+  - { code: "0x2BE5", name: "Relative Runtime in a Correlated Color Temperature Range" }
+  - { code: "0x2BE6", name: "Time Second 32" }
+  - { code: "0x2BE7", name: "VOC Concentration" }
+  - { code: "0x2BE8", name: "Voltage Frequency" }
+  - { code: "0x2BE9", name: "Battery Critical Status" }
+  - { code: "0x2BEA", name: "Battery Health Status" }
+  - { code: "0x2BEB", name: "Battery Health Information" }
+  - { code: "0x2BEC", name: "Battery Information" }
+  - { code: "0x2BED", name: "Battery Level Status" }
+  - { code: "0x2BEE", name: "Battery Time Status" }
+  - { code: "0x2BEF", name: "Estimated Service Date" }
+  - { code: "0x2BF0", name: "Battery Energy Status" }
+  - { code: "0x2BF1", name: "Observation Schedule Changed" }
+  - { code: "0x2BF2", name: "Elapsed Time" }
+  - { code: "0x2BF3", name: "Health Sensor Features" }
+  - { code: "0x2BF4", name: "GHS Control Point" }
+  - { code: "0x2BF5", name: "LE GATT Security Levels" }
+  - { code: "0x2BF6", name: "ESL Address" }
+  - { code: "0x2BF7", name: "AP Sync Key Material" }
+  - { code: "0x2BF8", name: "ESL Response Key Material" }
+  - { code: "0x2BF9", name: "ESL Current Absolute Time" }
+  - { code: "0x2BFA", name: "ESL Display Information" }
+  - { code: "0x2BFB", name: "ESL Image Information" }
+  - { code: "0x2BFC", name: "ESL Sensor Information" }
+  - { code: "0x2BFD", name: "ESL LED Information" }
+  - { code: "0x2BFE", name: "ESL Control Point" }
+  - { code: "0x2BFF", name: "UDI for Medical Devices" }
+  - { code: "0x2C00", name: "GMAP Role" }
+  - { code: "0x2C01", name: "UGG Features" }
+  - { code: "0x2C02", name: "UGT Features" }
+  - { code: "0x2C03", name: "BGS Features" }
+  - { code: "0x2C04", name: "BGR Features" }
+  - { code: "0x2C05", name: "Percentage 8 Steps" }
+  - { code: "0x2C06", name: "Acceleration" }
+  - { code: "0x2C07", name: "Force" }
+  - { code: "0x2C08", name: "Linear Position" }
+  - { code: "0x2C09", name: "Rotational Speed" }
+  - { code: "0x2C0A", name: "Length" }
+  - { code: "0x2C0B", name: "Torque" }
+  - { code: "0x2C0C", name: "IMD Status" }
+  - { code: "0x2C0D", name: "IMDS Descriptor Value Changed" }
+  - { code: "0x2C0E", name: "First Use Date" }
+  - { code: "0x2C0F", name: "Life Cycle Data" }
+  - { code: "0x2C10", name: "Work Cycle Data" }
+  - { code: "0x2C11", name: "Service Cycle Data" }
+  - { code: "0x2C12", name: "IMD Control" }
+  - { code: "0x2C13", name: "IMD Historical Data" }
+  - { code: "0x2C14", name: "RAS Features" }
+  - { code: "0x2C15", name: "Real-time Ranging Data" }
+  - { code: "0x2C16", name: "On-demand Ranging Data" }
+  - { code: "0x2C17", name: "RAS Control Point" }
+  - { code: "0x2C18", name: "Ranging Data Ready" }
+  - { code: "0x2C19", name: "Ranging Data Overwritten" }
+  - { code: "0x2C1A", name: "Coordinated Set Name" }
+  - { code: "0x2C1B", name: "Humidity 8" }
+  - { code: "0x2C1C", name: "Illuminance 16" }
+  - { code: "0x2C1D", name: "Acceleration - 3D" }
+  - { code: "0x2C1E", name: "Precise Acceleration - 3D" }
+  - { code: "0x2C1F", name: "Acceleration Detection Status" }
+  - { code: "0x2C20", name: "Door/Window Status" }
+  - { code: "0x2C21", name: "Pushbutton Status 8" }
+  - { code: "0x2C22", name: "Contact Status 8" }
+  - { code: "0x2C23", name: "HID ISO Properties" }
+  - { code: "0x2C24", name: "LE HID Operation Mode" }
+  - { code: "0x2C25", name: "Cookware Description" }
+  - { code: "0x2C26", name: "Recipe Control" }
+  - { code: "0x2C27", name: "Recipe Parameters" }
+  - { code: "0x2C28", name: "Cooking Step Status" }
+  - { code: "0x2C29", name: "Cooking Zone Capabilities" }
+  - { code: "0x2C2A", name: "Cooking Zone Desired Cooking Conditions" }
+  - { code: "0x2C2B", name: "Cooking Zone Actual Cooking Conditions" }
+  - { code: "0x2C2C", name: "Cookware Sensor Data" }
+  - { code: "0x2C2D", name: "Cookware Sensor Aggregate" }
+  - { code: "0x2C2E", name: "Cooking Temperature" }
+  - { code: "0x2C2F", name: "Cooking Zone Perceived Power" }
+  - { code: "0x2C30", name: "Kitchen Appliance Airflow" }
+  - { code: "0x2C31", name: "Voice Assistant Name" }
+  - { code: "0x2C32", name: "Voice Assistant UUID" }
+  - { code: "0x2C33", name: "Voice Assistant Service Control Point" }
+  - { code: "0x2C34", name: "Installed Location" }
+  - { code: "0x2C35", name: "Voice Assistant Session State" }
+  - { code: "0x2C36", name: "Voice Assistant Session Flag" }
+  - { code: "0x2C37", name: "Voice Assistant Supported Languages" }
+  - { code: "0x2C38", name: "Voice Assistant Supported Features" }
+  - { code: "0x2C39", name: "HID SCI Mode" }
+  - { code: "0x2C3A", name: "HID SCI Information" }

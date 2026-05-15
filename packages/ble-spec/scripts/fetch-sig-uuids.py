@@ -27,9 +27,13 @@ SIG_API_COMMIT = "https://api.bitbucket.org/2.0/repositories/bluetooth-SIG/publi
 DEST_DIR = pathlib.Path(__file__).resolve().parent.parent / "data" / "sig-mirror"
 
 FILES = [
-    ("service_uuids.yaml", "service_uuids", "Bluetooth SIG-defined Service UUIDs"),
-    ("characteristic_uuids.yaml", "characteristic_uuids", "Bluetooth SIG-defined Characteristic UUIDs"),
-    ("descriptor_uuids.yaml", "descriptor_uuids", "Bluetooth SIG-defined Descriptor UUIDs"),
+    # (upstream_filename, local_filename, schema, label)
+    # upstream and local filenames may differ — the SIG calls descriptors.yaml
+    # while we keep the descriptor_uuids.yaml convention locally for
+    # consistency with service_uuids.yaml / characteristic_uuids.yaml.
+    ("service_uuids.yaml", "service_uuids.yaml", "service_uuids", "Bluetooth SIG-defined Service UUIDs"),
+    ("characteristic_uuids.yaml", "characteristic_uuids.yaml", "characteristic_uuids", "Bluetooth SIG-defined Characteristic UUIDs"),
+    ("descriptors.yaml", "descriptor_uuids.yaml", "descriptor_uuids", "Bluetooth SIG-defined Descriptor UUIDs"),
 ]
 
 
@@ -53,7 +57,10 @@ def transform(sig_data: dict, schema: str, source_url: str, commit: str, label: 
         name = e.get("name")
         if uuid_int is None or name is None:
             continue
-        out_entries.append(f'  - {{ code: "0x{uuid_int:04X}", name: {yaml.safe_dump(name).strip()} }}')
+        # JSON-quote the name: JSON strings are a subset of YAML strings,
+        # so this gives correct escaping without pyyaml's habit of appending
+        # `\n...\n` end-of-document markers to short scalars.
+        out_entries.append(f'  - {{ code: "0x{uuid_int:04X}", name: {json.dumps(name)} }}')
 
     today = datetime.date.today().isoformat()
     return (
@@ -77,12 +84,12 @@ def main() -> int:
     commit = fetch_commit_hash()
     print(f"Upstream commit: {commit}")
 
-    for filename, schema, label in FILES:
-        print(f"Fetching {filename}...")
-        sig_data = fetch_yaml(filename)
-        source_url = SIG_RAW_BASE + filename
+    for upstream_filename, local_filename, schema, label in FILES:
+        print(f"Fetching {upstream_filename}...")
+        sig_data = fetch_yaml(upstream_filename)
+        source_url = SIG_RAW_BASE + upstream_filename
         rendered = transform(sig_data, schema, source_url, commit, label)
-        dest = DEST_DIR / filename
+        dest = DEST_DIR / local_filename
         dest.write_text(rendered)
         count = rendered.count("- { code:")
         print(f"  wrote {dest} ({count} entries)")

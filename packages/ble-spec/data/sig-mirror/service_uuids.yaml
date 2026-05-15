@@ -1,0 +1,85 @@
+# Bluetooth SIG-defined Service UUIDs
+# Pinned snapshot from the Bluetooth SIG bitbucket repo.
+# Re-snapshot with packages/ble-spec/scripts/fetch-sig-uuids.py.
+
+schema: service_uuids
+source: "https://bitbucket.org/bluetooth-SIG/public/raw/main/assigned_numbers/uuids/service_uuids.yaml"
+last_updated: "2026-05-14"
+source_commit: "ad6172938054"
+
+entries:
+  - { code: "0x1800", name: "GAP" }
+  - { code: "0x1801", name: "GATT" }
+  - { code: "0x1802", name: "Immediate Alert" }
+  - { code: "0x1803", name: "Link Loss" }
+  - { code: "0x1804", name: "Tx Power" }
+  - { code: "0x1805", name: "Current Time" }
+  - { code: "0x1806", name: "Reference Time Update" }
+  - { code: "0x1807", name: "Next DST Change" }
+  - { code: "0x1808", name: "Glucose" }
+  - { code: "0x1809", name: "Health Thermometer" }
+  - { code: "0x180A", name: "Device Information" }
+  - { code: "0x180D", name: "Heart Rate" }
+  - { code: "0x180E", name: "Phone Alert Status" }
+  - { code: "0x180F", name: "Battery" }
+  - { code: "0x1810", name: "Blood Pressure" }
+  - { code: "0x1811", name: "Alert Notification" }
+  - { code: "0x1812", name: "Human Interface Device" }
+  - { code: "0x1813", name: "Scan Parameters" }
+  - { code: "0x1814", name: "Running Speed and Cadence" }
+  - { code: "0x1815", name: "Automation IO" }
+  - { code: "0x1816", name: "Cycling Speed and Cadence" }
+  - { code: "0x1818", name: "Cycling Power" }
+  - { code: "0x1819", name: "Location and Navigation" }
+  - { code: "0x181A", name: "Environmental Sensing" }
+  - { code: "0x181B", name: "Body Composition" }
+  - { code: "0x181C", name: "User Data" }
+  - { code: "0x181D", name: "Weight Scale" }
+  - { code: "0x181E", name: "Bond Management" }
+  - { code: "0x181F", name: "Continuous Glucose Monitoring" }
+  - { code: "0x1820", name: "Internet Protocol Support" }
+  - { code: "0x1821", name: "Indoor Positioning" }
+  - { code: "0x1822", name: "Pulse Oximeter" }
+  - { code: "0x1823", name: "HTTP Proxy" }
+  - { code: "0x1824", name: "Transport Discovery" }
+  - { code: "0x1825", name: "Object Transfer" }
+  - { code: "0x1826", name: "Fitness Machine" }
+  - { code: "0x1827", name: "Mesh Provisioning" }
+  - { code: "0x1828", name: "Mesh Proxy" }
+  - { code: "0x1829", name: "Reconnection Configuration" }
+  - { code: "0x183A", name: "Insulin Delivery" }
+  - { code: "0x183B", name: "Binary Sensor" }
+  - { code: "0x183C", name: "Emergency Configuration" }
+  - { code: "0x183D", name: "Authorization Control" }
+  - { code: "0x183E", name: "Physical Activity Monitor" }
+  - { code: "0x183F", name: "Elapsed Time" }
+  - { code: "0x1840", name: "Generic Health Sensor" }
+  - { code: "0x1843", name: "Audio Input Control" }
+  - { code: "0x1844", name: "Volume Control" }
+  - { code: "0x1845", name: "Volume Offset Control" }
+  - { code: "0x1846", name: "Coordinated Set Identification" }
+  - { code: "0x1847", name: "Device Time" }
+  - { code: "0x1848", name: "Media Control" }
+  - { code: "0x1849", name: "Generic Media Control" }
+  - { code: "0x184A", name: "Constant Tone Extension" }
+  - { code: "0x184B", name: "Telephone Bearer" }
+  - { code: "0x184C", name: "Generic Telephone Bearer" }
+  - { code: "0x184D", name: "Microphone Control" }
+  - { code: "0x184E", name: "Audio Stream Control" }
+  - { code: "0x184F", name: "Broadcast Audio Scan" }
+  - { code: "0x1850", name: "Published Audio Capabilities" }
+  - { code: "0x1851", name: "Basic Audio Announcement" }
+  - { code: "0x1852", name: "Broadcast Audio Announcement" }
+  - { code: "0x1853", name: "Common Audio" }
+  - { code: "0x1854", name: "Hearing Access" }
+  - { code: "0x1855", name: "Telephony and Media Audio" }
+  - { code: "0x1856", name: "Public Broadcast Announcement" }
+  - { code: "0x1857", name: "Electronic Shelf Label" }
+  - { code: "0x1858", name: "Gaming Audio" }
+  - { code: "0x1859", name: "Mesh Proxy Solicitation" }
+  - { code: "0x185A", name: "Industrial Measurement Device" }
+  - { code: "0x185B", name: "Ranging" }
+  - { code: "0x185C", name: "HID ISO" }
+  - { code: "0x185D", name: "Cookware" }
+  - { code: "0x185E", name: "Voice Assistant" }
+  - { code: "0x185F", name: "Generic Voice Assistant" }
