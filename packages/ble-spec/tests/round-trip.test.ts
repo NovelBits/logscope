@@ -14,19 +14,28 @@ import {
   lookupAttError,
   lookupSmpError,
   lookupCompanyId,
+  lookupServiceUuid,
+  lookupCharacteristicUuid,
+  lookupDescriptorUuid,
 } from "../src";
 
-const DATA_DIR = join(__dirname, "..", "data", "novel-bits-curated");
+const CURATED_DIR = join(__dirname, "..", "data", "novel-bits-curated");
+const SIG_DIR = join(__dirname, "..", "data", "sig-mirror");
 
 interface YamlFile {
   entries: Array<{ code: string; name: string; specRef?: string }>;
 }
 
-function loadYaml(name: string): YamlFile {
-  return yaml.parse(readFileSync(join(DATA_DIR, name), "utf-8"));
+function loadCuratedYaml(name: string): YamlFile {
+  return yaml.parse(readFileSync(join(CURATED_DIR, name), "utf-8"));
+}
+
+function loadSigYaml(name: string): YamlFile {
+  return yaml.parse(readFileSync(join(SIG_DIR, name), "utf-8"));
 }
 
 type ErrorLookup = (code: number) => ErrorCodeEntry | null;
+type StringLookup = (code: number) => string | null;
 
 describe("YAML round-trip integrity", () => {
   describe.each([
@@ -37,7 +46,7 @@ describe("YAML round-trip integrity", () => {
     "%s error codes",
     (_label, yamlFile, lookup, checkSpecRef) => {
       it("every YAML entry resolves through the lookup", () => {
-        const data = loadYaml(yamlFile);
+        const data = loadCuratedYaml(yamlFile);
         for (const entry of data.entries) {
           const code = Number.parseInt(entry.code, 16);
           const resolved = lookup(code);
@@ -51,10 +60,27 @@ describe("YAML round-trip integrity", () => {
   );
 
   it("every Company ID YAML entry resolves through lookupCompanyId", () => {
-    const data = loadYaml("company_identifiers.yaml");
+    const data = loadCuratedYaml("company_identifiers.yaml");
     for (const entry of data.entries) {
       const code = Number.parseInt(entry.code, 16);
       expect(lookupCompanyId(code)).toBe(entry.name);
     }
   });
+
+  describe.each([
+    ["service", "service_uuids.yaml", lookupServiceUuid],
+    ["characteristic", "characteristic_uuids.yaml", lookupCharacteristicUuid],
+    ["descriptor", "descriptor_uuids.yaml", lookupDescriptorUuid],
+  ] as Array<[string, string, StringLookup]>)(
+    "%s UUIDs",
+    (_label, yamlFile, lookup) => {
+      it("every SIG YAML entry resolves through the lookup", () => {
+        const data = loadSigYaml(yamlFile);
+        for (const entry of data.entries) {
+          const code = Number.parseInt(entry.code, 16);
+          expect(lookup(code)).toBe(entry.name);
+        }
+      });
+    }
+  );
 });

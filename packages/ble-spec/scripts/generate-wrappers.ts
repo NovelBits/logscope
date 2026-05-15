@@ -132,6 +132,7 @@ export function ${lookupName}(code: number): string | null {
 
 interface GenSpec {
   yamlFile: string;
+  yamlDir?: string; // defaults to "novel-bits-curated"
   outFile: string;
   render: (raw: any) => string;
 }
@@ -175,6 +176,42 @@ const GENERATIONS: GenSpec[] = [
     outFile: "company-ids.ts",
     render: (raw) => renderCompanyIdsModule(raw),
   },
+  {
+    yamlFile: "service_uuids.yaml",
+    yamlDir: "sig-mirror",
+    outFile: "service-uuids.ts",
+    render: (raw) =>
+      renderUuidModule(
+        raw,
+        "SERVICE_UUIDS",
+        "lookupServiceUuid",
+        "Bluetooth SIG-defined 16-bit Service UUIDs (mirrors the SIG bitbucket assigned-numbers tree)."
+      ),
+  },
+  {
+    yamlFile: "characteristic_uuids.yaml",
+    yamlDir: "sig-mirror",
+    outFile: "characteristic-uuids.ts",
+    render: (raw) =>
+      renderUuidModule(
+        raw,
+        "CHARACTERISTIC_UUIDS",
+        "lookupCharacteristicUuid",
+        "Bluetooth SIG-defined 16-bit Characteristic UUIDs (mirrors the SIG bitbucket assigned-numbers tree)."
+      ),
+  },
+  {
+    yamlFile: "descriptor_uuids.yaml",
+    yamlDir: "sig-mirror",
+    outFile: "descriptor-uuids.ts",
+    render: (raw) =>
+      renderUuidModule(
+        raw,
+        "DESCRIPTOR_UUIDS",
+        "lookupDescriptorUuid",
+        "Bluetooth SIG-defined 16-bit Descriptor UUIDs (mirrors the SIG bitbucket assigned-numbers tree)."
+      ),
+  },
 ];
 
 function main() {
@@ -182,7 +219,8 @@ function main() {
   let drifted = false;
 
   for (const spec of GENERATIONS) {
-    const inputPath = join(DATA_DIR, spec.yamlFile);
+    const subdir = spec.yamlDir ?? "novel-bits-curated";
+    const inputPath = join(PACKAGE_ROOT, "data", subdir, spec.yamlFile);
     if (!existsSync(inputPath)) {
       console.error(`SKIP: ${inputPath} does not exist`);
       continue;
