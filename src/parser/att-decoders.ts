@@ -124,6 +124,30 @@ export function decodeAttWriteOrNotify(
   return { summary: `handle:${handleStr} ${label} (handle: ${fmtHandle(attHandle)})`, fields };
 }
 
+/** ATT Write Response (0x13) — zero-payload opcode. */
+export function decodeAttWriteResponse(
+  _payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket {
+  return {
+    summary: `handle:${handleStr} ATT Write Response`,
+    fields,
+  };
+}
+
+/** ATT Handle Value Confirmation (0x1e) — zero-payload opcode. */
+export function decodeAttHandleValueConfirmation(
+  _payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket {
+  return {
+    summary: `handle:${handleStr} ATT Handle Value Confirmation`,
+    fields,
+  };
+}
+
 export const attDecoders: Record<number, AttDecoder> = {
   0x01: decodeAttErrorResponse,
   0x02: decodeAttExchangeMtu,
@@ -131,6 +155,8 @@ export const attDecoders: Record<number, AttDecoder> = {
   0x0a: decodeAttReadRequest,
   0x0b: decodeAttReadResponse,
   0x12: decodeAttWriteOrNotify,
-  0x52: decodeAttWriteOrNotify,
+  0x13: decodeAttWriteResponse,
   0x1b: decodeAttWriteOrNotify,
+  0x1e: decodeAttHandleValueConfirmation,
+  0x52: decodeAttWriteOrNotify,
 };
