@@ -858,6 +858,90 @@ export function decodeAttSignedWriteCommand(
   };
 }
 
+/**
+ * ATT Multiple Handle Value Notification (0x23). Core Spec v6.3 Vol 3 Part F
+ * §3.4.7.4 (added in v5.3).
+ *
+ * Body: a list of `Handle (2B LE) + Length (2B LE) + Value (Length bytes)`
+ * tuples. The list continues until the body is exhausted; at least one tuple
+ * is required (a body shorter than 4 bytes cannot even hold one tuple header
+ * and is rejected with null).
+ *
+ * On a malformed final tuple — declared length overrunning the buffer, or a
+ * trailing fragment shorter than the 4-byte tuple header — render what's
+ * available and flag a `Truncated` field with the missing byte count.
+ */
+export function decodeAttMultipleHandleValueNotification(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  // Need opcode + at least one tuple header (4 bytes) = 8 + 1 + 4 = 13.
+  if (payload.length < 13) return null;
+  const body = payload.subarray(9);
+  let cursor = 0;
+  let count = 0;
+
+  while (cursor < body.length) {
+    // Need 4 bytes for handle + length header.
+    if (body.length - cursor < 4) {
+      const remaining = body.length - cursor;
+      const partial = body.subarray(cursor);
+      count += 1;
+      fields.push(
+        field(
+          `Tuple ${count}`,
+          `(truncated header: ${formatValueBytes(partial)})`,
+          COLOR_ERROR,
+        ),
+      );
+      fields.push(field("Truncated", `${remaining} byte(s)`, COLOR_ERROR));
+      cursor = body.length;
+      break;
+    }
+
+    const attHandle = body.readUInt16LE(cursor);
+    const declaredLen = body.readUInt16LE(cursor + 2);
+    const available = body.length - cursor - 4;
+    count += 1;
+
+    if (declaredLen <= available) {
+      const value = body.subarray(cursor + 4, cursor + 4 + declaredLen);
+      fields.push(
+        field(
+          `Tuple ${count} (handle ${fmtHandle(attHandle)}, len ${declaredLen})`,
+          formatValueBytes(value),
+        ),
+      );
+      cursor += 4 + declaredLen;
+    } else {
+      // Declared length overruns the buffer — render what's there and flag.
+      const value = body.subarray(cursor + 4);
+      fields.push(
+        field(
+          `Tuple ${count} (handle ${fmtHandle(attHandle)}, len ${declaredLen} declared, ${value.length} B available)`,
+          formatValueBytes(value),
+          COLOR_ERROR,
+        ),
+      );
+      fields.push(
+        field(
+          "Truncated",
+          `tuple ${count} length ${declaredLen} exceeds remaining ${available} byte(s)`,
+          COLOR_ERROR,
+        ),
+      );
+      cursor = body.length;
+      break;
+    }
+  }
+
+  return {
+    summary: `handle:${handleStr} ATT Multiple Handle Value Notification (${count} tuple${count === 1 ? "" : "s"})`,
+    fields,
+  };
+}
+
 export const attDecoders: Record<number, AttDecoder> = {
   0x01: decodeAttErrorResponse,
   0x02: decodeAttExchangeMtu,
@@ -887,6 +971,7 @@ export const attDecoders: Record<number, AttDecoder> = {
   0x1e: decodeAttHandleValueConfirmation,
   0x20: decodeAttReadMultipleVariableRequest,
   0x21: decodeAttReadMultipleVariableResponse,
+  0x23: decodeAttMultipleHandleValueNotification,
   0x52: decodeAttWriteOrNotify,
   0xd2: decodeAttSignedWriteCommand,
 };

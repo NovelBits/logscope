@@ -25,6 +25,7 @@ import {
   decodeAttExecuteWriteResponse,
   decodeAttSignedWriteCommand,
   decodeAttHandleValueIndication,
+  decodeAttMultipleHandleValueNotification,
 } from "../../src/parser/att-decoders";
 
 describe("ATT stub decoders (zero-payload)", () => {
@@ -1086,5 +1087,94 @@ describe("Handle Value Indication (0x1d)", () => {
     const result = decodeAttHandleValueIndication(buf, "0x0040", []);
     expect(result?.summary).toContain("Indication");
     expect(result?.summary).not.toContain("Notification");
+  });
+});
+
+describe("Multiple Handle Value Notification (0x23)", () => {
+  it("decodes a well-formed single tuple", () => {
+    // opcode 0x23, tuple: handle 0x0010, len 2, value AA BB
+    const buf = Buffer.from([
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0x23,
+      0x10, 0x00, 0x02, 0x00, 0xaa, 0xbb,
+    ]);
+    const result = decodeAttMultipleHandleValueNotification(buf, "0x0040", []);
+    expect(result?.summary).toBe(
+      "handle:0x0040 ATT Multiple Handle Value Notification (1 tuple)"
+    );
+    expect(result?.fields[0].name).toBe("Tuple 1 (handle 0x0010, len 2)");
+    expect(result?.fields[0].value).toContain("aa bb");
+  });
+
+  it("decodes three tuples with different value lengths", () => {
+    // tuple 1: handle 0x0010, len 2, AA BB
+    // tuple 2: handle 0x0020, len 3, CC DD EE
+    // tuple 3: handle 0x0030, len 1, FF
+    const buf = Buffer.from([
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0x23,
+      0x10, 0x00, 0x02, 0x00, 0xaa, 0xbb,
+      0x20, 0x00, 0x03, 0x00, 0xcc, 0xdd, 0xee,
+      0x30, 0x00, 0x01, 0x00, 0xff,
+    ]);
+    const result = decodeAttMultipleHandleValueNotification(buf, "0x0040", []);
+    expect(result?.summary).toBe(
+      "handle:0x0040 ATT Multiple Handle Value Notification (3 tuples)"
+    );
+    expect(result?.fields[0].name).toBe("Tuple 1 (handle 0x0010, len 2)");
+    expect(result?.fields[0].value).toContain("aa bb");
+    expect(result?.fields[1].name).toBe("Tuple 2 (handle 0x0020, len 3)");
+    expect(result?.fields[1].value).toContain("cc dd ee");
+    expect(result?.fields[2].name).toBe("Tuple 3 (handle 0x0030, len 1)");
+    expect(result?.fields[2].value).toContain("ff");
+  });
+
+  it("decodes a tuple with a zero-length value", () => {
+    // tuple 1: handle 0x0010, len 0
+    // tuple 2: handle 0x0020, len 2, AA BB
+    const buf = Buffer.from([
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0x23,
+      0x10, 0x00, 0x00, 0x00,
+      0x20, 0x00, 0x02, 0x00, 0xaa, 0xbb,
+    ]);
+    const result = decodeAttMultipleHandleValueNotification(buf, "0x0040", []);
+    expect(result?.summary).toBe(
+      "handle:0x0040 ATT Multiple Handle Value Notification (2 tuples)"
+    );
+    expect(result?.fields[0].name).toBe("Tuple 1 (handle 0x0010, len 0)");
+    expect(result?.fields[0].value).toBe("(empty)");
+    expect(result?.fields[1].name).toBe("Tuple 2 (handle 0x0020, len 2)");
+    expect(result?.fields[1].value).toContain("aa bb");
+  });
+
+  it("flags a truncated final tuple where declared length overruns the buffer", () => {
+    // tuple 1: handle 0x0010, len 2, AA BB (well-formed)
+    // tuple 2: handle 0x0020, len 5 declared but only 2 bytes remain
+    const buf = Buffer.from([
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0x23,
+      0x10, 0x00, 0x02, 0x00, 0xaa, 0xbb,
+      0x20, 0x00, 0x05, 0x00, 0xcc, 0xdd,
+    ]);
+    const result = decodeAttMultipleHandleValueNotification(buf, "0x0040", []);
+    expect(result?.summary).toBe(
+      "handle:0x0040 ATT Multiple Handle Value Notification (2 tuples)"
+    );
+    expect(result?.fields[1].name).toContain("declared");
+    expect(result?.fields[1].name).toContain("0x0020");
+    const truncated = result?.fields.find((f) => f.name === "Truncated");
+    expect(truncated?.value).toContain("exceeds remaining");
+  });
+
+  it("returns null when body is too short for even one tuple header", () => {
+    // 12 bytes total: 8 prefix + opcode + 3 (less than 4-byte tuple header)
+    const buf = Buffer.from([
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0x23,
+      0x10, 0x00, 0x02,
+    ]);
+    expect(buf.length).toBe(12);
+    expect(decodeAttMultipleHandleValueNotification(buf, "0x0040", [])).toBeNull();
   });
 });
