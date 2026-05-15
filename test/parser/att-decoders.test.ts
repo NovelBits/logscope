@@ -19,6 +19,8 @@ import {
   decodeAttReadMultipleResponse,
   decodeAttReadMultipleVariableRequest,
   decodeAttReadMultipleVariableResponse,
+  decodeAttPrepareWriteRequest,
+  decodeAttPrepareWriteResponse,
 } from "../../src/parser/att-decoders";
 
 describe("ATT stub decoders (zero-payload)", () => {
@@ -819,6 +821,89 @@ describe("Read Multiple Variable (0x20 / 0x21)", () => {
       );
       const truncated = result?.fields.find((f) => f.name === "Truncated");
       expect(truncated?.value).toBe("1 byte(s)");
+    });
+  });
+});
+
+describe("Prepare Write (0x16 / 0x17)", () => {
+  describe("Request (0x16)", () => {
+    it("decodes a request with a non-empty part value", () => {
+      // opcode 0x16, handle 0x0010, offset 0x0008, part value "Hi"
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x16,
+        0x10, 0x00,
+        0x08, 0x00,
+        0x48, 0x69,
+      ]);
+      const result = decodeAttPrepareWriteRequest(buf, "0x0040", []);
+      expect(result?.summary).toBe(
+        "handle:0x0040 ATT Prepare Write Request (handle: 0x0010, offset: 8)"
+      );
+      expect(result?.fields[0]).toEqual({ name: "ATT Handle", value: "0x0010" });
+      expect(result?.fields[1]).toEqual({ name: "Value Offset", value: "8" });
+      expect(result?.fields[2].name).toBe("Part Value");
+      expect(result?.fields[2].value).toContain("48 69");
+      expect(result?.fields[2].value).toContain("Hi");
+    });
+
+    it("accepts a request with a zero-length part value", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x16,
+        0x10, 0x00,
+        0x00, 0x00,
+      ]);
+      const result = decodeAttPrepareWriteRequest(buf, "0x0040", []);
+      expect(result?.summary).toBe(
+        "handle:0x0040 ATT Prepare Write Request (handle: 0x0010, offset: 0)"
+      );
+      expect(result?.fields[2]).toEqual({ name: "Part Value", value: "(empty)" });
+    });
+
+    it("returns null on truncated payload (missing offset)", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x16,
+        0x10, 0x00,
+        0x00,
+      ]);
+      expect(decodeAttPrepareWriteRequest(buf, "0x0040", [])).toBeNull();
+    });
+  });
+
+  describe("Response (0x17)", () => {
+    it("decodes a well-formed response with echoed fields", () => {
+      const buf = Buffer.from([
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x17,
+        0x10, 0x00,
+        0x08, 0x00,
+        0x48, 0x69,
+      ]);
+      const result = decodeAttPrepareWriteResponse(buf, "0x0040", []);
+      expect(result?.summary).toBe(
+        "handle:0x0040 ATT Prepare Write Response (handle: 0x0010, offset: 8)"
+      );
+      expect(result?.fields[0]).toEqual({ name: "ATT Handle", value: "0x0010" });
+      expect(result?.fields[1]).toEqual({ name: "Value Offset", value: "8" });
+      expect(result?.fields[2].value).toContain("48 69");
+    });
+
+    it("echoes match request semantics for the same input bytes", () => {
+      // Same body layout for request and response: identical fields modulo summary label.
+      const body = [0x10, 0x00, 0x08, 0x00, 0x48, 0x69];
+      const req = decodeAttPrepareWriteRequest(
+        Buffer.from([0, 0, 0, 0, 0, 0, 0, 0, 0x16, ...body]),
+        "0x0040",
+        []
+      );
+      const rsp = decodeAttPrepareWriteResponse(
+        Buffer.from([0, 0, 0, 0, 0, 0, 0, 0, 0x17, ...body]),
+        "0x0040",
+        []
+      );
+      expect(rsp?.fields).toEqual(req?.fields);
     });
   });
 });

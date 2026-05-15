@@ -701,6 +701,55 @@ export function decodeAttReadMultipleVariableResponse(
   };
 }
 
+/**
+ * Shared decoder body for ATT Prepare Write Request (0x16) and Prepare Write
+ * Response (0x17). Both have identical wire layout:
+ * Attribute Handle (2B) + Value Offset (2B) + Part Attribute Value (variable).
+ * The response echoes the request fields so the client can verify each chunk
+ * the server has staged before the eventual Execute Write commits them.
+ *
+ * Core Spec v6.3 Vol 3 Part F §3.4.6.1 / §3.4.6.2.
+ */
+function decodeAttPrepareWriteBody(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[],
+  label: "Request" | "Response"
+): DecodedPacket | null {
+  // Min body 4 bytes (handle + offset); total payload 8 + 1 + 4 = 13.
+  if (payload.length < 13) return null;
+  const attHandle = payload.readUInt16LE(9);
+  const offset = payload.readUInt16LE(11);
+  const partValue = payload.subarray(13);
+  fields.push(
+    field("ATT Handle", fmtHandle(attHandle)),
+    field("Value Offset", offset.toString()),
+    field("Part Value", formatValueBytes(partValue)),
+  );
+  return {
+    summary: `handle:${handleStr} ATT Prepare Write ${label} (handle: ${fmtHandle(attHandle)}, offset: ${offset})`,
+    fields,
+  };
+}
+
+/** ATT Prepare Write Request (0x16). */
+export function decodeAttPrepareWriteRequest(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  return decodeAttPrepareWriteBody(payload, handleStr, fields, "Request");
+}
+
+/** ATT Prepare Write Response (0x17). */
+export function decodeAttPrepareWriteResponse(
+  payload: Buffer,
+  handleStr: string,
+  fields: DecodedField[]
+): DecodedPacket | null {
+  return decodeAttPrepareWriteBody(payload, handleStr, fields, "Response");
+}
+
 export const attDecoders: Record<number, AttDecoder> = {
   0x01: decodeAttErrorResponse,
   0x02: decodeAttExchangeMtu,
@@ -721,6 +770,8 @@ export const attDecoders: Record<number, AttDecoder> = {
   0x11: decodeAttReadByGroupTypeResponse,
   0x12: decodeAttWriteOrNotify,
   0x13: decodeAttWriteResponse,
+  0x16: decodeAttPrepareWriteRequest,
+  0x17: decodeAttPrepareWriteResponse,
   0x1b: decodeAttWriteOrNotify,
   0x1e: decodeAttHandleValueConfirmation,
   0x20: decodeAttReadMultipleVariableRequest,
