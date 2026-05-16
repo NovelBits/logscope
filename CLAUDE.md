@@ -51,15 +51,6 @@ Canonical release flow:
 
 - **`test/security.test.ts` enforces an allowlist of action commands.** Every `command` string on an `ErrorAction` returned by `classifyError` in `src/errors.ts` must be present in the `ALLOWED` array in security.test.ts (there are two copies of the array, in the message-pattern and exit-code branches; update both). Adding a new error action without updating the allowlist passes locally but fails the GHA publish workflow's `npm test` step. v0.6.4 was bitten by this when `setJlinkDevice` was added without an allowlist update; the release had to be re-tagged after a security-test fix.
 
-## Cross-Repo Maintenance
-
-**After any version bump or release**, update the NovelBits Brain knowledge base:
-1. Update the version in `~/Projects/novelbits-brain` MEMORY.md (the `## LogScope` section header and recent releases list)
-2. If a new feature shipped, update `~/.claude/projects/-Users-mafaneh-Projects-novelbits-brain/memory/project_logscope_pending.md` to mark it done
-3. Append a log entry to `~/.claude/business/log.md`: `## [YYYY-MM-DD] deploy | LogScope vX.Y.Z`
-
-This keeps the central knowledge base in sync with actual releases.
-
 ## Important Rules
 
 - This is a PUBLIC repo. Never commit internal docs, credentials, API keys, or business strategy files.
