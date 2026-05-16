@@ -6,12 +6,12 @@ This document captures the path from v0.6.x to 1.0. It's strategic intent, not a
 
 LogScope 1.0 is the embedded-firmware log viewer that **Bluetooth LE engineers reach for first**. Built by Novel Bits, the team behind the Bluetooth Developer Academy and the most-cited Bluetooth LE tutorials on the web.
 
-Where SEGGER RTT Viewer ends at "raw bytes streamed to a console," LogScope begins. It parses, decodes, correlates, and visualizes embedded firmware activity with first-class understanding of Zephyr, nRF Connect SDK, and the Bluetooth LE stack. The 1.0 release is the version we put behind every Academy course, every blog post, and every consulting engagement; the tool that signals "Novel Bits the company built this."
+Where SEGGER RTT Viewer ends at "raw bytes streamed to a console," LogScope begins. It parses, decodes, correlates, and visualizes embedded firmware activity with first-class understanding of Zephyr, nRF Connect SDK, and the Bluetooth LE stack.
 
 ## What "1.0" means
 
 - **Stability:** zero known critical bugs, comprehensive test coverage across CB parsing, multi-vendor probes, and recovery paths. Real users in production.
-- **Polish:** every interactive surface feels intentional, not beta. Connect flow, error toasts, sidebar, log panel, settings — all consistent and discoverable.
+- **Polish:** every interactive surface feels intentional, not beta. Connect flow, error toasts, sidebar, log panel, settings; all consistent and discoverable.
 - **Bluetooth LE expertise visible everywhere:** features only a tool from a Bluetooth LE company would think to build (see Theme 1 below). The thing that makes a reviewer say "you can tell who built this."
 - **Multi-device, multi-session, multi-modal:** matches how real embedded teams work. No more single-probe limitation.
 - **Documentation that teaches, not just references:** first 5 minutes is a tutorial; the rest is a reference; cookbook entries cover custom parsers, BLE debug sessions, and CI integration.
@@ -34,7 +34,7 @@ The biggest differentiator. Today LogScope decodes HCI commands and events from 
 
 ### Theme 2: Multi-device workflows
 
-Today's single-probe limit is the most-requested UX gap. Real BLE work involves central + peripheral, gateway + sensor, mesh nodes — never just one device.
+Today's single-probe limit is the most-requested UX gap. Real BLE work involves central + peripheral, gateway + sensor, mesh nodes; never just one device.
 
 - Concurrent connections to multiple probes from one LogScope window
 - Cross-probe timeline correlation: timestamps aligned, events from different devices threaded into a unified view
@@ -69,29 +69,16 @@ LogScope today ships Zephyr / HCI / raw parsers. To grow beyond the Zephyr ecosy
 - Parser cookbook: stock examples for FreeRTOS-cli, ESP-IDF, Mbed OS, SiLabs RAIL
 - Parser sharing: marketplace-like discovery, or just a GitHub directory the community contributes to
 
-### Theme 6: Pro tier (business model)
-
-The codebase already has license-system infrastructure. 1.0 is the natural moment to lean into a sustainable model.
-
-Candidate Pro features (final cut TBD):
-
-- Multi-probe / multi-session (or could be free)
-- SystemView decoding (SEGGER's profiler protocol over RTT channel 1) — high-value, technically distinct
-- Session compare / diff
-- Memfault coredump decoding inline
-- Team features: shared session library, server-side aggregation, organization-wide watch patterns
-
-### Theme 7: Polish & docs
+### Theme 6: Polish & docs
 
 - All TODO.md items closed
 - Comprehensive docs site (already on Vercel, Starlight/Astro)
 - Tutorial videos: first 5 minutes with LogScope, BLE debug session walkthrough, custom parser tutorial
-- Marketing site, case studies from Academy students and consulting clients
 - Recorded "what does this tool do" demo for the Marketplace listing page
 
 ## Proposed sequencing (rough)
 
-Roughly 5 to 6 focused sprints, each shippable as an incremental v0.7 / v0.8 / etc. on the way to 1.0.
+Roughly 5 focused sprints, each shippable as an incremental v0.7 / v0.8 / etc. on the way to 1.0.
 
 **Sprint 1 (the foundation):** Session save / restore (Theme 3) + cb_addr caching for faster Nordic reset recovery (Theme 4). Both well-spec'd already; both unblock other work.
 
@@ -101,9 +88,7 @@ Roughly 5 to 6 focused sprints, each shippable as an incremental v0.7 / v0.8 / e
 
 **Sprint 4 (the platform):** Remote RTT polished and shipped (Theme 4) + non-Nordic auto-detect improvements + custom parser API skeleton (Theme 5).
 
-**Sprint 5 (the differentiator + the model):** Pick the highest-leverage Pro feature (lean: SystemView decoding) and ship it. Decide on the free vs Pro split for everything else.
-
-**Sprint 6 (the launch):** Polish pass over every interactive surface. Tutorial videos. Marketplace listing refresh. 1.0 announcement on the Novel Bits blog with a "what is LogScope" video. Coordinated with Academy course launches.
+**Sprint 5 (the launch):** Polish pass over every interactive surface. Tutorial videos. Marketplace listing refresh. 1.0 announcement.
 
 ## Out of scope for 1.0
 
@@ -112,21 +97,11 @@ Things that are tempting but should wait for 1.x:
 - Non-J-Link probe support (CMSIS-DAP, ST-Link). Real ask but expands the support surface significantly.
 - Embedded-Linux-style logging (journald, dmesg). Different problem space.
 - A CLI mode that captures sessions without VS Code. Could be a future companion tool.
-- Cloud-hosted session storage. Pro-tier add-on later.
+- Cloud-hosted session storage. Distinct deployment surface; revisit after 1.0.
 - Web version of LogScope. Distinct product.
 
 ## Risks worth naming
 
 - **The Nordic reset-recovery floor.** Direct-memory RTT bottoms out at ~1.5 s even after cb_addr caching, because J-Link DLL requires a USB close+reopen to unjam the DAP. Getting below that requires either a different RTT mechanism or a J-Link DLL improvement we don't control.
 - **Multi-probe complexity.** Single-probe is baked deep into the architecture. Multi-probe is the kind of feature that can swallow a sprint and then some.
-- **Pro-tier UX.** Gating features without making free users feel like beta-testers is hard. Need a clear story for what's free, what's Pro, and why.
 - **BLE deep decode maintenance.** Bluetooth Core Spec evolves (6.2, 6.3, ...). Whatever we ship has to be maintainable as new versions land.
-
-## Brand positioning notes
-
-When marketing 1.0:
-
-- Lean on Novel Bits's existing Bluetooth LE authority. The Academy, the Bluetooth LE tutorials, the consulting work. "Built by the team behind X."
-- Lead with the BLE deep-decode features (Theme 1). They're what makes LogScope obviously different from RTT Viewer.
-- Use real BLE debug stories from consulting engagements (anonymized) as case studies. "Here's a real-world pairing failure debugged in 3 minutes with LogScope."
-- Marketplace listing screenshots should show BLE-specific views, not just generic Zephyr logs.

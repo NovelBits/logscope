@@ -14,3 +14,6 @@ docs/.astro/
 __pycache__/
 # CocoIndex Code (ccc)
 /.cocoindex_code/
+.mapscope/
+.DS_Store
+**/.DS_Store
