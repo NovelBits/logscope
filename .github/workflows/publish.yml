@@ -23,6 +23,14 @@ jobs:
 
       - run: npm test
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify listing sync (canonical features in all surfaces)
+        run: python3 scripts/check-listing-sync.py
+
       - name: Verify changelog has entry for this version
         env:
           TAG_NAME: ${{ github.ref_name }}

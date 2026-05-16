@@ -1,0 +1,50 @@
+{
+  "$schema_note": "Canonical source of truth for marketing copy. Every advertised feature here must be visible to a user installing the latest published version. Verified against actual source code on main, not aspirational. Update this file when product capabilities change, then run scripts/check-listing-sync.py to verify all surfaces (package.json, README, docs site) follow.",
+  "displayName": "LogScope: Live RTT Logging for Nordic, Zephyr, and Bluetooth LE",
+  "audience": [
+    "Nordic",
+    "Zephyr",
+    "J-Link"
+  ],
+  "features": [
+    {
+      "name": "Bluetooth LE HCI decoding inline",
+      "aliases": [
+        "bluetooth le hci decoding",
+        "hci decoding",
+        "ble hci decoding",
+        "hci decoded inline"
+      ],
+      "source_evidence": "src/parser/hci-parser.ts, src/parser/hci-decoders.ts, src/parser/hci-opcodes.ts, src/parser/hci-field-types.ts, src/parser/hci-connection-tracker.ts, src/parser/hci-decoders-shared.ts"
+    },
+    {
+      "name": "direct-memory recovery",
+      "aliases": [
+        "direct memory recovery",
+        "direct-memory rtt",
+        "mid-session recovery",
+        "mid-session reset recovery"
+      ],
+      "source_evidence": "src/transport/rtt.ts, src/transport/rtt-helper.py, CHANGELOG v0.6.0 onwards"
+    },
+    {
+      "name": "fault auto-detect",
+      "aliases": [
+        "fault auto detect",
+        "fault detection",
+        "auto-detect faults",
+        "crash detection"
+      ],
+      "source_evidence": "src/parser/fault-detector.ts"
+    },
+    {
+      "name": "Wireshark btsnoop export",
+      "aliases": [
+        "btsnoop export",
+        "wireshark export",
+        "wireshark-compatible btsnoop"
+      ],
+      "source_evidence": "src/model/btsnoop-export.ts"
+    }
+  ]
+}

@@ -3,7 +3,7 @@ title: LogScope Documentation
 description: Real-time embedded firmware log viewer for VS Code
 template: splash
 hero:
-  tagline: from Novel Bits — Real-time log viewer for embedded firmware. Connect via J-Link RTT or Serial UART, filter by severity and module, decode Bluetooth LE HCI packets, and set up watch patterns to catch what matters.
+  tagline: Live RTT log viewer for Nordic, Zephyr, and J-Link. Bluetooth LE HCI decoding inline, direct-memory recovery, fault auto-detect, and Wireshark btsnoop export. Built by Novel Bits, the team behind the Bluetooth Developer Academy.
   actions:
     - text: Get Started
       link: /logscope/getting-started/overview/
@@ -20,8 +20,8 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
   <Card title="Connect in seconds" icon="laptop">
     Pick your transport (J-Link RTT or Serial UART), select a device, and start viewing logs. No configuration files needed.
   </Card>
-  <Card title="Watch Patterns" icon="magnifier">
-    Define patterns that match incoming log lines in real-time. Colored markers give you instant visibility into errors, retransmissions, and state changes.
+  <Card title="Fault Auto-Detect" icon="warning">
+    Automatically detect hard faults, bus faults, Zephyr fatal errors, assertions, stack overflows, and watchdog resets. LogScope highlights the row and pauses auto-scroll so you can investigate immediately.
   </Card>
   <Card title="HCI Packet Decoding" icon="approve-check">
     Decode Bluetooth LE HCI packets inline with expandable detail views showing fields, values, and raw hex dumps.

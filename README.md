@@ -1,6 +1,6 @@
 # LogScope
 
-**Real-time embedded log viewer for VS Code with multi-format parsing and Bluetooth LE HCI decoding.**
+**Live RTT log viewer for VS Code with Bluetooth LE HCI decoding inline, direct-memory recovery, fault auto-detect, and Wireshark btsnoop export. Built by Novel Bits, the team behind the Bluetooth Developer Academy.**
 
 LogScope streams logs directly from your embedded device via J-Link RTT or Serial UART. View Zephyr RTOS, nRF5 SDK, or any firmware logs in a modern, filterable viewer with deep Bluetooth LE protocol decoding built in.
 

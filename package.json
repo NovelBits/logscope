@@ -1,8 +1,8 @@
 {
   "name": "novelbits-logscope",
-  "displayName": "LogScope — Embedded Log Viewer",
-  "description": "Real-time embedded log viewer — Zephyr, nRF5 SDK, and raw mode with Bluetooth LE HCI decoding, filtering, search, fault detection, and Wireshark export",
-  "version": "0.6.4",
+  "displayName": "LogScope: Live RTT Logging for Nordic, Zephyr, and Bluetooth LE",
+  "description": "Live RTT log viewer for Nordic, Zephyr, and J-Link. Bluetooth LE HCI decoding inline, direct-memory recovery, fault auto-detect, and Wireshark btsnoop export.",
+  "version": "0.6.5",
   "publisher": "novelbits",
   "author": {
     "name": "Novel Bits"
@@ -20,13 +20,18 @@
     "embedded",
     "zephyr",
     "bluetooth",
+    "ble",
     "hci",
     "rtt",
     "jlink",
+    "j-link",
+    "segger",
     "firmware",
     "logging",
+    "btsnoop",
     "nordic",
     "nrf",
+    "ncs",
     "nrf-connect",
     "nrf52",
     "nrf54",
@@ -35,7 +40,8 @@
     "debug",
     "wireshark",
     "cortex-m",
-    "uart"
+    "uart",
+    "rtos"
   ],
   "activationEvents": [
     "onView:logscope.sidebar",

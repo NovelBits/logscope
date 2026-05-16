@@ -1,0 +1,36 @@
+name: Listing Sync Check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "package.json"
+      - "README.md"
+      - "docs/src/content/docs/index.mdx"
+      - "marketing/listing.json"
+      - "scripts/check-listing-sync.py"
+  push:
+    branches: [main]
+    paths:
+      - "package.json"
+      - "README.md"
+      - "docs/src/content/docs/index.mdx"
+      - "marketing/listing.json"
+      - "scripts/check-listing-sync.py"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run listing sync check
+        run: python3 scripts/check-listing-sync.py
