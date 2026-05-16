@@ -47,6 +47,11 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Releases',
+					autogenerate: { directory: 'releases' },
+					collapsed: true,
+				},
+				{
 					label: 'Licensing',
 					items: [
 						{ label: 'Licensing', slug: 'licensing/free-vs-pro' },
@@ -68,7 +73,6 @@ export default defineConfig({
 						{ label: 'Troubleshooting', slug: 'reference/troubleshooting' },
 						{ label: 'Privacy & Telemetry', slug: 'reference/privacy-telemetry' },
 						{ label: 'FAQ', slug: 'reference/faq' },
-						{ label: 'Changelog', link: 'https://github.com/NovelBits/logscope/blob/main/CHANGELOG.md' },
 					],
 				},
 			],

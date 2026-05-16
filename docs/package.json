@@ -7,7 +7,8 @@
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "gen:releases": "python3 ../scripts/generate-release-pages.py"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.2",
