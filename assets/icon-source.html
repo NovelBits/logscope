@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<!--
+LogScope Marketplace icon — pure HTML/CSS source.
+
+Source of truth for the magnifying-glass-over-logs icon shipped on the VS Code
+Marketplace and used in branded content. The previous icon-128.png was a
+one-off raster file with no source; this file replaces it so the icon is
+re-renderable at any size whenever the brand needs a refresh.
+
+How to re-render (any headless browser works):
+
+  # Serve this file locally
+  python3 -m http.server 8765 -d $(dirname "$0")
+
+  # Render at 1024x1024 via Playwright headless
+  npx playwright screenshot \
+    --viewport-size=1024,1024 \
+    http://localhost:8765/icon-source.html icon-1024.png
+
+  # Downscale to Marketplace size (128x128)
+  sips -z 128 128 icon-1024.png --out icon-128.png
+
+Output sizes used by the project:
+  icon-1024.png  — high-resolution master (blog featured images, social, etc.)
+  icon-128.png   — VS Code Marketplace icon (referenced in package.json)
+  icon.svg       — separate monochrome line-art used in the activity bar
+
+To tweak the design, edit the .lens, .handle, or .bg-* CSS rules below and
+re-render. Severity dot colors are at the bottom of the <style> block.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LogScope Marketplace Icon</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: transparent;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    width: 1024px;
+    height: 1024px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .card {
+    width: 960px;
+    height: 960px;
+    background: linear-gradient(135deg, #1a2440 0%, #0a1424 100%);
+    border-radius: 200px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  }
+
+  /* Background log rows visible across the entire card (dim) */
+  .bg-logs {
+    position: absolute;
+    inset: 130px 110px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .bg-row {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    opacity: 0.45;
+  }
+  .bg-dot {
+    width: 28px;
+    height: 14px;
+    border-radius: 7px;
+    background: #5a6478;
+    flex-shrink: 0;
+  }
+  .bg-line {
+    height: 14px;
+    border-radius: 7px;
+    background: #4a5266;
+    flex-shrink: 0;
+  }
+  .bg-row:nth-child(1) .bg-line { width: 460px; }
+  .bg-row:nth-child(2) .bg-line { width: 380px; }
+  .bg-row:nth-child(3) .bg-line { width: 520px; }
+  .bg-row:nth-child(4) .bg-line { width: 340px; }
+  .bg-row:nth-child(5) .bg-line { width: 480px; }
+  .bg-row:nth-child(6) .bg-line { width: 400px; }
+  .bg-row:nth-child(7) .bg-line { width: 500px; }
+
+  /* The magnifying glass lens — bigger, centered slightly upper-left */
+  .lens {
+    position: absolute;
+    top: 140px;
+    left: 140px;
+    width: 620px;
+    height: 620px;
+    border-radius: 50%;
+    border: 38px solid #3b9eff;
+    background: rgba(8, 16, 30, 0.55);
+    overflow: hidden;
+    box-shadow: 0 0 50px rgba(59, 158, 255, 0.22), inset 0 0 70px rgba(255,255,255,0.04);
+    z-index: 2;
+  }
+
+  /* Inside the lens: brighter, color-coded log rows (7 rows now) */
+  .lens-logs {
+    position: absolute;
+    inset: 70px 60px 70px 70px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .lens-row {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+  }
+  .lens-dot {
+    width: 28px;
+    height: 14px;
+    border-radius: 7px;
+    flex-shrink: 0;
+  }
+  .lens-line {
+    height: 14px;
+    border-radius: 7px;
+    background: #c1cad8;
+    flex-shrink: 0;
+  }
+  .lens-row:nth-child(1) .lens-line { width: 240px; }
+  .lens-row:nth-child(2) .lens-line { width: 200px; }
+  .lens-row:nth-child(3) .lens-line { width: 270px; }
+  .lens-row:nth-child(4) .lens-line { width: 180px; }
+  .lens-row:nth-child(5) .lens-line { width: 250px; }
+  .lens-row:nth-child(6) .lens-line { width: 210px; }
+  .lens-row:nth-child(7) .lens-line { width: 230px; }
+
+  .info  { background: #22c55e; }
+  .warn  { background: #fbbf24; }
+  .error { background: #ef4444; }
+  .dbg   { background: #60a5fa; }
+
+  /* The handle of the magnifying glass — connected to lens at 45° */
+  .handle {
+    position: absolute;
+    /* Lens outer-edge bottom-right at 45° from its center (460, 460) at radius 310
+       lands at approx (679, 679). Position handle so its near short-edge sits on
+       that point. With transform-origin "30px 30px" the handle pivots around
+       that local coordinate; offsetting by -30,-30 from the target point puts
+       the pivot exactly on the lens edge. */
+    top: 649px;
+    left: 649px;
+    width: 250px;
+    height: 60px;
+    background: #3b9eff;
+    border-radius: 30px;
+    transform: rotate(45deg);
+    transform-origin: 30px 30px;
+    box-shadow: 0 4px 14px rgba(59, 158, 255, 0.35);
+    z-index: 1;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="card">
+    <div class="bg-logs">
+      <div class="bg-row"><div class="bg-dot"></div><div class="bg-line"></div></div>
+      <div class="bg-row"><div class="bg-dot"></div><div class="bg-line"></div></div>
+      <div class="bg-row"><div class="bg-dot"></div><div class="bg-line"></div></div>
+      <div class="bg-row"><div class="bg-dot"></div><div class="bg-line"></div></div>
+      <div class="bg-row"><div class="bg-dot"></div><div class="bg-line"></div></div>
+      <div class="bg-row"><div class="bg-dot"></div><div class="bg-line"></div></div>
+      <div class="bg-row"><div class="bg-dot"></div><div class="bg-line"></div></div>
+    </div>
+    <div class="lens">
+      <div class="lens-logs">
+        <div class="lens-row"><div class="lens-dot info"></div><div class="lens-line"></div></div>
+        <div class="lens-row"><div class="lens-dot warn"></div><div class="lens-line"></div></div>
+        <div class="lens-row"><div class="lens-dot error"></div><div class="lens-line"></div></div>
+        <div class="lens-row"><div class="lens-dot info"></div><div class="lens-line"></div></div>
+        <div class="lens-row"><div class="lens-dot warn"></div><div class="lens-line"></div></div>
+        <div class="lens-row"><div class="lens-dot dbg"></div><div class="lens-line"></div></div>
+        <div class="lens-row"><div class="lens-dot info"></div><div class="lens-line"></div></div>
+      </div>
+    </div>
+    <div class="handle"></div>
+  </div>
+</div>
+</body>
+</html>
