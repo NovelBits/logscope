@@ -268,9 +268,16 @@ function buildDetailDiv(decoded: DecodedPacket, raw?: number[], row?: HTMLElemen
     if (field.color) {
       tdValue.style.color = field.color;
     }
-    if (field.tooltip) {
-      tdValue.title = field.tooltip;
-      tdValue.style.cursor = "help";
+    const fieldTooltip = (field as { tooltip?: string }).tooltip;
+    if (fieldTooltip) {
+      const icon = document.createElement("button");
+      icon.className = "spec-info-icon";
+      icon.textContent = "ⓘ";
+      icon.type = "button";
+      icon.setAttribute("aria-label", "View spec citation");
+      icon.dataset.tooltip = fieldTooltip;
+      tdValue.appendChild(document.createTextNode(" "));
+      tdValue.appendChild(icon);
     }
     tr.appendChild(tdName);
     tr.appendChild(tdValue);
@@ -388,6 +395,106 @@ function getRowText(row: HTMLElement): string {
 }
 
 const COPYABLE_SELECTOR = ".log-row, .reset-separator";
+
+// ── Spec citation popover ───────────────────────────────────────
+// Click the ⓘ icon next to a decoded field with a spec-snippet tooltip
+// to open a styled popover with the spec definition and citation.
+// Click outside or press Escape to dismiss. Only one popover open at a time.
+
+function dismissSpecPopover(): void {
+  document.querySelectorAll(".spec-popover").forEach((p) => p.remove());
+}
+
+function showSpecPopover(icon: HTMLElement): void {
+  dismissSpecPopover();
+
+  const tooltip = icon.dataset.tooltip || "";
+  if (!tooltip) return;
+
+  // Parse "Name — Description (Citation)" into structured parts.
+  // Falls back to a single body if the format doesn't match.
+  const match = tooltip.match(/^(.+?) — (.+?) \((.+?)\)$/);
+  let title = "Spec Reference";
+  let body = tooltip;
+  let citation = "";
+  if (match) {
+    title = match[1];
+    body = match[2];
+    citation = match[3];
+  }
+
+  const popover = document.createElement("div");
+  popover.className = "spec-popover";
+
+  const header = document.createElement("div");
+  header.className = "spec-popover-header";
+  const titleEl = document.createElement("span");
+  titleEl.className = "spec-popover-title";
+  titleEl.textContent = title;
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.className = "spec-popover-close";
+  closeBtn.setAttribute("aria-label", "Close");
+  closeBtn.textContent = "×";
+  header.appendChild(titleEl);
+  header.appendChild(closeBtn);
+
+  const bodyEl = document.createElement("div");
+  bodyEl.className = "spec-popover-body";
+  bodyEl.textContent = body;
+
+  popover.appendChild(header);
+  popover.appendChild(bodyEl);
+
+  if (citation) {
+    const citationEl = document.createElement("div");
+    citationEl.className = "spec-popover-citation";
+    citationEl.textContent = citation;
+    popover.appendChild(citationEl);
+  }
+
+  // Position next to the icon. Fall back to viewport-clamped placement.
+  const rect = icon.getBoundingClientRect();
+  popover.style.left = `${rect.right + 8}px`;
+  popover.style.top = `${rect.top}px`;
+  document.body.appendChild(popover);
+
+  // Reposition if off-screen.
+  requestAnimationFrame(() => {
+    const popRect = popover.getBoundingClientRect();
+    if (popRect.right > window.innerWidth - 8) {
+      popover.style.left = `${Math.max(8, rect.left - popRect.width - 8)}px`;
+    }
+    if (popRect.bottom > window.innerHeight - 8) {
+      popover.style.top = `${Math.max(8, window.innerHeight - popRect.height - 8)}px`;
+    }
+  });
+
+  closeBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    dismissSpecPopover();
+  });
+}
+
+document.addEventListener("click", (e: Event) => {
+  const target = e.target as HTMLElement;
+  if (target.classList.contains("spec-info-icon")) {
+    e.stopPropagation();
+    showSpecPopover(target);
+    return;
+  }
+  // Click anywhere outside the open popover dismisses it.
+  const popover = document.querySelector(".spec-popover");
+  if (popover && !popover.contains(target)) {
+    dismissSpecPopover();
+  }
+});
+
+document.addEventListener("keydown", (e: KeyboardEvent) => {
+  if (e.key === "Escape") {
+    dismissSpecPopover();
+  }
+});
 
 document.addEventListener("copy", (e: ClipboardEvent) => {
   const selection = globalThis.getSelection();
