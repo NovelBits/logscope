@@ -180,6 +180,7 @@ export function attErrorCodeName(code: number): string {
 }
 
 import specSnippets from "./spec-snippets.json";
+import { HCI_COMMANDS, HCI_EVENTS, LE_META_EVENTS } from "./hci-opcodes";
 
 interface AttErrorSnippet {
   name: string;
@@ -194,14 +195,22 @@ interface AttOpcodeSnippet {
 interface HciErrorSnippet {
   description: string;
 }
+interface HciCodedSnippet {
+  description: string;
+  spec_ref?: { doc: string; section: string };
+}
 
 const SPEC = specSnippets as unknown as {
   att_error_codes: Record<string, AttErrorSnippet>;
   att_opcodes: Record<string, AttOpcodeSnippet>;
   hci_error_codes: Record<string, HciErrorSnippet>;
+  hci_commands: Record<string, HciCodedSnippet>;
+  hci_events: Record<string, HciCodedSnippet>;
+  le_meta_events: Record<string, HciCodedSnippet>;
 };
 
 const codeKey = (code: number) => `0x${code.toString(16).padStart(2, "0")}`;
+const codeKey4 = (code: number) => `0x${code.toString(16).padStart(4, "0")}`;
 
 /**
  * Return a formatted tooltip string with the spec-defined description and citation
@@ -233,4 +242,31 @@ export function hciErrorCodeSnippet(code: number): string | undefined {
   if (!entry) return undefined;
   const name = HCI_ERROR_CODES[code] ?? "Unknown";
   return `${name} — ${entry.description} (Core_v6.3 Vol 1 Part F)`;
+}
+
+/** Tooltip for an HCI command opcode (e.g., 0x2006 LE Set Advertising Parameters). */
+export function hciCommandSnippet(opcode: number): string | undefined {
+  const entry = SPEC.hci_commands[codeKey4(opcode)];
+  if (!entry) return undefined;
+  const name = HCI_COMMANDS[opcode] ?? "HCI Command";
+  const ref = entry.spec_ref ? ` (${entry.spec_ref.doc} §${entry.spec_ref.section})` : "";
+  return `${name} — ${entry.description}${ref}`;
+}
+
+/** Tooltip for an HCI event code (e.g., 0x05 Disconnection Complete). */
+export function hciEventSnippet(eventCode: number): string | undefined {
+  const entry = SPEC.hci_events[codeKey(eventCode)];
+  if (!entry) return undefined;
+  const name = HCI_EVENTS[eventCode] ?? "HCI Event";
+  const ref = entry.spec_ref ? ` (${entry.spec_ref.doc} §${entry.spec_ref.section})` : "";
+  return `${name} — ${entry.description}${ref}`;
+}
+
+/** Tooltip for an LE Meta subevent code (e.g., 0x01 LE Connection Complete). */
+export function leMetaEventSnippet(subevent: number): string | undefined {
+  const entry = SPEC.le_meta_events[codeKey(subevent)];
+  if (!entry) return undefined;
+  const name = LE_META_EVENTS[subevent] ?? "LE Subevent";
+  const ref = entry.spec_ref ? ` (${entry.spec_ref.doc} §${entry.spec_ref.section})` : "";
+  return `${name} — ${entry.description}${ref}`;
 }

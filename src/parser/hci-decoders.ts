@@ -17,7 +17,10 @@ import {
   attErrorCodeSnippet,
   attOpcodeSnippet,
   hciErrorCodeSnippet,
+  hciCommandSnippet,
+  leMetaEventSnippet,
 } from "./hci-field-types";
+import { LE_META_EVENTS } from "./hci-opcodes";
 import { commandName } from "./hci-opcodes";
 import { HciConnectionTracker } from "./hci-connection-tracker";
 
@@ -62,6 +65,24 @@ function attOpcodeField(opcode: number): DecodedField {
   const value = `${name} (0x${opcode.toString(16).toUpperCase().padStart(2, "0")})`;
   const tooltip = attOpcodeSnippet(opcode);
   const result: DecodedField = { name: "ATT Opcode", value };
+  if (tooltip) result.tooltip = tooltip;
+  return result;
+}
+
+/** Create a Command field with the command name + spec-snippet tooltip. */
+function commandFieldWithTooltip(opcode: number, name: string): DecodedField {
+  const tooltip = hciCommandSnippet(opcode);
+  const result: DecodedField = { name: "Command", value: name };
+  if (tooltip) result.tooltip = tooltip;
+  return result;
+}
+
+/** Create an LE Subevent field with the subevent name + spec-snippet tooltip. */
+function leSubeventFieldWithTooltip(subevent: number): DecodedField {
+  const name = LE_META_EVENTS[subevent] ?? `LE Subevent 0x${subevent.toString(16).padStart(2, "0")}`;
+  const value = `${name} (0x${subevent.toString(16).toUpperCase().padStart(2, "0")})`;
+  const tooltip = leMetaEventSnippet(subevent);
+  const result: DecodedField = { name: "LE Subevent", value };
   if (tooltip) result.tooltip = tooltip;
   return result;
 }
@@ -485,17 +506,25 @@ function decodeLePhyUpdateComplete(payload: Buffer): DecodedPacket | null {
   };
 }
 
-/** Decode LE Meta subevents */
+/** Decode LE Meta subevents, prepending an LE Subevent field with spec tooltip. */
 function decodeLeMetaEvent(payload: Buffer): DecodedPacket | null {
   if (payload.length < 3) return null;
-  switch (payload[2]) {
-    case 0x01: return decodeLeConnectionComplete(payload);
-    case 0x02: return decodeLeAdvertisingReport(payload);
-    case 0x07: return decodeLeDataLengthChange(payload);
-    case 0x0a: return decodeLeEnhancedConnectionComplete(payload);
-    case 0x0c: return decodeLePhyUpdateComplete(payload);
-    default:   return null;
+  const subevent = payload[2];
+  let packet: DecodedPacket | null;
+  switch (subevent) {
+    case 0x01: packet = decodeLeConnectionComplete(payload); break;
+    case 0x02: packet = decodeLeAdvertisingReport(payload); break;
+    case 0x07: packet = decodeLeDataLengthChange(payload); break;
+    case 0x0a: packet = decodeLeEnhancedConnectionComplete(payload); break;
+    case 0x0c: packet = decodeLePhyUpdateComplete(payload); break;
+    default:   packet = null;
   }
+  if (packet) {
+    // Prepend the LE Subevent field so the spec citation is visible even
+    // when the sub-decoder doesn't surface the subevent name as a field.
+    packet.fields = [leSubeventFieldWithTooltip(subevent), ...packet.fields];
+  }
+  return packet;
 }
 
 const eventDecoders: Record<number, EventDecoder> = {
@@ -541,7 +570,7 @@ const eventDecoders: Record<number, EventDecoder> = {
     const name = commandName(opcode);
     const fields: DecodedField[] = [
       field("Num Packets", numPackets.toString()),
-      field("Command", name),
+      commandFieldWithTooltip(opcode, name),
     ];
     let statusStr = "";
     if (p.length >= 6) {
@@ -614,7 +643,7 @@ const eventDecoders: Record<number, EventDecoder> = {
       fields: [
         statusField("Status", status),
         field("Num Packets", numPackets.toString()),
-        field("Command", name),
+        commandFieldWithTooltip(opcode, name),
       ],
     };
   },
