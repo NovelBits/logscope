@@ -18,6 +18,8 @@ export interface DecodedField {
   name: string;
   value: string;
   color?: string;
+  /** Optional spec-defined tooltip, surfaced as hover text in the webview. */
+  tooltip?: string;
 }
 
 export interface DecodedPacket {

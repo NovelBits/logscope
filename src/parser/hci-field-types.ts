@@ -133,7 +133,7 @@ const ATT_ERROR_CODES: Record<number, string> = {
   0x09: "Prepare Queue Full",
   0x0a: "Attribute Not Found",
   0x0b: "Attribute Not Long",
-  0x0c: "Insufficient Encryption Key Size",
+  0x0c: "Encryption Key Size Too Short",
   0x0d: "Invalid Attribute Value Length",
   0x0e: "Unlikely Error",
   0x0f: "Insufficient Encryption",
@@ -149,4 +149,27 @@ export function attErrorCodeName(code: number): string {
     ATT_ERROR_CODES[code] ??
     `ATT Error 0x${code.toString(16).toUpperCase().padStart(2, "0")}`
   );
+}
+
+import specSnippets from "./spec-snippets.json";
+
+interface SpecSnippet {
+  name: string;
+  description: string;
+  spec_ref: { doc: string; section: string; section_name: string; page: number };
+}
+
+const ATT_ERROR_SNIPPETS = (specSnippets as { att_error_codes: Record<string, SpecSnippet> })
+  .att_error_codes;
+
+/**
+ * Return a formatted tooltip string with the spec-defined description and citation
+ * for an ATT error code. Returns undefined if the code is outside the documented range.
+ */
+export function attErrorCodeSnippet(code: number): string | undefined {
+  const key = `0x${code.toString(16).padStart(2, "0")}`;
+  const entry = ATT_ERROR_SNIPPETS[key];
+  if (!entry) return undefined;
+  const ref = entry.spec_ref;
+  return `${entry.name} — ${entry.description} (${ref.doc} §${ref.section})`;
 }

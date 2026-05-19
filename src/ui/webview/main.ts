@@ -268,6 +268,10 @@ function buildDetailDiv(decoded: DecodedPacket, raw?: number[], row?: HTMLElemen
     if (field.color) {
       tdValue.style.color = field.color;
     }
+    if (field.tooltip) {
+      tdValue.title = field.tooltip;
+      tdValue.style.cursor = "help";
+    }
     tr.appendChild(tdName);
     tr.appendChild(tdValue);
     table.appendChild(tr);

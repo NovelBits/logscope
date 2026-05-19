@@ -305,6 +305,11 @@ describe("decodeAcl", () => {
     const errCodeField = result!.fields.find((f) => f.name === "Error Code");
     expect(errCodeField?.value).toContain("Attribute Not Found");
     expect(errCodeField?.color).toBe("#f44747");
+    // Spec-snippet tooltip: hover text carries the spec-defined description + citation
+    expect(errCodeField?.tooltip).toContain("Attribute Not Found");
+    expect(errCodeField?.tooltip).toContain("No attribute found");
+    expect(errCodeField?.tooltip).toContain("Core_v6.3");
+    expect(errCodeField?.tooltip).toContain("3.4.1.1");
   });
 
   it("decodes non-ATT L2CAP CID", () => {

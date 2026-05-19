@@ -14,6 +14,7 @@ import {
   hciErrorCode,
   attOpcodeName,
   attErrorCodeName,
+  attErrorCodeSnippet,
 } from "./hci-field-types";
 import { commandName } from "./hci-opcodes";
 import { HciConnectionTracker } from "./hci-connection-tracker";
@@ -637,17 +638,20 @@ function decodeAttOpcode(
     const errCode = payload[12];
     const reqOpcodeName = attOpcodeName(reqOpcode);
     const errCodeName = attErrorCodeName(errCode);
+    const errCodeTooltip = attErrorCodeSnippet(errCode);
+    const errCodeField: DecodedField = {
+      name: "Error Code",
+      value: `${errCodeName} (0x${errCode.toString(16).toUpperCase().padStart(2, "0")})`,
+      color: COLOR_ERROR,
+    };
+    if (errCodeTooltip) errCodeField.tooltip = errCodeTooltip;
     fields.push(
       field(
         "Request Opcode In Error",
         `${reqOpcodeName} (0x${reqOpcode.toString(16).toUpperCase().padStart(2, "0")})`
       ),
       field("Attribute Handle In Error", fmtHandle(errHandle)),
-      field(
-        "Error Code",
-        `${errCodeName} (0x${errCode.toString(16).toUpperCase().padStart(2, "0")})`,
-        COLOR_ERROR
-      )
+      errCodeField
     );
     return {
       summary: `handle:${handleStr} ATT Error Response (${reqOpcodeName} on ${fmtHandle(errHandle)}: ${errCodeName})`,
