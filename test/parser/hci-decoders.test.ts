@@ -29,6 +29,10 @@ describe("decodeCommand", () => {
     // Non-zero reason should have error color
     const reasonField = result!.fields.find((f) => f.name === "Reason");
     expect(reasonField?.color).toBe("#f44747");
+    // Spec-snippet tooltip on the HCI status code (Remote User Terminated Connection, 0x13)
+    expect(reasonField?.tooltip).toContain("Remote User Terminated Connection");
+    expect(reasonField?.tooltip).toContain("user on the remote device terminated");
+    expect(reasonField?.tooltip).toContain("Core_v6.3");
   });
 
   it("decodes LE Set PHY command", () => {
@@ -244,6 +248,13 @@ describe("decodeAcl", () => {
     expect(
       result!.fields.find((f) => f.name === "Value")?.value
     ).toContain("01 00");
+    // ATT Opcode field is present with a spec-snippet tooltip
+    const opcodeField = result!.fields.find((f) => f.name === "ATT Opcode");
+    expect(opcodeField?.value).toContain("Write Request");
+    expect(opcodeField?.value).toContain("0x12");
+    expect(opcodeField?.tooltip).toContain("Write Request");
+    expect(opcodeField?.tooltip).toContain("write the value of an attribute");
+    expect(opcodeField?.tooltip).toContain("3.4.5.1");
   });
 
   it("decodes ATT Exchange MTU Request", () => {

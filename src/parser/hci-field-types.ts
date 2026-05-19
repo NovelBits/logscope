@@ -66,21 +66,49 @@ const HCI_ERROR_CODES: Record<number, string> = {
   0x00: "Success",
   0x01: "Unknown HCI Command",
   0x02: "Unknown Connection Identifier",
+  0x03: "Hardware Failure",
+  0x04: "Page Timeout",
   0x05: "Authentication Failure",
   0x06: "PIN or Key Missing",
   0x07: "Memory Capacity Exceeded",
   0x08: "Connection Timeout",
+  0x09: "Connection Limit Exceeded",
+  0x0b: "Connection Already Exists",
   0x0c: "Command Disallowed",
-  0x11: "Unsupported Feature",
+  0x0d: "Connection Rejected due to Limited Resources",
+  0x0e: "Connection Rejected due to Security Reasons",
+  0x11: "Unsupported Feature or Parameter Value",
   0x12: "Invalid HCI Command Parameters",
   0x13: "Remote User Terminated Connection",
+  0x14: "Remote Device Terminated Connection due to Low Resources",
+  0x15: "Remote Device Terminated Connection due to Power Off",
   0x16: "Connection Terminated by Local Host",
+  0x18: "Pairing Not Allowed",
   0x1a: "Unsupported Remote Feature",
-  0x22: "LMP Response Timeout",
+  0x1f: "Unspecified Error",
+  0x20: "Unsupported LMP Parameter Value",
+  0x22: "LMP Response Timeout / LL Response Timeout",
+  0x23: "LMP Error Transaction Collision / LL Procedure Collision",
+  0x25: "Encryption Mode Not Acceptable",
   0x28: "Instant Passed",
+  0x29: "Pairing With Unit Key Not Supported",
   0x2a: "Different Transaction Collision",
+  0x2f: "Insufficient Security",
+  0x30: "Parameter Out of Mandatory Range",
+  0x3a: "Controller Busy",
   0x3b: "Unacceptable Connection Parameters",
-  0x3e: "Connection Failed to be Established",
+  0x3c: "Advertising Timeout",
+  0x3d: "Connection Terminated due to MIC Failure",
+  0x3e: "Connection Failed to be Established / Synchronization Timeout",
+  0x40: "Coarse Clock Adjustment Rejected",
+  0x41: "Type0 Submap Not Defined",
+  0x42: "Unknown Advertising Identifier",
+  0x43: "Limit Reached",
+  0x44: "Operation Cancelled by Host",
+  0x45: "Packet Too Long",
+  0x46: "Too Late",
+  0x47: "Too Early",
+  0x48: "Insufficient Channels",
 };
 
 /** Look up an HCI error/status code */
@@ -153,23 +181,56 @@ export function attErrorCodeName(code: number): string {
 
 import specSnippets from "./spec-snippets.json";
 
-interface SpecSnippet {
+interface AttErrorSnippet {
   name: string;
   description: string;
   spec_ref: { doc: string; section: string; section_name: string; page: number };
 }
+interface AttOpcodeSnippet {
+  name: string;
+  description: string;
+  spec_ref: { doc: string; section: string; section_name: string };
+}
+interface HciErrorSnippet {
+  description: string;
+}
 
-const ATT_ERROR_SNIPPETS = (specSnippets as { att_error_codes: Record<string, SpecSnippet> })
-  .att_error_codes;
+const SPEC = specSnippets as unknown as {
+  att_error_codes: Record<string, AttErrorSnippet>;
+  att_opcodes: Record<string, AttOpcodeSnippet>;
+  hci_error_codes: Record<string, HciErrorSnippet>;
+};
+
+const codeKey = (code: number) => `0x${code.toString(16).padStart(2, "0")}`;
 
 /**
  * Return a formatted tooltip string with the spec-defined description and citation
  * for an ATT error code. Returns undefined if the code is outside the documented range.
  */
 export function attErrorCodeSnippet(code: number): string | undefined {
-  const key = `0x${code.toString(16).padStart(2, "0")}`;
-  const entry = ATT_ERROR_SNIPPETS[key];
+  const entry = SPEC.att_error_codes[codeKey(code)];
   if (!entry) return undefined;
-  const ref = entry.spec_ref;
-  return `${entry.name} — ${entry.description} (${ref.doc} §${ref.section})`;
+  return `${entry.name} — ${entry.description} (${entry.spec_ref.doc} §${entry.spec_ref.section})`;
+}
+
+/**
+ * Return a formatted tooltip string for an ATT opcode (Read Request, Write Request, etc.).
+ * Returns undefined for opcodes not documented in spec-snippets.json.
+ */
+export function attOpcodeSnippet(opcode: number): string | undefined {
+  const entry = SPEC.att_opcodes[codeKey(opcode)];
+  if (!entry) return undefined;
+  return `${entry.name} — ${entry.description} (${entry.spec_ref.doc} §${entry.spec_ref.section})`;
+}
+
+/**
+ * Return a formatted tooltip string for an HCI status / error code.
+ * Combines the name from HCI_ERROR_CODES with the spec-defined description.
+ * Returns undefined for codes not documented in spec-snippets.json.
+ */
+export function hciErrorCodeSnippet(code: number): string | undefined {
+  const entry = SPEC.hci_error_codes[codeKey(code)];
+  if (!entry) return undefined;
+  const name = HCI_ERROR_CODES[code] ?? "Unknown";
+  return `${name} — ${entry.description} (Core_v6.3 Vol 1 Part F)`;
 }

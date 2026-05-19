@@ -15,6 +15,8 @@ import {
   attOpcodeName,
   attErrorCodeName,
   attErrorCodeSnippet,
+  attOpcodeSnippet,
+  hciErrorCodeSnippet,
 } from "./hci-field-types";
 import { commandName } from "./hci-opcodes";
 import { HciConnectionTracker } from "./hci-connection-tracker";
@@ -40,10 +42,28 @@ function fmtHandle(h: number): string {
   return `0x${h.toString(16).toUpperCase().padStart(4, "0")}`;
 }
 
-/** Create a status field with red color for non-zero */
+/** Create a status field with red color for non-zero, plus a spec-snippet tooltip */
 function statusField(name: string, code: number): DecodedField {
   const text = hciErrorCode(code);
-  return code === 0x00 ? field(name, text) : field(name, text, COLOR_ERROR);
+  const tooltip = hciErrorCodeSnippet(code);
+  const result: DecodedField = code === 0x00
+    ? { name, value: text }
+    : { name, value: text, color: COLOR_ERROR };
+  if (tooltip) result.tooltip = tooltip;
+  return result;
+}
+
+/**
+ * Create an ATT Opcode field with the canonical name + hex value, plus a
+ * spec-snippet tooltip if the opcode is documented in spec-snippets.json.
+ */
+function attOpcodeField(opcode: number): DecodedField {
+  const name = attOpcodeName(opcode);
+  const value = `${name} (0x${opcode.toString(16).toUpperCase().padStart(2, "0")})`;
+  const tooltip = attOpcodeSnippet(opcode);
+  const result: DecodedField = { name: "ATT Opcode", value };
+  if (tooltip) result.tooltip = tooltip;
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -646,6 +666,7 @@ function decodeAttOpcode(
     };
     if (errCodeTooltip) errCodeField.tooltip = errCodeTooltip;
     fields.push(
+      attOpcodeField(0x01),
       field(
         "Request Opcode In Error",
         `${reqOpcodeName} (0x${reqOpcode.toString(16).toUpperCase().padStart(2, "0")})`
@@ -660,18 +681,22 @@ function decodeAttOpcode(
   }
   if (attOpcode === 0x0a && payload.length >= 11) {
     const attHandle = payload.readUInt16LE(9);
-    fields.push(field("ATT Handle", fmtHandle(attHandle)));
+    fields.push(attOpcodeField(0x0a), field("ATT Handle", fmtHandle(attHandle)));
     return { summary: `handle:${handleStr} ATT Read Request (handle: ${fmtHandle(attHandle)})`, fields };
   }
   if (attOpcode === 0x0b) {
     const respData = payload.subarray(9);
-    fields.push(field("Data", formatValueBytes(respData)));
+    fields.push(attOpcodeField(0x0b), field("Data", formatValueBytes(respData)));
     return { summary: `handle:${handleStr} ATT Read Response (${respData.length} bytes)`, fields };
   }
   if ((attOpcode === 0x12 || attOpcode === 0x52 || attOpcode === 0x1b) && payload.length >= 11) {
     const attHandle = payload.readUInt16LE(9);
     const value = payload.subarray(11);
-    fields.push(field("ATT Handle", fmtHandle(attHandle)), field("Value", formatValueBytes(value)));
+    fields.push(
+      attOpcodeField(attOpcode),
+      field("ATT Handle", fmtHandle(attHandle)),
+      field("Value", formatValueBytes(value))
+    );
     const label =
       attOpcode === 0x12 ? "ATT Write Request" :
       attOpcode === 0x52 ? "ATT Write Command" :
@@ -680,11 +705,11 @@ function decodeAttOpcode(
   }
   if ((attOpcode === 0x02 || attOpcode === 0x03) && payload.length >= 11) {
     const mtu = payload.readUInt16LE(9);
-    fields.push(field("MTU", mtu.toString()));
+    fields.push(attOpcodeField(attOpcode), field("MTU", mtu.toString()));
     return { summary: `handle:${handleStr} ATT Exchange MTU (mtu: ${mtu})`, fields };
   }
-  // Default: just show the ATT opcode name
-  fields.push(field("ATT Opcode", attName));
+  // Default: just show the ATT opcode name (with tooltip if available)
+  fields.push(attOpcodeField(attOpcode));
   return { summary: `handle:${handleStr} ATT ${attName}`, fields };
 }
 

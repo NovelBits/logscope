@@ -1,104 +1,86 @@
 {
   "_meta": {
     "description": "Pre-baked Bluetooth Core Specification snippets shipped with LogScope so decoded fields can surface their canonical spec definitions as tooltips without needing a runtime MCP or network call.",
-    "source": "Bluetooth Core Specification v6.3 (via bluetooth-spec MCP v2 retrieval, 2026-05-18)",
+    "source": "Bluetooth Core Specification v6.3 (via bluetooth-spec MCP v2 retrieval, 2026-05-19)",
     "regenerate_note": "To regenerate, query the bluetooth-spec MCP (search_bluetooth_specs_v2 / lookup_concept_v2) for each code and copy the canonical name + description from the response."
   },
   "att_error_codes": {
-    "0x01": {
-      "name": "Invalid Handle",
-      "description": "The attribute handle given was not valid on this server.",
-      "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 }
-    },
-    "0x02": {
-      "name": "Read Not Permitted",
-      "description": "The attribute cannot be read.",
-      "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 }
-    },
-    "0x03": {
-      "name": "Write Not Permitted",
-      "description": "The attribute cannot be written.",
-      "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 }
-    },
-    "0x04": {
-      "name": "Invalid PDU",
-      "description": "The attribute PDU was invalid.",
-      "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 }
-    },
-    "0x05": {
-      "name": "Insufficient Authentication",
-      "description": "The attribute requires authentication before it can be read or written.",
-      "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 }
-    },
-    "0x06": {
-      "name": "Request Not Supported",
-      "description": "ATT Server does not support the request received from the client.",
-      "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 }
-    },
-    "0x07": {
-      "name": "Invalid Offset",
-      "description": "Offset specified was past the end of the attribute.",
-      "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 }
-    },
-    "0x08": {
-      "name": "Insufficient Authorization",
-      "description": "The attribute requires authorization before it can be read or written.",
-      "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 }
-    },
-    "0x09": {
-      "name": "Prepare Queue Full",
-      "description": "Too many prepare writes have been queued.",
-      "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 }
-    },
-    "0x0a": {
-      "name": "Attribute Not Found",
-      "description": "No attribute found within the given attribute handle range.",
-      "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 }
-    },
-    "0x0b": {
-      "name": "Attribute Not Long",
-      "description": "The attribute cannot be read using the ATT_READ_BLOB_REQ PDU.",
-      "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 }
-    },
-    "0x0c": {
-      "name": "Encryption Key Size Too Short",
-      "description": "The Encryption Key Size used for encrypting this link is too short.",
-      "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 }
-    },
-    "0x0d": {
-      "name": "Invalid Attribute Value Length",
-      "description": "The attribute value length is invalid for the operation.",
-      "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 }
-    },
-    "0x0e": {
-      "name": "Unlikely Error",
-      "description": "The attribute request that was requested has encountered an error that was unlikely, and therefore could not be completed as requested.",
-      "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 }
-    },
-    "0x0f": {
-      "name": "Insufficient Encryption",
-      "description": "The attribute requires encryption before it can be read or written.",
-      "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 }
-    },
-    "0x10": {
-      "name": "Unsupported Group Type",
-      "description": "The attribute type is not a supported grouping attribute as defined by a higher layer specification.",
-      "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 }
-    },
-    "0x11": {
-      "name": "Insufficient Resources",
-      "description": "Insufficient Resources to complete the request.",
-      "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 }
-    },
-    "0x12": {
-      "name": "Database Out Of Sync",
-      "description": "The server requests the client to rediscover the database.",
-      "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 }
-    },
-    "0x13": {
-      "name": "Value Not Allowed",
-      "description": "The attribute parameter value was not allowed.",
-      "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 }
-    }
+    "0x01": { "name": "Invalid Handle", "description": "The attribute handle given was not valid on this server.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 } },
+    "0x02": { "name": "Read Not Permitted", "description": "The attribute cannot be read.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 } },
+    "0x03": { "name": "Write Not Permitted", "description": "The attribute cannot be written.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 } },
+    "0x04": { "name": "Invalid PDU", "description": "The attribute PDU was invalid.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 } },
+    "0x05": { "name": "Insufficient Authentication", "description": "The attribute requires authentication before it can be read or written.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 } },
+    "0x06": { "name": "Request Not Supported", "description": "ATT Server does not support the request received from the client.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 } },
+    "0x07": { "name": "Invalid Offset", "description": "Offset specified was past the end of the attribute.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 } },
+    "0x08": { "name": "Insufficient Authorization", "description": "The attribute requires authorization before it can be read or written.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 } },
+    "0x09": { "name": "Prepare Queue Full", "description": "Too many prepare writes have been queued.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 } },
+    "0x0a": { "name": "Attribute Not Found", "description": "No attribute found within the given attribute handle range.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 } },
+    "0x0b": { "name": "Attribute Not Long", "description": "The attribute cannot be read using the ATT_READ_BLOB_REQ PDU.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 } },
+    "0x0c": { "name": "Encryption Key Size Too Short", "description": "The Encryption Key Size used for encrypting this link is too short.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 } },
+    "0x0d": { "name": "Invalid Attribute Value Length", "description": "The attribute value length is invalid for the operation.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 } },
+    "0x0e": { "name": "Unlikely Error", "description": "The attribute request that was requested has encountered an error that was unlikely, and therefore could not be completed as requested.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 } },
+    "0x0f": { "name": "Insufficient Encryption", "description": "The attribute requires encryption before it can be read or written.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 } },
+    "0x10": { "name": "Unsupported Group Type", "description": "The attribute type is not a supported grouping attribute as defined by a higher layer specification.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 } },
+    "0x11": { "name": "Insufficient Resources", "description": "Insufficient Resources to complete the request.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 } },
+    "0x12": { "name": "Database Out Of Sync", "description": "The server requests the client to rediscover the database.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 } },
+    "0x13": { "name": "Value Not Allowed", "description": "The attribute parameter value was not allowed.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP", "page": 1517 } }
+  },
+  "att_opcodes": {
+    "0x01": { "name": "Error Response", "description": "Sent by the server when a request cannot be performed, carrying the request opcode, the attribute handle, and an error code.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.1.1", "section_name": "ATT_ERROR_RSP" } },
+    "0x02": { "name": "Exchange MTU Request", "description": "Sent by the client to inform the server of the client's maximum receive MTU size and to request the server's maximum receive MTU.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.2.1", "section_name": "ATT_EXCHANGE_MTU_REQ" } },
+    "0x03": { "name": "Exchange MTU Response", "description": "Sent in reply to a received ATT_EXCHANGE_MTU_REQ PDU, carrying the server's maximum receive MTU. ATT_MTU is set to the minimum of the two values.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.2.2", "section_name": "ATT_EXCHANGE_MTU_RSP" } },
+    "0x0a": { "name": "Read Request", "description": "Sent by the client to request the server to read the value of an attribute identified by its handle.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.4.3", "section_name": "ATT_READ_REQ" } },
+    "0x0b": { "name": "Read Response", "description": "Sent in reply to a received ATT_READ_REQ, carrying the value of the attribute.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.4.4", "section_name": "ATT_READ_RSP" } },
+    "0x12": { "name": "Write Request", "description": "Sent by the client to request the server to write the value of an attribute, expecting an acknowledged response.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.5.1", "section_name": "ATT_WRITE_REQ" } },
+    "0x52": { "name": "Write Command", "description": "Sent by the client to write the value of an attribute without expecting a response from the server.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.5.3", "section_name": "ATT_WRITE_CMD" } },
+    "0x1b": { "name": "Handle Value Notification", "description": "Sent by the server to notify the client that the value of a characteristic has changed, without expecting acknowledgement.", "spec_ref": { "doc": "Core_v6.3", "section": "3.4.7.1", "section_name": "ATT_HANDLE_VALUE_NTF" } }
+  },
+  "hci_error_codes": {
+    "0x00": { "description": "Operation completed successfully." },
+    "0x01": { "description": "The Controller does not understand the HCI Command packet opcode that the Host sent." },
+    "0x02": { "description": "A command was sent from the Host that should identify a connection, but that connection does not exist or does not identify the correct type of connection." },
+    "0x03": { "description": "Something in the Controller has failed in a manner that cannot be described with any other error code." },
+    "0x04": { "description": "A page timed out because of the Page Timeout configuration parameter." },
+    "0x05": { "description": "Pairing or authentication failed due to incorrect results in the pairing or authentication procedure (e.g., incorrect PIN or Link Key)." },
+    "0x06": { "description": "Pairing failed because of a missing PIN, or authentication failed because of a missing Key." },
+    "0x07": { "description": "The Controller has run out of memory to store new parameters." },
+    "0x08": { "description": "The link supervision timeout has expired for a given connection." },
+    "0x09": { "description": "An attempt to create another connection failed because the Controller is already at its limit of connections." },
+    "0x0b": { "description": "An attempt was made to create a connection to a device when there is already a connection to this device." },
+    "0x0c": { "description": "The command requested cannot be executed because the Controller is in a state where it cannot process this command at this time." },
+    "0x0d": { "description": "A connection was rejected due to limited resources." },
+    "0x0e": { "description": "A connection was rejected due to security requirements not being fulfilled." },
+    "0x11": { "description": "A feature or parameter value in the HCI command is not supported." },
+    "0x12": { "description": "At least one of the HCI command parameters is invalid." },
+    "0x13": { "description": "The user on the remote device terminated the connection." },
+    "0x14": { "description": "The remote device terminated the connection because of low resources." },
+    "0x15": { "description": "The remote device terminated the connection due to power off." },
+    "0x16": { "description": "The local device terminated the connection." },
+    "0x18": { "description": "Pairing with the remote device is not allowed." },
+    "0x1a": { "description": "The remote device does not support the feature associated with the issued command or LMP/LL PDU." },
+    "0x1f": { "description": "Used when no other error code specified is appropriate, or to indicate an error code the receiver does not recognize." },
+    "0x20": { "description": "A parameter value requested is not supported by the remote device." },
+    "0x22": { "description": "An LMP transaction failed to respond within the LMP response timeout, or an LL transaction failed to respond within the LL response timeout." },
+    "0x23": { "description": "An LMP transaction or LL procedure has collided with the same transaction or procedure that is already in progress." },
+    "0x25": { "description": "The requested encryption mode is not acceptable at this time." },
+    "0x28": { "description": "An LMP PDU or LL PDU that includes an instant cannot be performed because the instant when this would have occurred has passed." },
+    "0x29": { "description": "Pairing requested a unit key, which is not supported." },
+    "0x2a": { "description": "Different transaction collision." },
+    "0x2f": { "description": "The security requirements of the local device cannot be satisfied." },
+    "0x30": { "description": "A parameter value is outside the mandatory range for the specified command." },
+    "0x3a": { "description": "The Controller is too busy to perform the operation." },
+    "0x3b": { "description": "The remote device's connection parameters are unacceptable." },
+    "0x3c": { "description": "Advertising completed without a connection being created during the configured advertising duration." },
+    "0x3d": { "description": "The connection was terminated because Message Integrity Check (MIC) failure detected during decryption." },
+    "0x3e": { "description": "The LL failed to establish a connection within the configured timeout (LE), or synchronization failed (periodic adv)." },
+    "0x40": { "description": "The Coarse Clock Adjustment was rejected, but the Controller will try to adjust the clock using clock dragging." },
+    "0x41": { "description": "Type0 submap content is not defined." },
+    "0x42": { "description": "The advertising set identifier is unknown to the Controller." },
+    "0x43": { "description": "The operation has reached the Controller's limit on this resource (e.g., number of advertising sets, max set entries)." },
+    "0x44": { "description": "A scheduled operation was cancelled by the Host." },
+    "0x45": { "description": "The packet being processed is too long for the Controller." },
+    "0x46": { "description": "An operation was scheduled too late to be processed in time." },
+    "0x47": { "description": "An operation was scheduled too early to be processed." },
+    "0x48": { "description": "Insufficient channels are available to use for the requested operation." }
   }
 }
