@@ -277,6 +277,36 @@ describe("decodeAcl", () => {
     expect(result!.summary).toContain("0x0016");
   });
 
+  it("decodes ATT Error Response", () => {
+    // Scenario: peer received a Read Request on handle 0x0040 and returned
+    // "Attribute Not Found" (error code 0x0a).
+    const payload = Buffer.from([
+      0x40, 0x00, // handle: 0x0040
+      0x09, 0x00, // ACL data length: 9
+      0x05, 0x00, // L2CAP length: 5
+      0x04, 0x00, // CID: 0x0004 (ATT)
+      0x01, // ATT opcode: Error Response
+      0x0a, // Request Opcode In Error: 0x0a (Read Request)
+      0x40, 0x00, // Attribute Handle In Error: 0x0040
+      0x0a, // Error Code: 0x0a (Attribute Not Found)
+    ]);
+    const result = decodeAcl(payload);
+    expect(result).not.toBeNull();
+    expect(result!.summary).toContain("handle:0x0040");
+    expect(result!.summary).toContain("ATT Error Response");
+    expect(result!.summary).toContain("Read Request");
+    expect(result!.summary).toContain("Attribute Not Found");
+    expect(
+      result!.fields.find((f) => f.name === "Request Opcode In Error")?.value
+    ).toContain("Read Request");
+    expect(
+      result!.fields.find((f) => f.name === "Attribute Handle In Error")?.value
+    ).toBe("0x0040");
+    const errCodeField = result!.fields.find((f) => f.name === "Error Code");
+    expect(errCodeField?.value).toContain("Attribute Not Found");
+    expect(errCodeField?.color).toBe("#f44747");
+  });
+
   it("decodes non-ATT L2CAP CID", () => {
     const payload = Buffer.from([
       0x40, 0x00, // handle: 0x0040

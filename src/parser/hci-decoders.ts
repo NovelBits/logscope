@@ -13,6 +13,7 @@ import {
   formatTimeout,
   hciErrorCode,
   attOpcodeName,
+  attErrorCodeName,
 } from "./hci-field-types";
 import { commandName } from "./hci-opcodes";
 import { HciConnectionTracker } from "./hci-connection-tracker";
@@ -630,6 +631,29 @@ function decodeAttOpcode(
   handleStr: string,
   fields: DecodedField[]
 ): DecodedPacket {
+  if (attOpcode === 0x01 && payload.length >= 13) {
+    const reqOpcode = payload[9];
+    const errHandle = payload.readUInt16LE(10);
+    const errCode = payload[12];
+    const reqOpcodeName = attOpcodeName(reqOpcode);
+    const errCodeName = attErrorCodeName(errCode);
+    fields.push(
+      field(
+        "Request Opcode In Error",
+        `${reqOpcodeName} (0x${reqOpcode.toString(16).toUpperCase().padStart(2, "0")})`
+      ),
+      field("Attribute Handle In Error", fmtHandle(errHandle)),
+      field(
+        "Error Code",
+        `${errCodeName} (0x${errCode.toString(16).toUpperCase().padStart(2, "0")})`,
+        COLOR_ERROR
+      )
+    );
+    return {
+      summary: `handle:${handleStr} ATT Error Response (${reqOpcodeName} on ${fmtHandle(errHandle)}: ${errCodeName})`,
+      fields,
+    };
+  }
   if (attOpcode === 0x0a && payload.length >= 11) {
     const attHandle = payload.readUInt16LE(9);
     fields.push(field("ATT Handle", fmtHandle(attHandle)));

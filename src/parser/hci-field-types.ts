@@ -120,3 +120,33 @@ export function attOpcodeName(opcode: number): string {
     `ATT 0x${opcode.toString(16).toUpperCase().padStart(2, "0")}`
   );
 }
+
+const ATT_ERROR_CODES: Record<number, string> = {
+  0x01: "Invalid Handle",
+  0x02: "Read Not Permitted",
+  0x03: "Write Not Permitted",
+  0x04: "Invalid PDU",
+  0x05: "Insufficient Authentication",
+  0x06: "Request Not Supported",
+  0x07: "Invalid Offset",
+  0x08: "Insufficient Authorization",
+  0x09: "Prepare Queue Full",
+  0x0a: "Attribute Not Found",
+  0x0b: "Attribute Not Long",
+  0x0c: "Insufficient Encryption Key Size",
+  0x0d: "Invalid Attribute Value Length",
+  0x0e: "Unlikely Error",
+  0x0f: "Insufficient Encryption",
+  0x10: "Unsupported Group Type",
+  0x11: "Insufficient Resources",
+  0x12: "Database Out Of Sync",
+  0x13: "Value Not Allowed",
+};
+
+/** Look up an ATT error code name. Per Core Spec Vol 3 Part F Section 3.4.1.1. */
+export function attErrorCodeName(code: number): string {
+  return (
+    ATT_ERROR_CODES[code] ??
+    `ATT Error 0x${code.toString(16).toUpperCase().padStart(2, "0")}`
+  );
+}
