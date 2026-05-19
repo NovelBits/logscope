@@ -56,3 +56,15 @@ Canonical release flow:
 - This is a PUBLIC repo. Never commit internal docs, credentials, API keys, or business strategy files.
 - Never include AI attribution (Co-Authored-By) in commits.
 - Always use "Bluetooth LE" (never "BLE").
+
+## Strategic context (private — not in this repo)
+
+LogScope's roadmap, pricing, Pro tier plan, and acquisition narrative live in the `novelbits-brain` repo. Before making any decision that touches strategy (pricing, feature prioritization, roadmap), consult:
+
+- `~/Projects/novelbits-brain/docs/MISSION-CONTROL.md` — current state across all initiatives
+- `~/Projects/novelbits-brain/docs/plans/2026-05-19-logscope-pro-tier-launch-plan-v2.md` — Pro tier launch plan (may be deprioritized; see below)
+- `~/Projects/novelbits-brain/docs/research/next-tool-priority-analysis-2026-05-19.md` — current strategic position
+
+As of 2026-05-19, LogScope may be reprioritized below PowerScope as the next paid product. LogScope Pro tier remains useful as license-key infrastructure validation but is not the primary commercial bet. The spec citation work (8 commits 2026-05-17 to 2026-05-19) is positioning infrastructure for the suite, not paywall material.
+
+For focused LogScope sessions, the `/logscope-mode` skill loads relevant context automatically.
