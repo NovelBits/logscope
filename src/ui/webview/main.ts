@@ -426,8 +426,12 @@ function showSpecPopover(icon: HTMLElement): void {
   }
 
   // Parse "Name — Description (Citation)" into structured parts.
+  // The citation block is the LAST paren group at end of string AND must
+  // contain no nested parens — descriptions themselves often contain
+  // parentheticals (e.g., "(up to 31 bytes)"), so we anchor on a
+  // paren-free citation to avoid mis-parsing on the first inner "(".
   // Falls back to a single body if the format doesn't match.
-  const match = tooltip.match(/^(.+?) — (.+?) \((.+?)\)$/);
+  const match = tooltip.match(/^(.+?) — (.+) \(([^()]+)\)$/);
   let title = "Spec Reference";
   let body = tooltip;
   let citation = "";
