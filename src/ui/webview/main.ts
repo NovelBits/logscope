@@ -272,7 +272,7 @@ function buildDetailDiv(decoded: DecodedPacket, raw?: number[], row?: HTMLElemen
     if (fieldTooltip) {
       const icon = document.createElement("button");
       icon.className = "spec-info-icon";
-      icon.textContent = "ⓘ";
+      icon.textContent = "i";
       icon.type = "button";
       icon.setAttribute("aria-label", "View spec citation");
       icon.dataset.tooltip = fieldTooltip;
@@ -410,6 +410,13 @@ function showSpecPopover(icon: HTMLElement): void {
 
   const tooltip = icon.dataset.tooltip || "";
   if (!tooltip) return;
+
+  // Pause auto-scroll so the popover stays anchored to the field while the
+  // log keeps streaming. User can re-enable via the auto-scroll button.
+  if (autoScroll) {
+    autoScroll = false;
+    autoScrollBtn.classList.remove("active");
+  }
 
   // Parse "Name — Description (Citation)" into structured parts.
   // Falls back to a single body if the format doesn't match.

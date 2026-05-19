@@ -533,23 +533,33 @@ body { display: flex; flex-direction: column; }
 }
 
 /* ── Spec citation popover ─────────────────────────────────── */
+/* Tiny "i" badge next to fields that carry a spec citation.
+   Inherits color from surrounding text so it blends in. Subtle by default,
+   brightens on hover. CSS-drawn so it doesn't depend on Unicode font fallback. */
 .spec-info-icon {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 0 2px;
-  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 11px;
+  height: 11px;
+  margin-left: 5px;
+  padding: 0;
+  border: 1px solid currentColor;
+  border-radius: 50%;
   background: transparent;
-  color: var(--vscode-textLink-foreground, #3794ff);
-  font-size: 13px;
+  color: inherit;
+  font-family: inherit;
+  font-size: 8px;
+  font-weight: 600;
+  font-style: italic;
   cursor: pointer;
-  vertical-align: baseline;
+  vertical-align: 1px;
   line-height: 1;
-  opacity: 0.75;
-  transition: opacity 0.15s, transform 0.1s;
+  opacity: 0.4;
+  transition: opacity 0.15s;
 }
 .spec-info-icon:hover {
   opacity: 1;
-  transform: scale(1.15);
 }
 .spec-info-icon:focus-visible {
   outline: 1px solid var(--vscode-focusBorder, #007fd4);
