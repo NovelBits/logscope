@@ -335,6 +335,13 @@ timeline.addEventListener("click", (e: Event) => {
   } else {
     // Collapse any other expanded row first
     collapseExpandedRow();
+    // Pause auto-scroll so the expanded row stays in view while logs keep
+    // streaming. User can re-enable via the auto-scroll button. Matches the
+    // pattern used by the spec popover and fault detection.
+    if (autoScroll) {
+      autoScroll = false;
+      autoScrollBtn.classList.remove("active");
+    }
     // Expand this row
     target.classList.add("expanded");
     if (target._decoded) {
