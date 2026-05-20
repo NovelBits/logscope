@@ -406,6 +406,13 @@ body { display: flex; flex-direction: column; }
   padding-right: 16px; white-space: nowrap;
 }
 .hci-fields .field-value { color: var(--vscode-editor-foreground, #ddd); }
+.hci-fields .field-spec-ref {
+  color: var(--vscode-descriptionForeground, #888);
+  opacity: 0.65;
+  font-size: 0.85em;
+  font-style: italic;
+  margin-left: 6px;
+}
 
 /* Hex dump */
 .hex-toggle {

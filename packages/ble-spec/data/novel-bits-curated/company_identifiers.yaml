@@ -1,0 +1,191 @@
+# Bluetooth SIG Company Identifiers — Novel Bits curated subset.
+#
+# Full list at https://bitbucket.org/bluetooth-SIG/public/src/main/assigned_numbers/
+# This is a curated subset focused on the most commonly seen manufacturers
+# (consumer devices, silicon vendors, audio brands, IoT, automotive,
+# industrial). Phase 3 will mirror the full SIG list.
+
+schema: company_identifiers
+source: "https://bitbucket.org/bluetooth-SIG/public/src/main/assigned_numbers/company_identifiers/company_identifiers.yaml"
+last_updated: "2026-05-13"
+
+entries:
+  - { code: "0x0000", name: "Ericsson AB" }
+  - { code: "0x0001", name: "Nokia Mobile Phones" }
+  - { code: "0x0002", name: "Intel Corp." }
+  - { code: "0x0003", name: "IBM Corp." }
+  - { code: "0x0004", name: "Toshiba Corp." }
+  - { code: "0x0005", name: "3Com" }
+  - { code: "0x0006", name: "Microsoft" }
+  - { code: "0x0007", name: "Lucent" }
+  - { code: "0x0008", name: "Motorola" }
+  - { code: "0x0009", name: "Infineon Technologies AG" }
+  - { code: "0x000A", name: "Qualcomm Technologies International, Ltd. (QTIL)" }
+  - { code: "0x000B", name: "Silicon Wave" }
+  - { code: "0x000C", name: "Digianswer A/S" }
+  - { code: "0x000D", name: "Texas Instruments Inc." }
+  - { code: "0x000E", name: "Parthus Technologies Inc." }
+  - { code: "0x000F", name: "Broadcom Corporation" }
+  - { code: "0x0010", name: "Mitel Semiconductor" }
+  - { code: "0x0013", name: "Atmel Corporation" }
+  - { code: "0x0022", name: "NEC Corporation" }
+  - { code: "0x0024", name: "Alcatel" }
+  - { code: "0x0025", name: "NXP B.V." }
+  - { code: "0x002A", name: "Symbol Technologies, Inc." }
+  - { code: "0x0030", name: "ST Microelectronics" }
+  - { code: "0x0036", name: "Renesas Electronics Corporation" }
+  - { code: "0x003A", name: "Panasonic Holdings Corporation" }
+  - { code: "0x003C", name: "BlackBerry Limited" }
+  - { code: "0x0040", name: "Seiko Epson Corporation" }
+  - { code: "0x0046", name: "MediaTek, Inc." }
+  - { code: "0x0048", name: "Marvell Technology Group Ltd." }
+  - { code: "0x004C", name: "Apple, Inc." }
+  - { code: "0x0055", name: "Plantronics, Inc." }
+  - { code: "0x0056", name: "Sony Ericsson Mobile Communications" }
+  - { code: "0x0057", name: "Harman International Industries, Inc." }
+  - { code: "0x0058", name: "Vizio, Inc." }
+  - { code: "0x0059", name: "Nordic Semiconductor ASA" }
+  - { code: "0x005A", name: "EM Microelectronic-Marin SA" }
+  - { code: "0x005B", name: "Ralink Technology Corporation" }
+  - { code: "0x005D", name: "Realtek Semiconductor Corporation" }
+  - { code: "0x0062", name: "Gibson Guitars" }
+  - { code: "0x0065", name: "HP, Inc." }
+  - { code: "0x0067", name: "GN Hearing" }
+  - { code: "0x0068", name: "General Motors" }
+  - { code: "0x006B", name: "Polar Electro OY" }
+  - { code: "0x0075", name: "Samsung Electronics Co. Ltd." }
+  - { code: "0x0078", name: "Nike, Inc." }
+  - { code: "0x0085", name: "BlueRadios, Inc." }
+  - { code: "0x0087", name: "Garmin International, Inc." }
+  - { code: "0x0089", name: "GN Hearing A/S" }
+  - { code: "0x008A", name: "Jawbone" }
+  - { code: "0x008C", name: "Gimbal Inc." }
+  - { code: "0x008F", name: "Telit Wireless Solutions GmbH" }
+  - { code: "0x0094", name: "Airoha Technology Corp." }
+  - { code: "0x009E", name: "Bose Corporation" }
+  - { code: "0x009F", name: "Suunto Oy" }
+  - { code: "0x00B1", name: "Saris Cycling Group, Inc" }
+  - { code: "0x00BA", name: "Starkey Hearing Technologies" }
+  - { code: "0x00C4", name: "LG Electronics" }
+  - { code: "0x00CC", name: "Beats Electronics" }
+  - { code: "0x00CD", name: "Microchip Technology Inc." }
+  - { code: "0x00CE", name: "Eve Systems GmbH" }
+  - { code: "0x00D0", name: "Dexcom, Inc." }
+  - { code: "0x00D1", name: "Polar Electro Europe B.V." }
+  - { code: "0x00D2", name: "Renesas Design Netherlands B.V." }
+  - { code: "0x00D6", name: "Timex Group USA, Inc." }
+  - { code: "0x00D7", name: "Qualcomm Technologies, Inc." }
+  - { code: "0x00DC", name: "Procter & Gamble" }
+  - { code: "0x00E0", name: "Google" }
+  - { code: "0x00F4", name: "Nautilus Inc." }
+  - { code: "0x0103", name: "Bang & Olufsen A/S" }
+  - { code: "0x010E", name: "Audi AG" }
+  - { code: "0x011B", name: "Hewlett Packard Enterprise" }
+  - { code: "0x011F", name: "Volkswagen AG" }
+  - { code: "0x0120", name: "Porsche AG" }
+  - { code: "0x012D", name: "Sony Corporation" }
+  - { code: "0x012E", name: "ASSA ABLOY" }
+  - { code: "0x0131", name: "Cypress Semiconductor" }
+  - { code: "0x013B", name: "Allegion" }
+  - { code: "0x013C", name: "Murata Manufacturing Co., Ltd." }
+  - { code: "0x0150", name: "Pioneer Corporation" }
+  - { code: "0x0157", name: "Anhui Huami Information Technology Co., Ltd." }
+  - { code: "0x015D", name: "Estimote, Inc." }
+  - { code: "0x0171", name: "Amazon.com Services LLC" }
+  - { code: "0x0178", name: "CASIO COMPUTER CO., LTD." }
+  - { code: "0x017C", name: "Mercedes-Benz Group AG" }
+  - { code: "0x018E", name: "Google LLC" }
+  - { code: "0x01A9", name: "Canon Inc." }
+  - { code: "0x01AB", name: "Meta Platforms, Inc." }
+  - { code: "0x01B5", name: "Nest Labs Inc." }
+  - { code: "0x01BA", name: "Stages Cycling LLC" }
+  - { code: "0x01D1", name: "August Home, Inc" }
+  - { code: "0x01D9", name: "Savant Systems LLC" }
+  - { code: "0x01DA", name: "Logitech International SA" }
+  - { code: "0x01DD", name: "Koninklijke Philips N.V." }
+  - { code: "0x01F9", name: "Medtronic Inc." }
+  - { code: "0x01FC", name: "Wahoo Fitness, LLC" }
+  - { code: "0x021B", name: "Cisco Systems, Inc" }
+  - { code: "0x022B", name: "Tesla, Inc." }
+  - { code: "0x022E", name: "Siemens AG" }
+  - { code: "0x0243", name: "Masimo Corp" }
+  - { code: "0x02A6", name: "Robert Bosch GmbH" }
+  - { code: "0x02B2", name: "Oura Health Oy" }
+  - { code: "0x02B6", name: "Schneider Electric" }
+  - { code: "0x02C5", name: "Lenovo (Singapore) Pte Ltd." }
+  - { code: "0x02DE", name: "Samsung SDS Co., Ltd." }
+  - { code: "0x02E5", name: "Espressif Systems (Shanghai) Co., Ltd." }
+  - { code: "0x02EA", name: "Fujitsu Limited" }
+  - { code: "0x02ED", name: "HTC Corporation" }
+  - { code: "0x02EE", name: "Citizen Holdings Co., Ltd." }
+  - { code: "0x02F2", name: "GoPro, Inc." }
+  - { code: "0x02FF", name: "Silicon Laboratories" }
+  - { code: "0x0304", name: "Oura Health Ltd" }
+  - { code: "0x0356", name: "Spectrum Brands, Inc." }
+  - { code: "0x0381", name: "Sharp Corporation" }
+  - { code: "0x038F", name: "Xiaomi Inc." }
+  - { code: "0x03BB", name: "Abbott" }
+  - { code: "0x03FF", name: "Withings" }
+  - { code: "0x0410", name: "Fender Musical Instruments" }
+  - { code: "0x041E", name: "Dell Computer Corporation" }
+  - { code: "0x0494", name: "SENNHEISER electronic GmbH & Co. KG" }
+  - { code: "0x04AD", name: "Shure Inc" }
+  - { code: "0x04B7", name: "Analog Devices, Inc." }
+  - { code: "0x04BA", name: "Crestron Electronics, Inc." }
+  - { code: "0x04DE", name: "Lutron Electronics Co., Inc." }
+  - { code: "0x04DF", name: "Emerson Electric Co." }
+  - { code: "0x04EC", name: "Motorola Solutions" }
+  - { code: "0x0526", name: "Honeywell International Inc." }
+  - { code: "0x058B", name: "Maxim Integrated Products" }
+  - { code: "0x058E", name: "Meta Platforms Technologies, LLC" }
+  - { code: "0x05A7", name: "Sonos Inc" }
+  - { code: "0x05EB", name: "Bayerische Motoren Werke AG" }
+  - { code: "0x0600", name: "iRobot Corporation" }
+  - { code: "0x060C", name: "Vuzix Corporation" }
+  - { code: "0x060F", name: "Signify Netherlands B.V." }
+  - { code: "0x0618", name: "Audio-Technica Corporation" }
+  - { code: "0x062F", name: "ONKYO Corporation" }
+  - { code: "0x067C", name: "Tile, Inc." }
+  - { code: "0x0689", name: "Tacx b.v." }
+  - { code: "0x06BD", name: "ABB Oy" }
+  - { code: "0x06D5", name: "Sensirion AG" }
+  - { code: "0x0723", name: "Ford Motor Company" }
+  - { code: "0x072F", name: "OnePlus Electronics (Shenzhen) Co., Ltd." }
+  - { code: "0x075A", name: "HARMAN CO.,LTD." }
+  - { code: "0x0768", name: "Peloton Interactive Inc." }
+  - { code: "0x079A", name: "GuangDong Oppo Mobile Telecommunications Corp., Ltd." }
+  - { code: "0x07A2", name: "Roku, Inc." }
+  - { code: "0x07C9", name: "Skullcandy, Inc." }
+  - { code: "0x07D0", name: "Hangzhou Tuya Information  Technology Co., Ltd" }
+  - { code: "0x07D6", name: "ecobee Inc." }
+  - { code: "0x07FA", name: "Klipsch Group, Inc." }
+  - { code: "0x0826", name: "Hyundai Motor Company" }
+  - { code: "0x082E", name: "ABB S.p.A." }
+  - { code: "0x0837", name: "vivo Mobile Communication Co., Ltd." }
+  - { code: "0x0870", name: "Wyze Labs, Inc" }
+  - { code: "0x0896", name: "Nokian Renkaat Oyj" }
+  - { code: "0x08B7", name: "ABB Inc" }
+  - { code: "0x0915", name: "Honda Motor Co., Ltd." }
+  - { code: "0x0942", name: "TRANSSION HOLDINGS LIMITED" }
+  - { code: "0x0977", name: "TOYOTA motor corporation" }
+  - { code: "0x09C6", name: "Honor Device Co., Ltd." }
+  - { code: "0x0A0E", name: "Roland Corporation" }
+  - { code: "0x0A10", name: "SUBARU Corporation" }
+  - { code: "0x0A12", name: "Dyson Technology Limited" }
+  - { code: "0x0A2A", name: "Yamaha Corporation" }
+  - { code: "0x0BA6", name: "Nissan Motor Co., Ltd." }
+  - { code: "0x0BC6", name: "TCL COMMUNICATION EQUIPMENT CO.,LTD." }
+  - { code: "0x0BDE", name: "Yale" }
+  - { code: "0x0C19", name: "Arlo Technologies, Inc." }
+  - { code: "0x0C93", name: "Movesense Oy" }
+  - { code: "0x0CA1", name: "YAMAHA MOTOR CO.,LTD." }
+  - { code: "0x0CC2", name: "Anker Innovations Limited" }
+  - { code: "0x0CC4", name: "ABUS August Bremicker Soehne Kommanditgesellschaft" }
+  - { code: "0x0D86", name: "ROCKWELL AUTOMATION, INC." }
+  - { code: "0x0E25", name: "Hangzhou Hikvision Digital Technology Co., Ltd." }
+  - { code: "0x0E41", name: "Asustek Computer Inc." }
+  - { code: "0x0E9B", name: "Panasonic Automotive Systems Co., Ltd." }
+  - { code: "0x0EDE", name: "Sony Honda Mobility Inc." }
+  - { code: "0x0F35", name: "Audeze LLC" }
+  - { code: "0x0F7C", name: "Polk Audio" }
+  - { code: "0x1047", name: "Yamaha Motor eBike Systems GmbH" }

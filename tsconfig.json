@@ -2,9 +2,14 @@
   "compilerOptions": {
     "module": "commonjs",
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "outDir": "out",
-    "rootDir": "src",
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@novelbits/ble-spec": ["packages/ble-spec/src/index.ts"],
+      "@novelbits/ble-spec/*": ["packages/ble-spec/src/*"]
+    },
     "sourceMap": true,
     "strict": true,
     "esModuleInterop": true,
@@ -14,5 +19,6 @@
     "declaration": true,
     "declarationMap": true
   },
+  "include": ["src/**/*.ts", "packages/ble-spec/src/**/*.ts"],
   "exclude": ["node_modules", "out", "test"]
 }

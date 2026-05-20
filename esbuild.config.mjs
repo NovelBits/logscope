@@ -3,6 +3,11 @@ import { copyFileSync, mkdirSync } from "node:fs";
 
 const isWatch = process.argv.includes("--watch");
 
+// ── Shared path aliases ─────────────────────────────────────────
+const alias = {
+  "@novelbits/ble-spec": "./packages/ble-spec/src/index.ts",
+};
+
 // ── Extension bundle (Node / CommonJS) ──────────────────────────
 const extensionConfig = {
   entryPoints: ["src/extension.ts"],
@@ -13,6 +18,7 @@ const extensionConfig = {
   platform: "node",
   sourcemap: true,
   minify: false,
+  alias,
 };
 
 // ── WebView bundle (browser / IIFE) ────────────────────────────
@@ -24,6 +30,7 @@ const webviewConfig = {
   platform: "browser",
   sourcemap: true,
   minify: false,
+  alias,
 };
 
 // ── Copy static assets ──────────────────────────────────────────

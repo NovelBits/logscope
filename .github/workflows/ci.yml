@@ -21,6 +21,9 @@ jobs:
 
       - run: npm run build
 
+      - name: Verify @novelbits/ble-spec generated files match YAML
+        run: npm run gen:ble-spec:check
+
       - run: npm test
 
       - name: Install Python test dependencies

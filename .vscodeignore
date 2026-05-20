@@ -1,6 +1,7 @@
 .vscode/**
 src/**
 test/**
+packages/**
 node_modules/**
 .venv/**
 build/**

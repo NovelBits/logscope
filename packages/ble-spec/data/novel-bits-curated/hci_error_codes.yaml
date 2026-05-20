@@ -1,0 +1,83 @@
+# Bluetooth LE HCI Error Codes — Novel Bits curated reference data.
+#
+# Source: Bluetooth Core Specification v6.3, Vol 1, Part F ("Controller
+# Error Codes"), §1.3 (list) and §2.x (per-code descriptions).
+#
+# Reserved/no-longer-used slots intentionally omitted: 0x2B, 0x31, 0x33,
+# 0x39, 0x3F.
+#
+# Names match the spec exactly. specRef points at the section that defines
+# each code; click-to-spec URL mapping is a separate file (Phase 5).
+
+schema: hci_error_codes
+spec_version: "6.3"
+last_updated: "2026-05-13"
+
+entries:
+  - { code: "0x00", name: "Success", specRef: "Core Spec v6.3, Vol 1, Part F, §1.3" }
+  - { code: "0x01", name: "Unknown HCI Command", specRef: "Core Spec v6.3, Vol 1, Part F, §2.1" }
+  - { code: "0x02", name: "Unknown Connection Identifier", specRef: "Core Spec v6.3, Vol 1, Part F, §2.2" }
+  - { code: "0x03", name: "Hardware Failure", specRef: "Core Spec v6.3, Vol 1, Part F, §2.3" }
+  - { code: "0x04", name: "Page Timeout", specRef: "Core Spec v6.3, Vol 1, Part F, §2.4" }
+  - { code: "0x05", name: "Authentication Failure", specRef: "Core Spec v6.3, Vol 1, Part F, §2.5" }
+  - { code: "0x06", name: "PIN or Key Missing", specRef: "Core Spec v6.3, Vol 1, Part F, §2.6" }
+  - { code: "0x07", name: "Memory Capacity Exceeded", specRef: "Core Spec v6.3, Vol 1, Part F, §2.7" }
+  - { code: "0x08", name: "Connection Timeout", specRef: "Core Spec v6.3, Vol 1, Part F, §2.8" }
+  - { code: "0x09", name: "Connection Limit Exceeded", specRef: "Core Spec v6.3, Vol 1, Part F, §2.9" }
+  - { code: "0x0a", name: "Synchronous Connection Limit To A Device Exceeded", specRef: "Core Spec v6.3, Vol 1, Part F, §2.10" }
+  - { code: "0x0b", name: "Connection Already Exists", specRef: "Core Spec v6.3, Vol 1, Part F, §2.11" }
+  - { code: "0x0c", name: "Command Disallowed", specRef: "Core Spec v6.3, Vol 1, Part F, §2.12" }
+  - { code: "0x0d", name: "Connection Rejected due to Limited Resources", specRef: "Core Spec v6.3, Vol 1, Part F, §2.13" }
+  - { code: "0x0e", name: "Connection Rejected Due To Security Reasons", specRef: "Core Spec v6.3, Vol 1, Part F, §2.14" }
+  - { code: "0x0f", name: "Connection Rejected due to Unacceptable BD_ADDR", specRef: "Core Spec v6.3, Vol 1, Part F, §2.15" }
+  - { code: "0x10", name: "Connection Accept Timeout Exceeded", specRef: "Core Spec v6.3, Vol 1, Part F, §2.16" }
+  - { code: "0x11", name: "Unsupported Feature or Parameter Value", specRef: "Core Spec v6.3, Vol 1, Part F, §2.17" }
+  - { code: "0x12", name: "Invalid HCI Command Parameters", specRef: "Core Spec v6.3, Vol 1, Part F, §2.18" }
+  - { code: "0x13", name: "Remote User Terminated Connection", specRef: "Core Spec v6.3, Vol 1, Part F, §2.19" }
+  - { code: "0x14", name: "Remote Device Terminated Connection due to Low Resources", specRef: "Core Spec v6.3, Vol 1, Part F, §2.20" }
+  - { code: "0x15", name: "Remote Device Terminated Connection due to Power Off", specRef: "Core Spec v6.3, Vol 1, Part F, §2.21" }
+  - { code: "0x16", name: "Connection Terminated By Local Host", specRef: "Core Spec v6.3, Vol 1, Part F, §2.22" }
+  - { code: "0x17", name: "Repeated Attempts", specRef: "Core Spec v6.3, Vol 1, Part F, §2.23" }
+  - { code: "0x18", name: "Pairing Not Allowed", specRef: "Core Spec v6.3, Vol 1, Part F, §2.24" }
+  - { code: "0x19", name: "Unknown LMP PDU", specRef: "Core Spec v6.3, Vol 1, Part F, §2.25" }
+  - { code: "0x1a", name: "Unsupported Remote Feature / Unsupported LMP Feature", specRef: "Core Spec v6.3, Vol 1, Part F, §2.26" }
+  - { code: "0x1b", name: "SCO Offset Rejected", specRef: "Core Spec v6.3, Vol 1, Part F, §2.27" }
+  - { code: "0x1c", name: "SCO Interval Rejected", specRef: "Core Spec v6.3, Vol 1, Part F, §2.28" }
+  - { code: "0x1d", name: "SCO Air Mode Rejected", specRef: "Core Spec v6.3, Vol 1, Part F, §2.29" }
+  - { code: "0x1e", name: "Invalid LMP Parameters / Invalid LL Parameters", specRef: "Core Spec v6.3, Vol 1, Part F, §2.30" }
+  - { code: "0x1f", name: "Unspecified Error", specRef: "Core Spec v6.3, Vol 1, Part F, §2.31" }
+  - { code: "0x20", name: "Unsupported LMP Parameter Value / Unsupported LL Parameter Value", specRef: "Core Spec v6.3, Vol 1, Part F, §2.32" }
+  - { code: "0x21", name: "Role Change Not Allowed", specRef: "Core Spec v6.3, Vol 1, Part F, §2.33" }
+  - { code: "0x22", name: "LMP Response Timeout / LL Response Timeout", specRef: "Core Spec v6.3, Vol 1, Part F, §2.34" }
+  - { code: "0x23", name: "LMP Error Transaction Collision / LL Procedure Collision", specRef: "Core Spec v6.3, Vol 1, Part F, §2.35" }
+  - { code: "0x24", name: "LMP PDU Not Allowed", specRef: "Core Spec v6.3, Vol 1, Part F, §2.36" }
+  - { code: "0x25", name: "Encryption Mode Not Acceptable", specRef: "Core Spec v6.3, Vol 1, Part F, §2.37" }
+  - { code: "0x26", name: "Link Key cannot be Changed", specRef: "Core Spec v6.3, Vol 1, Part F, §2.38" }
+  - { code: "0x27", name: "Requested QoS Not Supported", specRef: "Core Spec v6.3, Vol 1, Part F, §2.39" }
+  - { code: "0x28", name: "Instant Passed", specRef: "Core Spec v6.3, Vol 1, Part F, §2.40" }
+  - { code: "0x29", name: "Pairing With Unit Key Not Supported", specRef: "Core Spec v6.3, Vol 1, Part F, §2.41" }
+  - { code: "0x2a", name: "Different Transaction Collision", specRef: "Core Spec v6.3, Vol 1, Part F, §2.42" }
+  - { code: "0x2c", name: "QoS Unacceptable Parameter", specRef: "Core Spec v6.3, Vol 1, Part F, §2.43" }
+  - { code: "0x2d", name: "QoS Rejected", specRef: "Core Spec v6.3, Vol 1, Part F, §2.44" }
+  - { code: "0x2e", name: "Channel Classification Not Supported", specRef: "Core Spec v6.3, Vol 1, Part F, §2.45" }
+  - { code: "0x2f", name: "Insufficient Security", specRef: "Core Spec v6.3, Vol 1, Part F, §2.46" }
+  - { code: "0x30", name: "Parameter Out Of Mandatory Range", specRef: "Core Spec v6.3, Vol 1, Part F, §2.47" }
+  - { code: "0x32", name: "Role Switch Pending", specRef: "Core Spec v6.3, Vol 1, Part F, §2.48" }
+  - { code: "0x34", name: "Reserved Slot Violation", specRef: "Core Spec v6.3, Vol 1, Part F, §2.49" }
+  - { code: "0x35", name: "Role Switch Failed", specRef: "Core Spec v6.3, Vol 1, Part F, §2.50" }
+  - { code: "0x36", name: "Extended Inquiry Response Too Large", specRef: "Core Spec v6.3, Vol 1, Part F, §2.51" }
+  - { code: "0x37", name: "Secure Simple Pairing Not Supported By Host", specRef: "Core Spec v6.3, Vol 1, Part F, §2.52" }
+  - { code: "0x38", name: "Host Busy - Pairing", specRef: "Core Spec v6.3, Vol 1, Part F, §2.53" }
+  - { code: "0x3a", name: "Controller Busy", specRef: "Core Spec v6.3, Vol 1, Part F, §2.55" }
+  - { code: "0x3b", name: "Unacceptable Connection Parameters", specRef: "Core Spec v6.3, Vol 1, Part F, §2.56" }
+  - { code: "0x3c", name: "Advertising Timeout", specRef: "Core Spec v6.3, Vol 1, Part F, §2.57" }
+  - { code: "0x3d", name: "Connection Terminated due to MIC Failure", specRef: "Core Spec v6.3, Vol 1, Part F, §2.58" }
+  - { code: "0x3e", name: "Connection Failed to be Established / Synchronization Timeout", specRef: "Core Spec v6.3, Vol 1, Part F, §2.59" }
+  - { code: "0x40", name: "Coarse Clock Adjustment Rejected but Will Try to Adjust Using Clock Dragging", specRef: "Core Spec v6.3, Vol 1, Part F, §2.61" }
+  - { code: "0x41", name: "Type0 Submap Not Defined", specRef: "Core Spec v6.3, Vol 1, Part F, §2.62" }
+  - { code: "0x42", name: "Unknown Advertising Identifier", specRef: "Core Spec v6.3, Vol 1, Part F, §2.63" }
+  - { code: "0x43", name: "Limit Reached", specRef: "Core Spec v6.3, Vol 1, Part F, §2.64" }
+  - { code: "0x44", name: "Operation Cancelled by Host", specRef: "Core Spec v6.3, Vol 1, Part F, §2.65" }
+  - { code: "0x45", name: "Packet Too Long", specRef: "Core Spec v6.3, Vol 1, Part F, §2.66" }
+  - { code: "0x46", name: "Too Late", specRef: "Core Spec v6.3, Vol 1, Part F, §2.67" }
+  - { code: "0x47", name: "Too Early", specRef: "Core Spec v6.3, Vol 1, Part F, §2.68" }
