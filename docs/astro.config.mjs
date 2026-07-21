@@ -48,7 +48,7 @@ export default defineConfig({
 				},
 				{
 					label: 'Releases',
-					autogenerate: { directory: 'releases' },
+					items: [{ autogenerate: { directory: 'releases' } }],
 					collapsed: true,
 				},
 				{
