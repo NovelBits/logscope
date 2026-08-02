@@ -38,6 +38,13 @@ let lineBuffer = "";
 const sidebarProvider = new LogScopeSidebarProvider();
 let userDisconnecting = false;
 let lastDiscoveredDevices: DiscoveredDevice[] = [];
+/**
+ * Classified error code from the most recent discovery attempt, or undefined
+ * when discovery last succeeded. Read when the user abandons the device step so
+ * we can tell "empty list because discovery failed" apart from "changed my
+ * mind". Holds a code (NO_PYTHON, NO_PROBE, ...), never a raw message.
+ */
+let lastDiscoveryErrorCode: string | undefined;
 let hciPacketCount = 0;
 let errorCount = 0;
 let licenseManager: LicenseManager;
@@ -670,9 +677,12 @@ async function rescanAndConnect(): Promise<void> {
     const ports = await discoverSerialPorts();
     if (ports.length === 0) {
       const error = classifyError("No serial ports found");
+      lastDiscoveryErrorCode = error.code;
+      telemetry.trackConnectFailed(error.code, transportType);
       panel?.sendConnectError(error);
       return;
     }
+    lastDiscoveryErrorCode = undefined;
     if (ports.length === 1) {
       const port = ports[0];
       const basename = port.path.split("/").pop() || port.path.split("\\").pop() || port.path;
@@ -696,9 +706,15 @@ async function rescanAndConnect(): Promise<void> {
       const error = discoverErr
         ? classifyError(discoverErr)
         : classifyError("", 3); // exit code 3 = NO_PROBE
+      lastDiscoveryErrorCode = error.code;
+      // A discovery failure is a failed connect attempt. Without this, every
+      // pre-doConnect failure (NO_PYTHON, VENV_FAILED, NO_SEGGER) was
+      // unrecordable, because doConnect's catch was the only caller.
+      telemetry.trackConnectFailed(error.code, transportType);
       panel?.sendConnectError(error);
       return;
     }
+    lastDiscoveryErrorCode = undefined;
     if (devices.length === 1) {
       const dev = devices[0];
       sidebarProvider.updateState({
@@ -821,12 +837,12 @@ async function guidedConnect(): Promise<void> {
           // Pick device/port
           if (transportValue === "uart") {
             const result = await pickSerialPort(true, 3, 4);
-            if (!result) { telemetry.trackConnectFlowAbandoned("device"); return; }
+            if (!result) { telemetry.trackConnectFlowAbandoned("device", lastDiscoveryErrorCode); return; }
             port = result;
             step = 4; // go to baud rate
           } else {
             const device = await pickJlinkDevice(true, 3, 4);
-            if (!device) { telemetry.trackConnectFlowAbandoned("device"); return; }
+            if (!device) { telemetry.trackConnectFlowAbandoned("device", lastDiscoveryErrorCode); return; }
             sidebarProvider.updateState({
               transport: "rtt",
               selectedDevice: String(device.serial),
@@ -938,11 +954,13 @@ async function pickSerialPort(showBack = false, step?: number, totalSteps?: numb
     const ports = await discoverSerialPorts();
     if (ports.length === 0) {
       const error = classifyError("No serial ports found");
+      lastDiscoveryErrorCode = error.code;
       panel?.sendConnectError(error);
       qp.items = [{ label: "No serial ports found" }, { label: "$(refresh) Rescan", _rescan: true }];
       qp.busy = false;
       return;
     }
+    lastDiscoveryErrorCode = undefined;
     qp.items = [
       ...ports.map(p => {
         // Primary label: "J-Link (Port 1)" or just "J-Link" or path basename
@@ -1036,10 +1054,14 @@ async function pickJlinkDevice(showBack = false, step?: number, totalSteps?: num
           label: "$(warning) No J-Link devices found",
           detail: "Probe held by another tool? Close any RTT/VCOM session in nRF Connect, JLink Commander, or RTT Viewer and rescan.",
         };
+      lastDiscoveryErrorCode = discoverErr
+        ? classifyError(discoverErr).code
+        : classifyError("", 3).code; // exit code 3 = NO_PROBE
       qp.items = [emptyItem, { label: "$(refresh) Rescan", _rescan: true }];
       qp.busy = false;
       return;
     }
+    lastDiscoveryErrorCode = undefined;
     qp.items = [
       ...devices.map(d => ({
         label: deviceLabel(d as DiscoveredDevice & { targetName?: string }),
