@@ -235,7 +235,27 @@ export function parseDiscoverResult(
  */
 export async function discoverDevices(): Promise<DiscoveryResult> {
   const helperPath = path.join(__dirname, "rtt-helper.py");
-  const pythonPath = await ensurePythonEnv(["pylink-square"]);
+
+  // Bootstrapping the Python env is the first thing that can fail here, and on
+  // a cold machine it is the most likely thing to fail — no Python installed,
+  // or pip unable to reach PyPI behind a corporate proxy. Report it the way
+  // every other discovery failure is reported: callers expect a DiscoveryResult,
+  // never a rejection.
+  //
+  // Letting this throw left the device QuickPick spinning on "Scanning..."
+  // indefinitely, because scanDevices() (extension.ts) wraps the call in
+  // try/finally with no catch and invokes it as a floating promise. The error
+  // text below is already user-actionable and already classifiable by
+  // classifyError() (NO_PYTHON / VENV_FAILED), but none of it ever reached the
+  // user.
+  let pythonPath: string;
+  try {
+    pythonPath = await ensurePythonEnv(["pylink-square"]);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logError("Python environment setup failed during device discovery", err);
+    return { devices: [], error: message };
+  }
 
   return new Promise((resolve) => {
     const proc = spawn(pythonPath, [helperPath, "discover"], {

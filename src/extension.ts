@@ -38,6 +38,13 @@ let lineBuffer = "";
 const sidebarProvider = new LogScopeSidebarProvider();
 let userDisconnecting = false;
 let lastDiscoveredDevices: DiscoveredDevice[] = [];
+/**
+ * Classified error code from the most recent discovery attempt, or undefined
+ * when discovery last succeeded. Read when the user abandons the device step so
+ * we can tell "empty list because discovery failed" apart from "changed my
+ * mind". Holds a code (NO_PYTHON, NO_PROBE, ...), never a raw message.
+ */
+let lastDiscoveryErrorCode: string | undefined;
 let hciPacketCount = 0;
 let errorCount = 0;
 let licenseManager: LicenseManager;
@@ -667,12 +674,17 @@ async function rescanAndConnect(): Promise<void> {
   const transportType = sidebarProvider.currentTransport;
 
   if (transportType === "uart") {
-    const ports = await discoverSerialPorts();
+    const { ports, error: discoverErr } = await discoverSerialPorts();
     if (ports.length === 0) {
-      const error = classifyError("No serial ports found");
+      // Prefer the specific reason (e.g. Python bootstrap failure) over the
+      // generic "no ports" message, which would misdescribe it.
+      const error = classifyError(discoverErr ?? "No serial ports found");
+      lastDiscoveryErrorCode = error.code;
+      telemetry.trackConnectFailed(error.code, transportType);
       panel?.sendConnectError(error);
       return;
     }
+    lastDiscoveryErrorCode = undefined;
     if (ports.length === 1) {
       const port = ports[0];
       const basename = port.path.split("/").pop() || port.path.split("\\").pop() || port.path;
@@ -696,9 +708,15 @@ async function rescanAndConnect(): Promise<void> {
       const error = discoverErr
         ? classifyError(discoverErr)
         : classifyError("", 3); // exit code 3 = NO_PROBE
+      lastDiscoveryErrorCode = error.code;
+      // A discovery failure is a failed connect attempt. Without this, every
+      // pre-doConnect failure (NO_PYTHON, VENV_FAILED, NO_SEGGER) was
+      // unrecordable, because doConnect's catch was the only caller.
+      telemetry.trackConnectFailed(error.code, transportType);
       panel?.sendConnectError(error);
       return;
     }
+    lastDiscoveryErrorCode = undefined;
     if (devices.length === 1) {
       const dev = devices[0];
       sidebarProvider.updateState({
@@ -821,12 +839,12 @@ async function guidedConnect(): Promise<void> {
           // Pick device/port
           if (transportValue === "uart") {
             const result = await pickSerialPort(true, 3, 4);
-            if (!result) { telemetry.trackConnectFlowAbandoned("device"); return; }
+            if (!result) { telemetry.trackConnectFlowAbandoned("device", lastDiscoveryErrorCode); return; }
             port = result;
             step = 4; // go to baud rate
           } else {
             const device = await pickJlinkDevice(true, 3, 4);
-            if (!device) { telemetry.trackConnectFlowAbandoned("device"); return; }
+            if (!device) { telemetry.trackConnectFlowAbandoned("device", lastDiscoveryErrorCode); return; }
             sidebarProvider.updateState({
               transport: "rtt",
               selectedDevice: String(device.serial),
@@ -912,6 +930,44 @@ function deviceLabel(dev: { serial: number; targetName?: string }): string {
   return `${name} (SN: ${dev.serial})`;
 }
 
+/**
+ * Busy-state label for the device pickers.
+ *
+ * On a cold machine the first scan has to create a Python venv and pip-install
+ * a helper package, which needs the network and can take tens of seconds. A
+ * bare "Scanning..." for that long is indistinguishable from a hang, and the
+ * user closes the picker — recorded as abandonment at step "device", the single
+ * most-abandoned step. Say what is actually happening instead.
+ */
+function scanBusyLabel(packages: string[]): string {
+  return isPythonEnvReady(packages)
+    ? "Scanning..."
+    : "$(cloud-download) First-time setup: installing helper packages (needs internet, may take a minute)...";
+}
+
+/**
+ * Shared failure handling for both device pickers.
+ *
+ * Each picker kicks its scan off as a floating promise, so an unhandled
+ * rejection would leave the QuickPick on its busy label indefinitely, with no
+ * way forward except closing it — which the user records as abandonment. Land
+ * on a visible, actionable state instead of a permanent spinner.
+ */
+function renderScanFailure<T extends vscode.QuickPickItem & { _rescan?: boolean }>(
+  qp: vscode.QuickPick<T>,
+  err: unknown,
+  context: string,
+): void {
+  const error = classifyError(err instanceof Error ? err.message : String(err));
+  lastDiscoveryErrorCode = error.code;
+  logError(context, err);
+  qp.items = [
+    { label: `$(error) ${error.headline}`, detail: error.detail } as T,
+    { label: "$(refresh) Rescan", _rescan: true } as T,
+  ];
+  qp.busy = false;
+}
+
 // ── Individual QuickPick helpers (reused by guided flow + change settings)
 
 async function pickSerialPort(showBack = false, step?: number, totalSteps?: number): Promise<{ path: string; label: string } | undefined> {
@@ -919,7 +975,7 @@ async function pickSerialPort(showBack = false, step?: number, totalSteps?: numb
   qp.placeholder = "Select serial port...";
   qp.title = "Connect Device";
   qp.busy = true;
-  qp.items = [{ label: "Scanning..." }];
+  qp.items = [{ label: scanBusyLabel(["pyserial"]) }];
   if (showBack) {
     qp.buttons = [vscode.QuickInputButtons.Back];
     qp.step = step ?? 2;
@@ -933,16 +989,21 @@ async function pickSerialPort(showBack = false, step?: number, totalSteps?: numb
     if (scanning) return;
     scanning = true;
     qp.busy = true;
-    qp.items = [{ label: "Scanning..." }];
+    qp.items = [{ label: scanBusyLabel(["pyserial"]) }];
     try {
-    const ports = await discoverSerialPorts();
+    const { ports, error: discoverErr } = await discoverSerialPorts();
     if (ports.length === 0) {
-      const error = classifyError("No serial ports found");
+      const error = classifyError(discoverErr ?? "No serial ports found");
+      lastDiscoveryErrorCode = error.code;
       panel?.sendConnectError(error);
-      qp.items = [{ label: "No serial ports found" }, { label: "$(refresh) Rescan", _rescan: true }];
+      qp.items = [
+        { label: `$(warning) ${error.headline}`, detail: discoverErr ?? undefined },
+        { label: "$(refresh) Rescan", _rescan: true },
+      ];
       qp.busy = false;
       return;
     }
+    lastDiscoveryErrorCode = undefined;
     qp.items = [
       ...ports.map(p => {
         // Primary label: "J-Link (Port 1)" or just "J-Link" or path basename
@@ -964,6 +1025,8 @@ async function pickSerialPort(showBack = false, step?: number, totalSteps?: numb
       { label: "$(refresh) Rescan", _rescan: true },
     ];
     qp.busy = false;
+    } catch (err) {
+      renderScanFailure(qp, err, "Serial port scan failed");
     } finally {
       scanning = false;
     }
@@ -1004,7 +1067,7 @@ async function pickJlinkDevice(showBack = false, step?: number, totalSteps?: num
   qp.placeholder = "Select J-Link device...";
   qp.title = "Connect Device";
   qp.busy = true;
-  qp.items = [{ label: "Scanning..." }];
+  qp.items = [{ label: scanBusyLabel(["pylink-square"]) }];
   if (showBack) {
     qp.buttons = [vscode.QuickInputButtons.Back];
     qp.step = step ?? 2;
@@ -1021,7 +1084,7 @@ async function pickJlinkDevice(showBack = false, step?: number, totalSteps?: num
     if (scanning) return;
     scanning = true;
     qp.busy = true;
-    qp.items = [{ label: "Scanning..." }];
+    qp.items = [{ label: scanBusyLabel(["pylink-square"]) }];
     try {
     const { devices, error: discoverErr } = await discoverDevices();
     lastDiscoveredDevices = devices;
@@ -1036,10 +1099,14 @@ async function pickJlinkDevice(showBack = false, step?: number, totalSteps?: num
           label: "$(warning) No J-Link devices found",
           detail: "Probe held by another tool? Close any RTT/VCOM session in nRF Connect, JLink Commander, or RTT Viewer and rescan.",
         };
+      lastDiscoveryErrorCode = discoverErr
+        ? classifyError(discoverErr).code
+        : classifyError("", 3).code; // exit code 3 = NO_PROBE
       qp.items = [emptyItem, { label: "$(refresh) Rescan", _rescan: true }];
       qp.busy = false;
       return;
     }
+    lastDiscoveryErrorCode = undefined;
     qp.items = [
       ...devices.map(d => ({
         label: deviceLabel(d as DiscoveredDevice & { targetName?: string }),
@@ -1048,6 +1115,8 @@ async function pickJlinkDevice(showBack = false, step?: number, totalSteps?: num
       { label: "$(refresh) Rescan", _rescan: true },
     ];
     qp.busy = false;
+    } catch (err) {
+      renderScanFailure(qp, err, "J-Link device scan failed");
     } finally {
       scanning = false;
     }

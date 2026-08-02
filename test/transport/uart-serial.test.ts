@@ -1,4 +1,5 @@
 import { UartTransport, discoverSerialPorts } from "../../src/transport/uart-serial";
+import { ensurePythonEnv } from "../../src/transport/nrfutil-rtt";
 import { ChildProcess, spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
 
@@ -159,13 +160,14 @@ describe("discoverSerialPorts", () => {
     proc.stdout!.emit("data", Buffer.from(response));
     proc.emit("exit", 0);
 
-    const ports = await promise;
+    const { ports, error } = await promise;
     expect(ports).toHaveLength(2);
     expect(ports[0].path).toBe("/dev/cu.usbmodem001");
     expect(ports[0].manufacturer).toBe("SEGGER");
+    expect(error).toBeUndefined();
   });
 
-  it("returns empty array on error", async () => {
+  it("returns empty ports and a diagnostic error when the helper fails to spawn", async () => {
     const proc = createMockProcess();
     mockSpawn.mockReturnValue(proc);
 
@@ -173,7 +175,25 @@ describe("discoverSerialPorts", () => {
     await tick();
     proc.emit("error", new Error("spawn failed"));
 
-    const ports = await promise;
+    const { ports, error } = await promise;
     expect(ports).toHaveLength(0);
+    expect(error).toMatch(/spawn failed/);
+  });
+
+  // Regression: same defect as discoverDevices() — awaiting the Python bootstrap
+  // unguarded meant a cold-machine failure REJECTED instead of reporting.
+  // rescanAndConnect() calls this bare from the logscope.rescan command, so the
+  // rejection escaped as a generic VS Code error with no classified card and no
+  // telemetry.
+  it("resolves with an actionable error when the Python bootstrap fails, instead of rejecting", async () => {
+    (ensurePythonEnv as jest.MockedFunction<typeof ensurePythonEnv>).mockRejectedValueOnce(
+      new Error("Python 3 not found. Install Python 3 from python.org and reload VS Code.")
+    );
+
+    await expect(discoverSerialPorts()).resolves.toEqual({
+      ports: [],
+      error: expect.stringMatching(/Python 3 not found/),
+    });
+    expect(mockSpawn).not.toHaveBeenCalled();
   });
 });

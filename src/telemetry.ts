@@ -115,9 +115,17 @@ export class TelemetryService {
   /**
    * Track user abandoning the guided connect flow.
    * Called when guidedConnect() QuickPick is dismissed.
+   *
+   * `reason` disambiguates the two very different outcomes that both surface as
+   * abandonment at step "device": the user changed their mind with a populated
+   * list, versus the list was empty because discovery failed. Without it,
+   * "device" was by far the most-abandoned step and told us nothing about why.
+   *
+   * Like trackConnectFailed, this takes a classified error CODE only, never a
+   * raw message (those can contain filesystem paths).
    */
-  trackConnectFlowAbandoned(step: string): void {
-    this.send("connect_flow_abandoned", { step });
+  trackConnectFlowAbandoned(step: string, reason?: string): void {
+    this.send("connect_flow_abandoned", reason ? { step, reason } : { step });
   }
 
   /**
