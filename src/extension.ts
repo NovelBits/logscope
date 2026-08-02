@@ -945,6 +945,29 @@ function scanBusyLabel(packages: string[]): string {
     : "$(cloud-download) First-time setup: installing helper packages (needs internet, may take a minute)...";
 }
 
+/**
+ * Shared failure handling for both device pickers.
+ *
+ * Each picker kicks its scan off as a floating promise, so an unhandled
+ * rejection would leave the QuickPick on its busy label indefinitely, with no
+ * way forward except closing it — which the user records as abandonment. Land
+ * on a visible, actionable state instead of a permanent spinner.
+ */
+function renderScanFailure<T extends vscode.QuickPickItem & { _rescan?: boolean }>(
+  qp: vscode.QuickPick<T>,
+  err: unknown,
+  context: string,
+): void {
+  const error = classifyError(err instanceof Error ? err.message : String(err));
+  lastDiscoveryErrorCode = error.code;
+  logError(context, err);
+  qp.items = [
+    { label: `$(error) ${error.headline}`, detail: error.detail } as T,
+    { label: "$(refresh) Rescan", _rescan: true } as T,
+  ];
+  qp.busy = false;
+}
+
 // ── Individual QuickPick helpers (reused by guided flow + change settings)
 
 async function pickSerialPort(showBack = false, step?: number, totalSteps?: number): Promise<{ path: string; label: string } | undefined> {
@@ -1003,19 +1026,7 @@ async function pickSerialPort(showBack = false, step?: number, totalSteps?: numb
     ];
     qp.busy = false;
     } catch (err) {
-      // Defense in depth. Nothing below is expected to throw, but this runs as
-      // a floating promise, so an unhandled rejection leaves the picker on
-      // "Scanning..." with qp.busy = true and no way forward except closing it
-      // — which is exactly the bug fixed in discoverDevices(). Always land on a
-      // visible, actionable state instead of a permanent spinner.
-      const error = classifyError(err instanceof Error ? err.message : String(err));
-      lastDiscoveryErrorCode = error.code;
-      logError("Serial port scan failed", err);
-      qp.items = [
-        { label: `$(error) ${error.headline}`, detail: error.detail },
-        { label: "$(refresh) Rescan", _rescan: true },
-      ];
-      qp.busy = false;
+      renderScanFailure(qp, err, "Serial port scan failed");
     } finally {
       scanning = false;
     }
@@ -1105,19 +1116,7 @@ async function pickJlinkDevice(showBack = false, step?: number, totalSteps?: num
     ];
     qp.busy = false;
     } catch (err) {
-      // Defense in depth. discoverDevices() no longer rejects on a Python
-      // bootstrap failure, but this runs as a floating promise, so any future
-      // rejection would again leave the picker on "Scanning..." with
-      // qp.busy = true and no way forward except closing it. Always land on a
-      // visible, actionable state instead of a permanent spinner.
-      const error = classifyError(err instanceof Error ? err.message : String(err));
-      lastDiscoveryErrorCode = error.code;
-      logError("J-Link device scan failed", err);
-      qp.items = [
-        { label: `$(error) ${error.headline}`, detail: error.detail },
-        { label: "$(refresh) Rescan", _rescan: true },
-      ];
-      qp.busy = false;
+      renderScanFailure(qp, err, "J-Link device scan failed");
     } finally {
       scanning = false;
     }
