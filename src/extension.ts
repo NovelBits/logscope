@@ -982,6 +982,20 @@ async function pickSerialPort(showBack = false, step?: number, totalSteps?: numb
       { label: "$(refresh) Rescan", _rescan: true },
     ];
     qp.busy = false;
+    } catch (err) {
+      // Defense in depth. Nothing below is expected to throw, but this runs as
+      // a floating promise, so an unhandled rejection leaves the picker on
+      // "Scanning..." with qp.busy = true and no way forward except closing it
+      // — which is exactly the bug fixed in discoverDevices(). Always land on a
+      // visible, actionable state instead of a permanent spinner.
+      const error = classifyError(err instanceof Error ? err.message : String(err));
+      lastDiscoveryErrorCode = error.code;
+      logError("Serial port scan failed", err);
+      qp.items = [
+        { label: `$(error) ${error.headline}`, detail: error.detail },
+        { label: "$(refresh) Rescan", _rescan: true },
+      ];
+      qp.busy = false;
     } finally {
       scanning = false;
     }
@@ -1070,6 +1084,20 @@ async function pickJlinkDevice(showBack = false, step?: number, totalSteps?: num
       { label: "$(refresh) Rescan", _rescan: true },
     ];
     qp.busy = false;
+    } catch (err) {
+      // Defense in depth. discoverDevices() no longer rejects on a Python
+      // bootstrap failure, but this runs as a floating promise, so any future
+      // rejection would again leave the picker on "Scanning..." with
+      // qp.busy = true and no way forward except closing it. Always land on a
+      // visible, actionable state instead of a permanent spinner.
+      const error = classifyError(err instanceof Error ? err.message : String(err));
+      lastDiscoveryErrorCode = error.code;
+      logError("J-Link device scan failed", err);
+      qp.items = [
+        { label: `$(error) ${error.headline}`, detail: error.detail },
+        { label: "$(refresh) Rescan", _rescan: true },
+      ];
+      qp.busy = false;
     } finally {
       scanning = false;
     }
