@@ -2,6 +2,20 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.6.6] - 2026-08-02
+
+### Fixed
+- **The device picker could hang on "Scanning..." forever on a first run.** LogScope sets up a small Python environment the first time it scans for devices, which needs the network. If that setup failed (no Python installed, or pip blocked by a corporate proxy or an offline machine), the failure was never surfaced: the picker sat on "Scanning..." with no error and no way forward except closing it. The underlying messages ("Python 3 not found", "Failed to install pylink-square. Check your internet connection.") already existed and were already actionable, but had no path to the screen. They are now shown, with the same one-click actions as every other connection error.
+- **Serial port discovery had the identical defect.** The UART path failed the same way, and because it is reachable from the Rescan command it surfaced as a generic VS Code error rather than a LogScope error card. It now reports the specific reason instead of a generic "No serial ports found", which previously misdescribed a Python setup problem as a missing device.
+- **The Windows port watcher could disconnect a healthy session.** While connected over UART on Windows, LogScope polls for the port to detect an unplug. A failed poll was treated the same as "port is gone" and dropped the connection. A failed scan says nothing about the port, so it is now ignored rather than acted on.
+- **Neither device picker can be left stuck in a busy state.** Both scans now always land on a visible, actionable item plus Rescan, whatever goes wrong.
+
+### Changed
+- **The first scan on a new machine now says what it is doing.** Instead of a bare "Scanning...", it reads "First-time setup: installing helper packages (needs internet, may take a minute)". The one-time setup can take tens of seconds, and a silent spinner for that long is indistinguishable from a hang. The label only changes when setup genuinely has to run.
+
+### Added
+- **Connection problems that happen before a device is chosen are now recorded in telemetry** (for users who have telemetry enabled). Previously only failures after device selection were counted, so whole categories of first-run problem were invisible. The abandonment event also now carries the classified reason, so an empty device list caused by a setup failure can be told apart from a user simply changing their mind. As before, only a classified error code is sent, never a raw message.
+
 ## [0.6.5] - 2026-05-16
 
 ### Changed

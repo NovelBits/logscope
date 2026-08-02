@@ -2,7 +2,7 @@
   "name": "novelbits-logscope",
   "displayName": "LogScope: Live RTT Logging for Nordic, Zephyr, and Bluetooth LE",
   "description": "Live RTT log viewer for Nordic, Zephyr, and J-Link. Bluetooth LE HCI decoding inline, direct-memory recovery, fault auto-detect, and Wireshark btsnoop export.",
-  "version": "0.6.5",
+  "version": "0.6.6",
   "publisher": "novelbits",
   "author": {
     "name": "Novel Bits"
@@ -285,19 +285,34 @@
         "logscope.uart.dataBits": {
           "type": "number",
           "default": 8,
-          "enum": [5, 6, 7, 8],
+          "enum": [
+            5,
+            6,
+            7,
+            8
+          ],
           "description": "Number of data bits per UART frame. Most modern firmware uses 8."
         },
         "logscope.uart.stopBits": {
           "type": "string",
           "default": "1",
-          "enum": ["1", "1.5", "2"],
+          "enum": [
+            "1",
+            "1.5",
+            "2"
+          ],
           "description": "Number of stop bits per UART frame. Most modern firmware uses 1."
         },
         "logscope.uart.parity": {
           "type": "string",
           "default": "none",
-          "enum": ["none", "odd", "even", "mark", "space"],
+          "enum": [
+            "none",
+            "odd",
+            "even",
+            "mark",
+            "space"
+          ],
           "description": "Parity for the UART frame. 'none' is the most common; 'even' or 'odd' are sometimes used in legacy/industrial protocols."
         },
         "logscope.maxEntries": {
@@ -319,7 +334,9 @@
           "type": "object",
           "default": {},
           "description": "Persisted log-viewer column widths in pixels (keys: time, ts, sev, mod). Set automatically when columns are resized.",
-          "additionalProperties": { "type": "number" }
+          "additionalProperties": {
+            "type": "number"
+          }
         },
         "logscope.logWrap": {
           "type": "boolean",
@@ -385,7 +402,10 @@
           "description": "Watch patterns to match against incoming log lines. Each pattern shows an inline marker and a live hit counter in the sidebar.",
           "items": {
             "type": "object",
-            "required": ["name", "pattern"],
+            "required": [
+              "name",
+              "pattern"
+            ],
             "properties": {
               "name": {
                 "type": "string",

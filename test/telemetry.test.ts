@@ -243,6 +243,29 @@ describe("TelemetryService", () => {
         undefined
       );
     });
+
+    it("sends the discovery error code as reason when one is supplied", () => {
+      const ctx = createMockContext();
+      service.init(ctx as never);
+
+      service.trackConnectFlowAbandoned("device", "NO_PYTHON");
+
+      expect(mockSendTelemetryEvent).toHaveBeenCalledWith(
+        "connect_flow_abandoned",
+        expect.objectContaining({ step: "device", reason: "NO_PYTHON" }),
+        undefined
+      );
+    });
+
+    it("omits reason entirely when none is supplied, so the field stays absent", () => {
+      const ctx = createMockContext();
+      service.init(ctx as never);
+
+      service.trackConnectFlowAbandoned("transport");
+
+      const props = mockSendTelemetryEvent.mock.calls.at(-1)?.[1] as Record<string, string>;
+      expect(props).not.toHaveProperty("reason");
+    });
   });
 
   describe("trackExport()", () => {

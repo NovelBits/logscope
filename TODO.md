@@ -80,6 +80,14 @@ Requires adding `snapshot()` / `restore()` methods to `SidebarProvider`. Not a h
 - Verify the UART branch (step 4 baud rate) doesn't have the same issue — looks like it commits state right before doConnect already, but check
 - Telemetry abandonment events (`trackConnectFlowAbandoned`) are the natural restore points
 
+### Log filter: exclude/mute a single chatty source (deselect one, not re-select all)
+**Origin:** field request from a user call (2026-07-21); two users independently asked for it.
+Today the log-source filter is select-what-you-want. Users want the inverse: keep everything visible but deselect/mute one specific noisy source (e.g. a chatty process/thread) without having to re-select every source they still care about. Add a per-source "mute/exclude" toggle so a single high-volume source can be hidden with one click, leaving the rest untouched.
+
+### Shell/terminal integration alongside the log view
+**Origin:** field request from a user call (2026-07-21).
+Users want an interactive device shell in the same tool as the log: a shell/console pane (RTT shell or UART) sitting next to the log panel (top/bottom or left/right split), so they can interact with the device and see the correlated log without leaving LogScope. Ideally the shell's own output can be filtered together with the log.
+
 ## Hardening / Tests
 
 ### Python helper output contract test (pytest)

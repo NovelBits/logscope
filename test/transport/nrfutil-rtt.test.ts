@@ -15,7 +15,8 @@ jest.mock("fs", () => ({
 
 const mockExecFileSync = execFileSync as jest.MockedFunction<typeof execFileSync>;
 
-import { resolveSystemPython, NrfutilRttTransport } from "../../src/transport/nrfutil-rtt";
+import { resolveSystemPython, NrfutilRttTransport, discoverDevices } from "../../src/transport/nrfutil-rtt";
+import { classifyError } from "../../src/errors";
 
 describe("resolveSystemPython", () => {
   beforeEach(() => {
@@ -209,5 +210,79 @@ describe("_handleStderrLine: CHANNEL_NAME parsing", () => {
       expect(emitted).toBe(false);
       done();
     }, 50);
+  });
+});
+
+// ── Regression: Python bootstrap failure must not escape discoverDevices() ──
+//
+// discoverDevices() (nrfutil-rtt.ts) awaits ensurePythonEnv() OUTSIDE its own
+// Promise and without a try/catch, so a bootstrap failure REJECTS instead of
+// resolving with {devices: [], error}.
+//
+// That breaks the contract every caller assumes, and which parseDiscoverResult
+// is already tested against ("returns empty devices and helper error..."):
+// discovery problems are REPORTED, not thrown.
+//
+// Consequences at the two call sites:
+//   • extension.ts:1026 — scanDevices() wraps the call in try/finally with NO
+//     catch, and extension.ts:1083 invokes it as a floating promise. The
+//     QuickPick is left on "Scanning..." with qp.busy = true, permanently.
+//     The user closes it, which records connect_flow_abandoned("device").
+//   • extension.ts:691 — the bare await rejects out of the connect command.
+//
+// Neither path reaches telemetry.trackConnectFailed (extension.ts:639 is its
+// only call site), which is why NO_SEGGER and VENV_FAILED have zero recorded
+// events despite being implemented error codes.
+describe("discoverDevices: Python bootstrap failure (regression)", () => {
+  beforeEach(() => {
+    mockExecFileSync.mockReset();
+  });
+
+  it("resolves with an actionable error when Python cannot be found, instead of rejecting", async () => {
+    // Nothing executable anywhere: the which/where lookup and every --version
+    // probe fail. fs.existsSync is already mocked false at module scope, so
+    // neither the managed venv nor any well-known install path is found.
+    mockExecFileSync.mockImplementation(() => {
+      throw new Error("not found");
+    });
+
+    await expect(discoverDevices()).resolves.toEqual({
+      devices: [],
+      error: expect.stringMatching(/Python 3 not found/),
+    });
+  });
+
+  it("resolves with an actionable error when the pylink install fails (blocked PyPI)", async () => {
+    // The likelier real-world trigger: Python exists, but pip cannot reach
+    // PyPI (corporate proxy, offline first run). Walk ensurePythonEnv through
+    // to step 4 and fail only the install.
+    mockExecFileSync.mockImplementation((cmd, args) => {
+      const argv = (args ?? []) as string[];
+      if (cmd === "which" || cmd === "where") return "/usr/bin/python3\n";
+      if (argv[0] === "-m" && argv[1] === "venv") return "";           // venv creation succeeds
+      if (argv[0] === "install") {
+        throw new Error("Could not fetch URL https://pypi.org/simple/pylink-square/");
+      }
+      if (argv[0] === "-c") {
+        throw new Error("ModuleNotFoundError: No module named 'pylink'");
+      }
+      return "";
+    });
+
+    await expect(discoverDevices()).resolves.toEqual({
+      devices: [],
+      error: expect.stringMatching(/Failed to install pylink-square/),
+    });
+  });
+
+  it("returns an error string that classifyError maps to a specific code, not GENERIC", async () => {
+    // Ties the fix to the telemetry blind spot: as long as the bootstrap error
+    // never reaches classifyError, NO_PYTHON/VENV_FAILED can never be recorded.
+    mockExecFileSync.mockImplementation(() => {
+      throw new Error("not found");
+    });
+
+    const { error } = await discoverDevices();
+    expect(classifyError(error ?? "").code).toBe("NO_PYTHON");
   });
 });
