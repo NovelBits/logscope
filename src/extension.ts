@@ -674,9 +674,11 @@ async function rescanAndConnect(): Promise<void> {
   const transportType = sidebarProvider.currentTransport;
 
   if (transportType === "uart") {
-    const ports = await discoverSerialPorts();
+    const { ports, error: discoverErr } = await discoverSerialPorts();
     if (ports.length === 0) {
-      const error = classifyError("No serial ports found");
+      // Prefer the specific reason (e.g. Python bootstrap failure) over the
+      // generic "no ports" message, which would misdescribe it.
+      const error = classifyError(discoverErr ?? "No serial ports found");
       lastDiscoveryErrorCode = error.code;
       telemetry.trackConnectFailed(error.code, transportType);
       panel?.sendConnectError(error);
@@ -966,12 +968,15 @@ async function pickSerialPort(showBack = false, step?: number, totalSteps?: numb
     qp.busy = true;
     qp.items = [{ label: scanBusyLabel(["pyserial"]) }];
     try {
-    const ports = await discoverSerialPorts();
+    const { ports, error: discoverErr } = await discoverSerialPorts();
     if (ports.length === 0) {
-      const error = classifyError("No serial ports found");
+      const error = classifyError(discoverErr ?? "No serial ports found");
       lastDiscoveryErrorCode = error.code;
       panel?.sendConnectError(error);
-      qp.items = [{ label: "No serial ports found" }, { label: "$(refresh) Rescan", _rescan: true }];
+      qp.items = [
+        { label: `$(warning) ${error.headline}`, detail: discoverErr ?? undefined },
+        { label: "$(refresh) Rescan", _rescan: true },
+      ];
       qp.busy = false;
       return;
     }

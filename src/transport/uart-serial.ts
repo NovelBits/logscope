@@ -30,14 +30,37 @@ export interface DiscoveredSerialPort {
   portNumber?: number;
 }
 
+/** Result of serial port discovery — includes diagnostic error when discovery fails */
+export interface SerialDiscoveryResult {
+  ports: DiscoveredSerialPort[];
+  /** Set when discovery failed (e.g. the Python environment could not be provisioned) */
+  error?: string;
+}
+
 /**
  * Discover available serial ports via the Python uart-helper.
  * Filters out Bluetooth and debug virtual ports.
+ *
+ * Mirrors discoverDevices()/DiscoveryResult: discovery problems are REPORTED,
+ * never thrown, because callers drive UI off the result.
  */
-export async function discoverSerialPorts(): Promise<DiscoveredSerialPort[]> {
+export async function discoverSerialPorts(): Promise<SerialDiscoveryResult> {
   const helperPath = path.join(__dirname, "uart-helper.py");
 
-  const pythonPath = await ensurePythonEnv(["pyserial"]);
+  // Same defect discoverDevices() had: awaiting the Python bootstrap outside the
+  // Promise, unguarded, so a cold-machine failure (no Python, or pip blocked
+  // from PyPI) rejected instead of being reported. rescanAndConnect() calls this
+  // bare from the logscope.rescan command, so the rejection escaped as a generic
+  // VS Code command error — no classified card, no telemetry.
+  let pythonPath: string;
+  try {
+    pythonPath = await ensurePythonEnv(["pyserial"]);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logError("Python environment setup failed during serial port discovery", err);
+    return { ports: [], error: message };
+  }
+
   return new Promise((resolve) => {
     const proc = spawn(pythonPath, [helperPath, "discover"], {
       stdio: ["pipe", "pipe", "pipe"],
@@ -51,16 +74,16 @@ export async function discoverSerialPorts(): Promise<DiscoveredSerialPort[]> {
       try {
         const result = JSON.parse(stdout);
         log(`Serial port scan found ${result.ports?.length ?? 0} ports`);
-        resolve(result.ports ?? []);
+        resolve({ ports: result.ports ?? [] });
       } catch {
         logError("Failed to parse serial port scan output");
-        resolve([]);
+        resolve({ ports: [], error: "Serial port scan produced no readable output." });
       }
     });
 
     proc.on("error", (err) => {
       logError("Serial port scan failed", err);
-      resolve([]);
+      resolve({ ports: [], error: err.message });
     });
   });
 }
@@ -202,7 +225,11 @@ export class UartTransport extends EventEmitter implements Transport {
         return;
       }
       try {
-        const ports = await discoverSerialPorts();
+        const { ports, error } = await discoverSerialPorts();
+        // A failed scan tells us nothing about the port. Only an authoritative
+        // empty result means "unplugged" — otherwise a transient discovery
+        // failure would tear down a perfectly healthy session.
+        if (error) return;
         const portPaths = ports.map(p => p.path);
         if (!portPaths.includes(this.portPath)) {
           log(`Port ${this.portPath} disappeared — device unplugged`);
