@@ -928,6 +928,21 @@ function deviceLabel(dev: { serial: number; targetName?: string }): string {
   return `${name} (SN: ${dev.serial})`;
 }
 
+/**
+ * Busy-state label for the device pickers.
+ *
+ * On a cold machine the first scan has to create a Python venv and pip-install
+ * a helper package, which needs the network and can take tens of seconds. A
+ * bare "Scanning..." for that long is indistinguishable from a hang, and the
+ * user closes the picker — recorded as abandonment at step "device", the single
+ * most-abandoned step. Say what is actually happening instead.
+ */
+function scanBusyLabel(packages: string[]): string {
+  return isPythonEnvReady(packages)
+    ? "Scanning..."
+    : "$(cloud-download) First-time setup: installing helper packages (needs internet, may take a minute)...";
+}
+
 // ── Individual QuickPick helpers (reused by guided flow + change settings)
 
 async function pickSerialPort(showBack = false, step?: number, totalSteps?: number): Promise<{ path: string; label: string } | undefined> {
@@ -935,7 +950,7 @@ async function pickSerialPort(showBack = false, step?: number, totalSteps?: numb
   qp.placeholder = "Select serial port...";
   qp.title = "Connect Device";
   qp.busy = true;
-  qp.items = [{ label: "Scanning..." }];
+  qp.items = [{ label: scanBusyLabel(["pyserial"]) }];
   if (showBack) {
     qp.buttons = [vscode.QuickInputButtons.Back];
     qp.step = step ?? 2;
@@ -949,7 +964,7 @@ async function pickSerialPort(showBack = false, step?: number, totalSteps?: numb
     if (scanning) return;
     scanning = true;
     qp.busy = true;
-    qp.items = [{ label: "Scanning..." }];
+    qp.items = [{ label: scanBusyLabel(["pyserial"]) }];
     try {
     const ports = await discoverSerialPorts();
     if (ports.length === 0) {
@@ -1036,7 +1051,7 @@ async function pickJlinkDevice(showBack = false, step?: number, totalSteps?: num
   qp.placeholder = "Select J-Link device...";
   qp.title = "Connect Device";
   qp.busy = true;
-  qp.items = [{ label: "Scanning..." }];
+  qp.items = [{ label: scanBusyLabel(["pylink-square"]) }];
   if (showBack) {
     qp.buttons = [vscode.QuickInputButtons.Back];
     qp.step = step ?? 2;
@@ -1053,7 +1068,7 @@ async function pickJlinkDevice(showBack = false, step?: number, totalSteps?: num
     if (scanning) return;
     scanning = true;
     qp.busy = true;
-    qp.items = [{ label: "Scanning..." }];
+    qp.items = [{ label: scanBusyLabel(["pylink-square"]) }];
     try {
     const { devices, error: discoverErr } = await discoverDevices();
     lastDiscoveredDevices = devices;
