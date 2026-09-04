@@ -593,49 +593,116 @@ def _wait_for_rtt_control_block(jlink):
     return 0
 
 
-def _find_newest_jlink_dll():
-    """Find the newest J-Link DLL on the system.
+def _jlink_search_config():
+    """Return (search_dirs, dll_name) for the current platform.
 
-    pylink defaults to the first DLL it finds (alphabetically), which may be
-    an old version missing support for newer chips (e.g., nRF54L15). This
-    function scans SEGGER install directories and returns the newest DLL path.
-    Returns None if no DLL is found (pylink will use its own default search).
+    Split out from _find_newest_jlink_dll() so the version-picking logic can be
+    tested against a temporary directory tree on any host.
     """
-    import glob
+    if sys.platform == "win32":
+        return (
+            [
+                os.path.join(os.environ.get("ProgramFiles", "C:\\Program Files"), "SEGGER"),
+                os.path.join(os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)"), "SEGGER"),
+            ],
+            "JLink_x64.dll",
+        )
+    if sys.platform == "darwin":
+        return (["/Applications/SEGGER"], "libjlinkarm.dylib")
+    # Linux: SEGGER's .deb/.rpm install in place at an unversioned
+    # /opt/SEGGER/JLink; tarballs are unpacked to a directory the user names,
+    # conventionally carrying the version (JLink_Linux_V794e_x86_64). Both
+    # shapes appear under /opt/SEGGER, often side by side.
+    return (["/opt/SEGGER"], "libjlinkarm.so")
+
+
+def _version_from_dir_name(entry):
+    """Version encoded in an install directory name, or None.
+
+    "JLink_V924a" -> (924, "a"). SEGGER's tarballs unpack to a directory the
+    user names, and SEGGER's own guidance is to keep the version in it
+    ("JLink_Linux_V794e_x86_64"), which is how several versions coexist.
+    """
     import re
 
-    if sys.platform == "win32":
-        search_dirs = [
-            os.path.join(os.environ.get("ProgramFiles", "C:\\Program Files"), "SEGGER"),
-            os.path.join(os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)"), "SEGGER"),
-        ]
-        dll_name = "JLink_x64.dll"
-    elif sys.platform == "darwin":
-        search_dirs = ["/Applications/SEGGER"]
-        dll_name = "libjlinkarm.dylib"
-    else:
-        # Linux — typically a single install, pylink handles it fine
-        return None
+    m = re.search(r"V(\d+)(\w*)", entry)
+    return (int(m.group(1)), m.group(2)) if m else None
 
+
+def _version_from_library_file(dll_path):
+    """Version encoded in the resolved library filename, or None.
+
+    SEGGER's Linux packages install in place at an unversioned /opt/SEGGER/JLink,
+    so the directory name says nothing and the library file is the only place the
+    version appears: libjlinkarm.so resolves through libjlinkarm.so.<major> to
+    libjlinkarm.so.<major>.<minor>.<patch>. Normalized to the same scale as the
+    directory convention, so 7.94 sorts as 794 and compares directly with V794.
+
+    The patch component is deliberately not mapped onto the directory naming's
+    letter suffix (V794a, V794b); no such mapping is documented, so a package
+    install ties with a bare V794 rather than being guessed into an order.
+    """
+    import re
+
+    try:
+        resolved = os.path.basename(os.path.realpath(dll_path))
+    except OSError:
+        return None
+    m = re.search(r"\.so\.(\d+)\.(\d+)", resolved)
+    return (int(m.group(1)) * 100 + int(m.group(2)), "") if m else None
+
+
+def _pick_newest_dll(search_dirs, dll_name):
+    """Return the path to the highest-versioned dll_name under search_dirs.
+
+    The version comes from the install directory name where there is one, and
+    otherwise from the library file itself, so that a package-managed install at
+    an unversioned path still competes rather than being skipped. An entry with
+    no version in either place is not a candidate.
+
+    Returns None if no DLL is found.
+    """
     candidates = []
     for base in search_dirs:
         if not os.path.isdir(base):
             continue
-        for entry in os.listdir(base):
+        try:
+            entries = os.listdir(base)
+        except OSError:
+            # Unreadable install root. Returning no candidate leaves pylink its
+            # own search, which is what happened before this scan existed.
+            continue
+        for entry in entries:
             dll_path = os.path.join(base, entry, dll_name)
-            if os.path.isfile(dll_path):
-                # Extract version from directory name (e.g., "JLink_V924a" → "924a")
-                m = re.search(r"V(\d+)(\w*)", entry)
-                if m:
-                    # Sort by numeric part, then alpha suffix
-                    candidates.append((int(m.group(1)), m.group(2), dll_path))
+            if not os.path.isfile(dll_path):
+                continue
+            version = _version_from_dir_name(entry) or _version_from_library_file(dll_path)
+            if version:
+                candidates.append((version[0], version[1], dll_path))
 
     if not candidates:
         return None
 
-    # Pick the highest version
     candidates.sort(reverse=True)
     return candidates[0][2]
+
+
+def _find_newest_jlink_dll():
+    """Find the newest J-Link DLL on the system.
+
+    pylink defaults to the first DLL it finds, which may be an old version
+    missing support for newer chips (e.g., nRF54L15). On Windows and macOS it
+    takes the first directory match; on Linux it os.walk()s /opt/SEGGER and
+    takes the first hit, so install order rather than version decides. This
+    function scans the SEGGER install directories and returns the newest DLL.
+
+    Returns None if no DLL is found, in which case the caller leaves pylink to
+    its own search. That fallback matters on Linux, where the tarball can be
+    unpacked anywhere (SEGGER's manual offers /usr/local/SEGGER/JLink as an
+    alternative), so an empty /opt/SEGGER is not reason enough to fail.
+    """
+    search_dirs, dll_name = _jlink_search_config()
+    return _pick_newest_dll(search_dirs, dll_name)
 
 
 def _create_jlink():
