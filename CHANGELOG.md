@@ -2,6 +2,11 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [0.6.7] - 2026-09-04
+
+### Fixed
+- **On Linux, LogScope could load an outdated J-Link library even when a newer one was installed.** LogScope picks the newest SEGGER `libjlinkarm` on the system so that recently released chips are recognized, but that version selection only ran on macOS and Windows. On Linux it was skipped, leaving the choice to pylink, which walks `/opt/SEGGER` and takes the first library it happens to find. On a machine with several J-Link versions side by side, install order rather than version number decided which one loaded, and an old library can fail to connect to a newer target. Linux now uses the same newest-version selection as the other platforms, and reads the version off the library file when the install directory name does not carry one, so a package-manager install at `/opt/SEGGER/JLink` is considered alongside versioned tarball directories rather than skipped. Machines with no `/opt/SEGGER` directory at all are unaffected and still fall back to pylink's own search, since the tarball can be unpacked anywhere (SEGGER's manual gives `/usr/local/SEGGER/JLink` as an alternative). Reported by [@aperea-cc](https://github.com/aperea-cc) in [#42](https://github.com/NovelBits/logscope/issues/42).
+
 ## [0.6.6] - 2026-08-02
 
 ### Fixed

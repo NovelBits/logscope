@@ -2,7 +2,7 @@
   "name": "novelbits-logscope",
   "displayName": "LogScope: Live RTT Logging for Nordic, Zephyr, and Bluetooth LE",
   "description": "Live RTT log viewer for Nordic, Zephyr, and J-Link. Bluetooth LE HCI decoding inline, direct-memory recovery, fault auto-detect, and Wireshark btsnoop export.",
-  "version": "0.6.6",
+  "version": "0.6.7",
   "publisher": "novelbits",
   "author": {
     "name": "Novel Bits"
