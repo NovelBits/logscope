@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Novel Bits Documentation</title>
+<meta name="description" content="Documentation for the Novel Bits developer tools: LogScope and PowerScope.">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/novelbits-tokens.css">
+<!--
+  Index for docs.novelbits.io. Each product's docs live under their own path;
+  this page lets the visitor choose between them.
+-->
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-base);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: var(--space-20) var(--space-6) var(--space-16);
+  }
+
+  /* Brand band: the one place the teal carries identity on this page. */
+  .masthead {
+    border-top: 2px solid var(--brand);
+    padding-top: var(--space-5);
+    margin-bottom: var(--space-10);
+  }
+
+  .wordmark {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-wide);
+    text-transform: uppercase;
+    color: var(--fg-muted);
+    margin: 0 0 var(--space-3);
+  }
+
+  h1 {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-tight);
+    letter-spacing: var(--letter-spacing-tight);
+    margin: 0 0 var(--space-2);
+  }
+
+  .lede {
+    margin: 0;
+    max-width: 60ch;
+    color: var(--fg-muted);
+    line-height: var(--line-height-relaxed);
+  }
+
+  .products {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--space-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    height: 100%;
+    padding: var(--space-5);
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    color: inherit;
+    text-decoration: none;
+    transition: background-color var(--motion-fast), border-color var(--motion-fast);
+  }
+
+  .card:hover {
+    background: var(--surface-elevated);
+    border-color: var(--border-strong);
+  }
+
+  .card:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /* A card with no destination yet: no hover affordance. */
+  .card-soon { cursor: default; }
+  .card-soon:hover {
+    background: var(--surface);
+    border-color: var(--border-subtle);
+  }
+
+  .card-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .card-head svg {
+    flex: none;
+    color: var(--fg-muted);
+  }
+
+  .card-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-snug);
+  }
+
+  .badge {
+    margin-left: auto;
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-pill);
+    background: var(--brand-soft);
+    color: var(--brand);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: var(--letter-spacing-wide);
+    text-transform: uppercase;
+  }
+
+  .card-body {
+    margin: 0;
+    color: var(--fg-muted);
+    line-height: var(--line-height-relaxed);
+  }
+
+  .card-meta {
+    margin-top: auto;
+    padding-top: var(--space-2);
+    color: var(--fg-subtle);
+    font-size: var(--font-size-sm);
+  }
+
+  footer {
+    margin-top: var(--space-12);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--border-subtle);
+    color: var(--fg-subtle);
+    font-size: var(--font-size-sm);
+  }
+
+  footer a {
+    color: var(--brand);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+
+  footer a:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card { transition: none; }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <div class="masthead">
+    <p class="wordmark">Novel Bits</p>
+    <h1>Documentation</h1>
+    <p class="lede">Developer tools for Bluetooth LE and embedded firmware work, built by the team behind the Bluetooth Developer Academy.</p>
+  </div>
+
+  <ul class="products">
+    <li>
+      <a class="card" href="/logscope/">
+        <span class="card-head">
+          <!-- Lucide scroll-text -->
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M15 12h-5"/><path d="M15 8h-5"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/>
+            <path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/>
+          </svg>
+          <span class="card-title">LogScope</span>
+        </span>
+        <p class="card-body">Live RTT log viewer for Nordic, Zephyr and J-Link, with Bluetooth LE HCI decoding inline, direct-memory recovery, fault auto-detect and Wireshark btsnoop export.</p>
+        <span class="card-meta">VS Code extension</span>
+      </a>
+    </li>
+    <li>
+      <div class="card card-soon">
+        <span class="card-head">
+          <!-- Lucide activity -->
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/>
+          </svg>
+          <span class="card-title">PowerScope</span>
+          <span class="badge">Coming soon</span>
+        </span>
+        <p class="card-body">Bluetooth LE power analysis in VS Code. It labels every radio window in the current trace and groups them into Bluetooth LE events, each with a measured energy funnel.</p>
+        <span class="card-meta">VS Code extension</span>
+      </div>
+    </li>
+  </ul>
+
+  <footer>
+    <p>More from Novel Bits: <a href="https://novelbits.io">novelbits.io</a> and the <a href="https://novelbits.io/academy/">Bluetooth Developer Academy</a>.</p>
+  </footer>
+</main>
+</body>
+</html>

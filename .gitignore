@@ -10,6 +10,9 @@ build-*/
 .worktrees/
 docs/node_modules/
 docs/dist/
+# Local reproduction of the Vercel buildCommand (astro dist/ copied under a
+# path prefix, plus root/ for the domain index). Build output, never committed.
+docs/dist_final/
 docs/.astro/
 __pycache__/
 # CocoIndex Code (ccc)

@@ -1,0 +1,247 @@
+/* VERBATIM COPY of NovelBits/novelbits-design/novelbits-tokens.css, taken
+ * 2026-09-14 for the docs.novelbits.io index page.
+ *
+ * Copied rather than imported because this page is a static file the Vercel
+ * build drops at the domain root, outside the Astro pipeline that serves
+ * /logscope and /powerscope. If the substrate changes, re-copy this file.
+ */
+/*
+ * Novel Bits Design Tokens
+ * ============================
+ * Single source of truth for color, typography, spacing, radii, motion
+ * across every Novel Bits product surface. Cross-stack: usable in
+ * Vanilla CSS (Electron, VS Code webview, Ghost, Astro), Tailwind v4
+ * via @theme mirror, and inline HTML email (manually inlined values).
+ *
+ * Repo: https://github.com/NovelBits/novelbits-design
+ * Companion: DESIGN.md (brand reference), adapters/*.md (stack notes)
+ * Authoring source: novelbits-brain/docs/research/2026-05-23-blueai-*
+ *
+ * Theme system:
+ *   - :root holds dark-mode values by default (most products are dark-first).
+ *   - :root[data-theme='light'] swaps to light values.
+ *   - Set data-theme via JS at boot based on nativeTheme/prefers-color-scheme
+ *     plus any user override.
+ *
+ * Conventions:
+ *   - Surfaces ladder up from --bg (page) → --surface (panels)
+ *     → --surface-elevated (cards) → --surface-overlay (modals).
+ *   - Foreground ladder: --fg (primary) → --fg-muted (body) → --fg-subtle (hints).
+ *   - Borders are alpha-on-foreground, NOT brand. --border-subtle (8%) for
+ *     chrome dividers, --border-strong (16%) for inputs / panel boundaries.
+ *   - Every semantic accent has a solid (icons/text) + soft (~15% bg) pair.
+ *   - Brand re-tunes per theme (darker for light bg, brighter for dark bg).
+ *   - Focus rings: 2px outline + 2px outline-offset via :focus-visible only.
+ */
+
+:root {
+  /* ── Surfaces (dark default) ───────────────────────────────── */
+  --bg:                #0B0C0D;
+  --surface:           #121315;
+  --surface-elevated:  #181A1D;
+  --surface-overlay:   #1E2024;
+
+  /* ── Foreground (dark default) ─────────────────────────────── */
+  --fg:                #F4F4F6;
+  --fg-muted:          #9C9C9D;
+  --fg-subtle:         #6A6B6C;
+
+  /* ── Borders (alpha-on-foreground) ─────────────────────────── */
+  --border-subtle:     rgba(255, 255, 255, 0.08);
+  --border-strong:     rgba(255, 255, 255, 0.16);
+
+  /* ── Brand (Novel Bits teal) ───────────────────────────────── */
+  /* Original brand value #009CBC fails WCAG AA on white (3.2:1).
+     Re-tuned per theme: darker for light, brighter (Muzli +10-20% sat
+     on dark) for dark. Logo / primary CTA / brand identity moments only. */
+  --brand:             #1FB6D7;
+  --brand-soft:        rgba(31, 182, 215, 0.15);
+  --brand-border:      rgba(31, 182, 215, 0.35);
+
+  /* ── Semantic state accents ────────────────────────────────── */
+  /* Each pairs a solid color (icons, text) with a 15%-alpha soft fill
+     (backgrounds). Solid + soft keeps a 4-accent palette from feeling
+     loud (Raycast pattern). */
+  --success:           #59D499;
+  --success-soft:      rgba(89, 212, 153, 0.15);
+  --warning:           #FFC533;
+  --warning-soft:      rgba(255, 197, 51, 0.15);
+  --danger:            #FF6161;
+  --danger-soft:       rgba(255, 97, 97, 0.15);
+  /* Info = streaming / in-progress states. Steel-blue picked to be
+     visually distinct from brand teal so a "still working" indicator
+     doesn't read as "primary action." */
+  --info:              #7C9CFF;
+  --info-soft:         rgba(124, 156, 255, 0.15);
+
+  /* ── Citation accent (separate semantic class) ─────────────── */
+  /* Violet so academic-style references ([1], [2], source cards)
+     don't compete with the brand teal for color attention. */
+  --citation:          #A78BFA;
+  --citation-soft:     rgba(167, 139, 250, 0.15);
+
+  /* ── Focus ring (brand-tinted) ─────────────────────────────── */
+  --ring:              rgba(31, 182, 215, 0.60);
+
+  /* ── Code surface (HCI dumps, inline mono) ─────────────────── */
+  --code-bg:           #0E1014;
+
+  /* ── Radii ─────────────────────────────────────────────────── */
+  /* shadcn-converged 4 / 6 / 8 / 10 / 16 ladder, plus pill (9999) for
+     status badges. Components default to --radius-md (6px). */
+  --radius-xs:         2px;
+  --radius-sm:         4px;
+  --radius-md:         6px;
+  --radius-lg:         8px;
+  --radius-xl:         10px;
+  --radius-2xl:        16px;
+  --radius-pill:       9999px;
+
+  /* ── Motion ────────────────────────────────────────────────── */
+  /* Three durations / two easings is enough. Hover/focus uses fast,
+     small state changes use base, panel show/hide uses slow.
+     Apple HIG + Material Motion converged on these ranges. */
+  --motion-fast:       120ms ease-out;
+  --motion-base:       200ms ease-out;
+  --motion-slow:       300ms ease-in-out;
+
+  /* ── Spacing scale (8px base, 4px tight) ───────────────────── */
+  /* Use these instead of arbitrary pixel values. */
+  --space-0:           0;
+  --space-px:          1px;
+  --space-0-5:         2px;
+  --space-1:           4px;
+  --space-1-5:         6px;
+  --space-2:           8px;
+  --space-3:           12px;
+  --space-4:           16px;
+  --space-5:           20px;
+  --space-6:           24px;
+  --space-8:           32px;
+  --space-10:          40px;
+  --space-12:          48px;
+  --space-16:          64px;
+  --space-20:          80px;
+  --space-24:          96px;
+
+  /* ── Typography ────────────────────────────────────────────── */
+  /* System-native stack — makes Electron / VS Code webview / Ghost /
+     Astro all read as "native to the OS" rather than webby.
+     ui-sans-serif / system-ui resolve to SF Pro on macOS, Segoe UI
+     on Windows, the platform default on Linux. */
+  --font-sans:         ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-mono:         ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  --font-size-xs:      11px;
+  --font-size-sm:      12px;
+  --font-size-base:    14px;  /* dev-tool body baseline */
+  --font-size-md:      15px;
+  --font-size-lg:      16px;
+  --font-size-xl:      18px;
+  --font-size-2xl:     20px;
+  --font-size-3xl:     24px;
+
+  --font-weight-normal:  400;
+  --font-weight-medium:  500;
+  --font-weight-semibold: 600; /* prefer 600 over 700 for body bold at 14px */
+  --font-weight-bold:    700;
+
+  --line-height-tight: 1.3;
+  --line-height-snug:  1.4;
+  --line-height-base:  1.5;
+  --line-height-relaxed: 1.6;
+
+  --letter-spacing-tight: -0.01em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.04em;
+
+  /* ── Elevation (shadows) ───────────────────────────────────── */
+  /* Use sparingly. Dark mode elevates via lightness (the surface
+     ladder above) more than via shadows. Reserve shadows for popovers
+     + modals where the depth signal needs to be explicit. */
+  --elevation-sm: 0 1px 2px rgba(0, 0, 0, 0.15);
+  --elevation-md: 0 4px 12px rgba(0, 0, 0, 0.25);
+  --elevation-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --elevation-overlay: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Light theme (data-theme='light') ──────────────────────────
+   Override the dark defaults above. Set
+   document.documentElement.dataset.theme = 'light' from JS based on
+   nativeTheme.shouldUseDarkColors or a user preference. */
+:root[data-theme='light'] {
+  --bg:                #FAFAFA;
+  --surface:           #F5F5F7;
+  --surface-elevated:  #FFFFFF;
+  --surface-overlay:   #FFFFFF;
+
+  --fg:                #0A0A0B;
+  --fg-muted:          #52525B;
+  --fg-subtle:         #A1A1AA;
+
+  --border-subtle:     rgba(0, 0, 0, 0.08);
+  --border-strong:     rgba(0, 0, 0, 0.16);
+
+  /* Brand re-tunes darker for light bg (WCAG AA on white). */
+  --brand:             #0E7C99;
+  --brand-soft:        rgba(14, 124, 153, 0.10);
+  --brand-border:      rgba(14, 124, 153, 0.30);
+
+  /* Semantic accents re-tune darker (higher chroma) for light bg
+     contrast — Muzli pattern inverse. */
+  --success:           #15803D;
+  --success-soft:      rgba(21, 128, 61, 0.10);
+  --warning:           #A16207;
+  --warning-soft:      rgba(161, 98, 7, 0.10);
+  --danger:            #B91C1C;
+  --danger-soft:       rgba(185, 28, 28, 0.10);
+  --info:              #3F5AB7;
+  --info-soft:         rgba(63, 90, 183, 0.10);
+
+  --citation:          #7C3AED;
+  --citation-soft:     rgba(124, 58, 237, 0.10);
+
+  --ring:              rgba(14, 124, 153, 0.60);
+
+  --code-bg:           #F4F4F5;
+
+  /* Light-mode shadows lift more (dark bg can rely on lightness
+     elevation; light bg needs the shadow to register). */
+  --elevation-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --elevation-md: 0 4px 12px rgba(0, 0, 0, 0.10);
+  --elevation-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --elevation-overlay: 0 16px 40px rgba(0, 0, 0, 0.16);
+}
+
+/* ── prefers-color-scheme fallback ────────────────────────────
+   When no JS has set data-theme yet, follow the OS. Once JS boots
+   and sets data-theme explicitly, that wins (handled by selector
+   specificity above). */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --bg:                #FAFAFA;
+    --surface:           #F5F5F7;
+    --surface-elevated:  #FFFFFF;
+    --surface-overlay:   #FFFFFF;
+    --fg:                #0A0A0B;
+    --fg-muted:          #52525B;
+    --fg-subtle:         #A1A1AA;
+    --border-subtle:     rgba(0, 0, 0, 0.08);
+    --border-strong:     rgba(0, 0, 0, 0.16);
+    --brand:             #0E7C99;
+    --brand-soft:        rgba(14, 124, 153, 0.10);
+    --brand-border:      rgba(14, 124, 153, 0.30);
+    --success:           #15803D;
+    --success-soft:      rgba(21, 128, 61, 0.10);
+    --warning:           #A16207;
+    --warning-soft:      rgba(161, 98, 7, 0.10);
+    --danger:            #B91C1C;
+    --danger-soft:       rgba(185, 28, 28, 0.10);
+    --info:              #3F5AB7;
+    --info-soft:         rgba(63, 90, 183, 0.10);
+    --citation:          #7C3AED;
+    --citation-soft:     rgba(124, 58, 237, 0.10);
+    --ring:              rgba(14, 124, 153, 0.60);
+    --code-bg:           #F4F4F5;
+  }
+}
