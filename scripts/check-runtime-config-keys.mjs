@@ -109,6 +109,23 @@ function readKeysFromFile(filePath) {
   }
   collectGets(sf);
 
+  // Third pass: machine-state keys (src/settings-scope.ts). MachineStateStore
+  // reads each of them from the configuration as the fallback when no state
+  // is stored (`settings.get(key, fallback)` with a variable key), so the
+  // literal-key scan above cannot see those reads. Count every string in a
+  // `MACHINE_STATE_KEYS = [...]` (optionally `as const`) array as read.
+  function collectMachineStateKeys(node) {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === "MACHINE_STATE_KEYS" && node.initializer) {
+      let init = node.initializer;
+      while (ts.isAsExpression(init) || ts.isParenthesizedExpression(init)) init = init.expression;
+      if (ts.isArrayLiteralExpression(init)) {
+        for (const el of init.elements) if (ts.isStringLiteral(el)) keys.add(el.text);
+      }
+    }
+    ts.forEachChild(node, collectMachineStateKeys);
+  }
+  collectMachineStateKeys(sf);
+
   return keys;
 }
 
