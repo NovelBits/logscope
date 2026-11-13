@@ -4,19 +4,24 @@ Ready-to-flash firmware binaries for testing LogScope. No build environment need
 
 ## Flash Commands
 
+`<SN>` is the J-Link serial number (`nrfutil device list`). nrfutil-device 2.17.5 has no `--verify` or `--reset` flags: verify is a program option, and the board is reset with a separate command.
+
 **nRF54L15 DK (BLE HCI demo):**
 ```bash
-nrfutil device program --firmware samples/prebuilt/nrf54l15dk-ble-hci-demo.hex --verify --reset
+nrfutil device program --firmware samples/prebuilt/nrf54l15dk-ble-hci-demo.hex --options verify=VERIFY_READ --serial-number <SN>
+nrfutil device reset --serial-number <SN>
 ```
 
 **nRF54L15 DK (generic demo):**
 ```bash
-nrfutil device program --firmware samples/prebuilt/nrf54l15dk-generic-demo.hex --verify --reset
+nrfutil device program --firmware samples/prebuilt/nrf54l15dk-generic-demo.hex --options verify=VERIFY_READ --serial-number <SN>
+nrfutil device reset --serial-number <SN>
 ```
 
 **nRF52840 DK (generic demo):**
 ```bash
-nrfutil device program --firmware samples/prebuilt/nrf52840dk-generic-demo.hex --verify --reset
+nrfutil device program --firmware samples/prebuilt/nrf52840dk-generic-demo.hex --options verify=VERIFY_READ --serial-number <SN>
+nrfutil device reset --serial-number <SN>
 ```
 
 **FRDM-MCXN947 (generic demo, via JLinkExe):**
