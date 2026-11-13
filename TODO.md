@@ -4,6 +4,19 @@ Running list of deferred work — items that are well-understood and ready to pi
 
 ## Transport / RTT
 
+### A SEGGER dialog during probe open makes the RTT connect fail after 15 s
+
+**Origin:** hardware test for #54 (2026-11-13), nRF54L15-DK, J-Link DLL V9.82. On the first RTT connect, the DLL showed its "new firmware available, update?" dialog inside `jlink.open()`. The helper waited on the dialog, `nrfutil-rtt.ts` hit its 15 s connect timeout (`src/transport/nrfutil-rtt.ts`, "RTT helper timed out connecting to device"), and both retries failed with `JLinkException: J-Link is already open.` The user sees "Connection error" with no hint that a dialog is waiting.
+
+**Why:** `_open_jlink()` can only call `disable_dialog_boxes()` after `open()`, and the firmware dialog appears during `open()`. On timeout, `proc.kill()` sends SIGTERM, which Python cannot handle while blocked in the DLL call, so the old helper probably keeps the probe open and the retries collide with it (not yet confirmed).
+
+**Suggested fix:**
+- Have the helper print a marker after `open()` returns. If the open stage takes more than about 5 s, show "Waiting for J-Link. If a SEGGER dialog is open (for example a firmware update), answer it." and allow about 2 minutes for that stage instead of 15 s.
+- On timeout, SIGKILL the helper if it has not exited about 1 s after SIGTERM, before any retry.
+- Do not update probe firmware silently (`SilentUpdateFW`): it changes the user's probe without asking.
+
+**To reproduce:** needs a J-Link OB with older firmware than the installed J-Link DLL offers. The probe on SN 1057785362 was updated during the test; SN 1057745634 likely still has the older firmware.
+
 ### CPUID fallback should hint at setting `logscope.jlink.device` when it can't resolve a chip-specific name
 
 **Origin:** GitHub issue #23 (pfvogel, 2026-05-13). User on Ubuntu VM connecting to a custom nRF54L15 board hit `JLinkReadException: Unspecified error` on the very first `memory_read` of the RTT magic scan in `session.attach()`. Root cause: `nrfutil` was not installed in his VM, so `detect_device()` returned `None, None` and the auto-resolution fell through to the CPUID-based fallback in `main()`. The CPUID fallback only identifies the ARM core (`Cortex-M33`), not the specific chip. libjlinkarm with the generic `Cortex-M33` device profile has no chip-specific memory map, and on this hardware it refuses memory reads from `0x20000000` (the standard ARM SRAM base) with "Unspecified error."
