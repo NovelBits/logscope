@@ -15,7 +15,7 @@ Running list of deferred work — items that are well-understood and ready to pi
 - On timeout, SIGKILL the helper if it has not exited about 1 s after SIGTERM, before any retry.
 - Do not update probe firmware silently (`SilentUpdateFW`): it changes the user's probe without asking.
 
-**To reproduce:** needs a J-Link OB with older firmware than the installed J-Link DLL offers. The probe on SN 1057785362 was updated during the test; SN 1057745634 likely still has the older firmware.
+**To reproduce:** needs a J-Link OB with older firmware than the installed J-Link DLL offers (the dialog stops appearing once a probe is updated).
 
 ### CPUID fallback should hint at setting `logscope.jlink.device` when it can't resolve a chip-specific name
 

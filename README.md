@@ -163,7 +163,7 @@ Change the parser via **Change Settings → Parser** in the sidebar, or `Ctrl+Sh
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `logscope.parser` | `zephyr` | Log parser: `zephyr`, `nrf5`, or `raw` |
-| `logscope.transport` | `rtt` | Transport: `rtt` or `uart` |
+| `logscope.transport` | `rtt` | Default transport: `rtt` or `uart`. LogScope remembers your last choice per workspace without writing it to `settings.json` |
 | `logscope.uart.baudRate` | `115200` | Serial baud rate for UART transport |
 | `logscope.jlink.device` | `Cortex-M33` | J-Link target device name |
 | `logscope.rtt.pollInterval` | `50` | RTT poll interval in ms |

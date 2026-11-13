@@ -11,6 +11,9 @@ For installation and getting started, see [Installation](/logscope/getting-start
 
 <!-- RELEASES-LIST-START -->
 
+- **[v0.6.8](/logscope/releases/v-0-6-8/)** &mdash; 2026-11-13 &mdash; LogScope no longer writes to your workspace `.vscode/settings.json`
+- **[v0.6.7](/logscope/releases/v-0-6-7/)** &mdash; 2026-09-04 &mdash; On Linux, LogScope could load an outdated J-Link library even when a newer one was installed
+- **[v0.6.6](/logscope/releases/v-0-6-6/)** &mdash; 2026-08-02 &mdash; The device picker could hang on "Scanning..." forever on a first run
 - **[v0.6.5](/logscope/releases/v-0-6-5/)** &mdash; 2026-05-16 &mdash; Marketplace listing optimization
 - **[v0.6.4](/logscope/releases/v-0-6-4/)** &mdash; 2026-05-13 &mdash; Duplicate "Device Reset Detected" banner
 - **[v0.6.3](/logscope/releases/v-0-6-3/)** &mdash; 2026-05-13 &mdash; Column auto-fit (double-click the resize handle) now correctly fits the Module column too. v0.6.2's fix used `cell.scrollWidth`, which equal

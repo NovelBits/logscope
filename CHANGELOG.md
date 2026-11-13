@@ -2,7 +2,7 @@
 
 All notable changes to LogScope will be documented in this file.
 
-## [Unreleased]
+## [0.6.8] - 2026-11-13
 
 ### Fixed
 - **LogScope no longer writes to your workspace `.vscode/settings.json`.** Connecting to a board, picking a serial port, switching transport or parser, or resizing a column used to write `logscope.*` keys into the workspace settings whenever a folder was open. That file is often under version control, so ordinary use of LogScope showed up as changes in `git status`. LogScope now keeps what it remembers in two places:
