@@ -2,6 +2,15 @@
 
 All notable changes to LogScope will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- **LogScope no longer writes to your workspace `.vscode/settings.json`.** Connecting to a board, picking a serial port, switching transport or parser, or resizing a column used to write `logscope.*` keys into the workspace settings whenever a folder was open. That file is often under version control, so ordinary use of LogScope showed up as changes in `git status`. LogScope now keeps what it remembers in two places:
+  - **Last device, last serial port, transport and column widths** describe your machine, not the project. They are now stored per workspace in LogScope's own extension state, which git never sees. The matching settings still work as optional defaults: LogScope uses one until you make a choice in the UI, a change you make to the setting replaces what LogScope remembered, and a team can commit `logscope.transport` as the default for a fresh checkout.
+  - **Parser, watch patterns, UART framing, J-Link device overrides and line wrap** stay settings. A change from the LogScope UI is saved where the setting is already defined, so a team that commits `logscope.parser` keeps it in the workspace. A setting defined nowhere is written to your user settings.
+
+  Values that 0.6.7 and earlier wrote to `.vscode/settings.json` keep working, so you do not lose your remembered device on upgrade. You can delete those lines; LogScope will not write them back. Reported by [@chfasc2](https://github.com/chfasc2) in [#54](https://github.com/NovelBits/logscope/issues/54).
+
 ## [0.6.7] - 2026-09-04
 
 ### Fixed

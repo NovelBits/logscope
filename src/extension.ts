@@ -23,6 +23,7 @@ import type { WatchPatternConfig } from "./watch-matcher";
 import { LicenseManager } from "./license/license-manager";
 import { registerLicenseCommands, guardProFeature } from "./license/license-ui";
 import { initLogger, log, logError } from "./logger";
+import { MACHINE_STATE_KEYS, MachineStateStore, chooseWriteScope, isMachineStateKey } from "./settings-scope";
 
 // ── Module-level state ──────────────────────────────────────────
 let transport: Transport | null = null;
@@ -48,6 +49,8 @@ let lastDiscoveryErrorCode: string | undefined;
 let hciPacketCount = 0;
 let errorCount = 0;
 let licenseManager: LicenseManager;
+/** Last device, last port, transport and column widths. Kept out of settings.json (#54). Set in activate(). */
+let machineState: MachineStateStore;
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -64,17 +67,28 @@ function getConfig() {
     rttLegacyMode: cfg.get<boolean>("rtt.legacyMode", false),
     logWrap: cfg.get<boolean>("logWrap", false),
     timeFormat: cfg.get<string>("timeFormat", "24h"),
-    columnWidths: cfg.get<Record<string, number>>("columnWidths", {}),
+    columnWidths: machineState.get<Record<string, number>>("columnWidths", {}),
   };
 }
 
-/** Save a logscope setting — uses workspace scope when a folder is open, global otherwise. */
+/**
+ * Persist a value LogScope remembers (#54). Machine state goes to extension
+ * state, never to settings.json. A user choice is written at the scope that
+ * already defines it (so a committed workspace value is kept), else to the user
+ * settings. LogScope never adds a key to `.vscode/settings.json` on its own.
+ */
 async function saveSetting(key: string, value: unknown): Promise<void> {
+  if (isMachineStateKey(key)) {
+    await machineState.set(key, value);
+    return;
+  }
   const cfg = vscode.workspace.getConfiguration("logscope");
-  const target = vscode.workspace.workspaceFolders
-    ? vscode.ConfigurationTarget.Workspace
-    : vscode.ConfigurationTarget.Global;
-  await cfg.update(key, value, target);
+  const scope = chooseWriteScope(cfg.inspect(key), !!vscode.workspace.workspaceFolders);
+  await cfg.update(
+    key,
+    value,
+    scope === "workspace" ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Global,
+  );
 }
 
 let freePatternNotificationShown = false;
@@ -1570,6 +1584,14 @@ async function doExport(): Promise<void> {
 // ── Activation ──────────────────────────────────────────────────
 
 export function activate(context: vscode.ExtensionContext) {
+  // Per-workspace state when a folder is open; global state in an empty window,
+  // where workspaceState does not survive a restart.
+  machineState = new MachineStateStore(
+    () => (vscode.workspace.workspaceFolders ? context.workspaceState : context.globalState),
+    () => vscode.workspace.getConfiguration("logscope"),
+  );
+  machineState.noteSettings();
+
   const outputChannel = vscode.window.createOutputChannel("LogScope");
   context.subscriptions.push(outputChannel);
   initLogger(outputChannel);
@@ -1588,7 +1610,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Initialize sidebar state from settings (sets context keys)
-  sidebarProvider.initFromSettings();
+  sidebarProvider.initFromSettings(machineState);
 
   loadWatchPatterns();
 
@@ -1605,6 +1627,22 @@ export function activate(context: vscode.ExtensionContext) {
       if (e.affectsConfiguration("logscope.timeFormat") || e.affectsConfiguration("logscope.logWrap")) {
         const cfg = getConfig();
         panel?.sendInit(cfg.logWrap, cfg.timeFormat);
+      }
+      // LogScope no longer writes these four settings (#54), so a change here
+      // came from the user or a pulled commit: let it win over the remembered
+      // value. Refresh the sidebar so the next connect uses it; never while a
+      // session is live, because the sidebar holds the connected device.
+      const changedKeys = MACHINE_STATE_KEYS.filter(key => e.affectsConfiguration(`logscope.${key}`));
+      if (changedKeys.length > 0) {
+        void (async () => {
+          let adopted = false;
+          for (const key of changedKeys) {
+            if (await machineState.adoptSetting(key)) adopted = true;
+          }
+          if (adopted && !sidebarProvider.isConnected && !sidebarProvider.isConnecting) {
+            sidebarProvider.initFromSettings(machineState);
+          }
+        })();
       }
     }),
   );

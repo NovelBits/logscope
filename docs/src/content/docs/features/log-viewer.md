@@ -24,11 +24,11 @@ The filter bar has toggle buttons for column visibility:
 
 ## Resizable Columns
 
-Drag the right edge of any column header to resize it. Your widths are persisted across panel closes and VS Code restarts via the [`logscope.columnWidths`](/logscope/reference/settings/) setting (set automatically; you do not need to edit it by hand).
+Drag the right edge of any column header to resize it. LogScope remembers your widths per workspace across panel closes and VS Code restarts. It stores them in its own extension state, not in `settings.json`, so resizing a column never changes a version-controlled file.
 
 **Double-click a column edge** to auto-fit the column to the widest visible content in the current view. Useful after applying a filter, or whenever a long module name or message is being clipped.
 
-To reset all column widths back to defaults, clear the `logscope.columnWidths` entry from your `settings.json`.
+To reset column widths, right-click a column header and choose **Reset column width** or **Reset all columns**.
 
 ## Line Wrapping
 

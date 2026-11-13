@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import type { MachineStateStore } from "../settings-scope";
 
 export interface SidebarState {
   connected: boolean;
@@ -63,10 +64,10 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
 
   set version(v: string) { this._version = v; }
 
-  /** Initialize state from VS Code settings and set context keys */
-  initFromSettings(): void {
+  /** Initialize state from VS Code settings and remembered machine state, and set context keys */
+  initFromSettings(machineState: MachineStateStore): void {
     const cfg = vscode.workspace.getConfiguration("logscope");
-    this.state.transport = cfg.get<string>("transport", "rtt") === "uart" ? "uart" : "rtt";
+    this.state.transport = machineState.get<string>("transport", "rtt") === "uart" ? "uart" : "rtt";
     this.state.baudRate = cfg.get<number>("uart.baudRate", 115200);
     this.state.autoConnect = cfg.get<boolean>("autoConnect", false);
     const parserVal = cfg.get<string>("parser", "zephyr");
@@ -74,11 +75,11 @@ export class LogScopeSidebarProvider implements vscode.TreeDataProvider<SidebarI
 
     // Restore last device
     if (this.state.transport === "uart") {
-      const lastPort = cfg.get<string>("uart.lastPort", "");
+      const lastPort = machineState.get<string>("uart.lastPort", "");
       this.state.selectedDevice = lastPort;
       this.state.selectedDeviceLabel = lastPort || "";
     } else {
-      const lastDevice = cfg.get<string>("lastDevice", "");
+      const lastDevice = machineState.get<string>("lastDevice", "");
       this.state.selectedDevice = lastDevice;
       this.state.selectedDeviceLabel = lastDevice ? `SN: ${lastDevice}` : "";
     }

@@ -5,13 +5,22 @@ description: Complete reference for all LogScope VS Code settings including RTT,
 
 All settings are prefixed with `logscope.` and can be set in VS Code's `settings.json` or through the Settings UI.
 
+## Where LogScope saves your choices
+
+LogScope never adds a key to your workspace `.vscode/settings.json` on its own, so connecting to a board or switching parsers does not change a version-controlled file.
+
+- **Last device, last serial port, transport and column widths** are remembered per workspace in LogScope's own extension state, not in `settings.json`. The matching settings (`logscope.lastDevice`, `logscope.uart.lastPort`, `logscope.transport`, `logscope.columnWidths`) are optional defaults: LogScope uses one until you make a choice in the UI, and a change you make to the setting replaces what LogScope remembered. A team can commit `logscope.transport` as the default for a fresh checkout.
+- **Everything else you change from the LogScope UI** (parser, watch patterns, UART framing, J-Link device overrides, line wrap) is saved where that setting is already defined. If your workspace `settings.json` already defines it, LogScope updates it there. Otherwise LogScope writes it to your user settings.
+
+Upgrading from 0.6.7 or earlier: the values older versions wrote to `.vscode/settings.json` keep working as defaults. You can delete those lines; LogScope will not write them back.
+
 ## Connection Settings
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `logscope.transport` | `"rtt"` \| `"uart"` | `"rtt"` | Transport mode for reading log data |
+| `logscope.transport` | `"rtt"` \| `"uart"` | `"rtt"` | Default transport. LogScope remembers your last choice per workspace (see below) |
 | `logscope.autoConnect` | boolean | `false` | Automatically [connect](/logscope/getting-started/connecting/) to the last-used device on startup |
-| `logscope.lastDevice` | string | `""` | Last connected device serial number (set automatically) |
+| `logscope.lastDevice` | string | `""` | Optional default J-Link serial number for auto-connect (see below) |
 | `logscope.parser` | `"zephyr"` \| `"nrf5"` \| `"raw"` | `"zephyr"` | Log format parser |
 
 ## RTT Settings
@@ -35,7 +44,7 @@ All settings are prefixed with `logscope.` and can be set in VS Code's `settings
 | `logscope.uart.dataBits` | number | `8` | Data bits per UART frame. Supported: 5, 6, 7, 8. Most modern firmware uses 8. |
 | `logscope.uart.stopBits` | string | `"1"` | Stop bits per UART frame. Supported: `"1"`, `"1.5"`, `"2"`. Most modern firmware uses 1. |
 | `logscope.uart.parity` | string | `"none"` | UART parity. Supported: `"none"`, `"odd"`, `"even"`, `"mark"`, `"space"`. `"none"` is the most common. |
-| `logscope.uart.lastPort` | string | `""` | Last used serial port (set automatically) |
+| `logscope.uart.lastPort` | string | `""` | Optional default serial port for auto-connect (see below) |
 
 The data bits / stop bits / parity settings can also be changed from the **LogScope: Change Settings** command (sidebar gear icon → Change Settings) once you're connected via UART.
 
@@ -46,7 +55,7 @@ The data bits / stop bits / parity settings can also be changed from the **LogSc
 | `logscope.logWrap` | boolean | `false` | Wrap long log messages |
 | `logscope.timeFormat` | `"24h"` \| `"12h"` | `"24h"` | Time format for the Local Time column |
 | `logscope.maxEntries` | number | `100000` | Maximum log entries to keep in memory |
-| `logscope.columnWidths` | object | `{}` | Persisted log-viewer column widths in pixels (keys: `time`, `ts`, `sev`, `mod`). Set automatically when you drag a column edge or double-click a column edge to auto-fit. |
+| `logscope.columnWidths` | object | `{}` | Optional default log-viewer column widths in pixels (keys: `time`, `ts`, `sev`, `mod`). LogScope remembers your resized widths per workspace (see below). |
 
 ## Watch Patterns
 

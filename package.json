@@ -239,7 +239,7 @@
             "J-Link RTT via pylink (recommended — works with any J-Link device)",
             "Serial UART (CDC ACM or USB-to-UART bridge)"
           ],
-          "description": "Transport mode for reading log data."
+          "description": "Default transport for reading log data. LogScope remembers your last choice per workspace without writing it here; a change to this setting replaces the remembered choice."
         },
         "logscope.rtt.pollInterval": {
           "type": "number",
@@ -280,7 +280,7 @@
         "logscope.uart.lastPort": {
           "type": "string",
           "default": "",
-          "description": "Last used serial port path (used for auto-connect). Set automatically."
+          "description": "Optional default serial port for auto-connect. LogScope remembers the last used port per workspace without writing it here; a change to this setting replaces the remembered port."
         },
         "logscope.uart.dataBits": {
           "type": "number",
@@ -328,12 +328,12 @@
         "logscope.lastDevice": {
           "type": "string",
           "default": "",
-          "description": "Last connected device (used for auto-connect). Set automatically."
+          "description": "Optional default J-Link serial number for auto-connect. LogScope remembers the last connected device per workspace without writing it here; a change to this setting replaces the remembered device."
         },
         "logscope.columnWidths": {
           "type": "object",
           "default": {},
-          "description": "Persisted log-viewer column widths in pixels (keys: time, ts, sev, mod). Set automatically when columns are resized.",
+          "description": "Optional default log-viewer column widths in pixels (keys: time, ts, sev, mod). LogScope remembers your resized widths per workspace without writing them here; right-click a column header to reset them.",
           "additionalProperties": {
             "type": "number"
           }
@@ -440,6 +440,7 @@
     "watch": "node esbuild.config.mjs --watch",
     "test": "jest",
     "test:python": "python3 -m pytest test/python -v",
+    "test:integration": "npm run build && node test-integration/run.mjs",
     "package": "npx @vscode/vsce package",
     "install-ext": "npx @vscode/vsce package && code --install-extension novelbits-logscope-*.vsix",
     "publish": "npx @vscode/vsce publish",
@@ -468,6 +469,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^25.5.0",
     "@types/vscode": "^1.107.0",
+    "@vscode/test-electron": "^3.1.0",
     "esbuild": "^0.28.1",
     "jest": "^30.3.0",
     "ts-jest": "^29.4.6",
